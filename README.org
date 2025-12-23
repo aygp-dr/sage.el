@@ -1,0 +1,182 @@
+#+TITLE: gemini-repl.el - AI REPL with Tool Calling for Emacs
+#+AUTHOR: Jason Walsh
+#+EMAIL: j@wal.sh
+
+* Overview
+
+=gemini-repl= is an Emacs package providing an interactive AI REPL with tool/function calling capabilities. It supports multiple LLM providers (Gemini, Ollama, OpenAI) and includes built-in tools for file operations, code search, and git commands.
+
+This is the Elisp version of [[https://github.com/aygp-dr/gemini-repl-009][gemini-repl-009]] (Rust implementation).
+
+* Features
+
+- *Multi-provider support*: Google Gemini, Ollama (local), OpenAI
+- *Tool/function calling*: AI can use tools to interact with your system
+- *Permission system*: Configurable prompts for dangerous operations
+- *Built-in tools*:
+  - File operations (read, write, list)
+  - Git integration (status, diff, log, blame)
+  - Code search via ripgrep
+- *Session persistence*: Save and restore conversations
+- *Project-aware*: Workspace-scoped file operations
+
+* Installation
+
+** Prerequisites
+
+- Emacs 28.1+
+- =request.el= package (for HTTP)
+- =ripgrep= (optional, for code search)
+
+** Manual Installation
+
+#+begin_src bash
+git clone https://github.com/aygp-dr/gemini-repl-010 ~/.emacs.d/site-lisp/gemini-repl
+#+end_src
+
+#+begin_src elisp
+(add-to-list 'load-path "~/.emacs.d/site-lisp/gemini-repl")
+(require 'gemini-repl)
+#+end_src
+
+** use-package
+
+#+begin_src elisp
+(use-package gemini-repl
+  :load-path "~/.emacs.d/site-lisp/gemini-repl"
+  :config
+  (setq gemini-repl-api-key (getenv "GEMINI_API_KEY"))
+  (setq gemini-repl-provider 'gemini))
+#+end_src
+
+* Configuration
+
+** API Keys
+
+#+begin_src elisp
+;; For Gemini (or set GEMINI_API_KEY env var)
+(setq gemini-repl-api-key "your-api-key")
+
+;; For OpenAI (or set OPENAI_API_KEY env var)
+(setq gemini-repl-openai-api-key "your-api-key")
+
+;; For Ollama (no key needed, just ensure server is running)
+(setq gemini-repl-ollama-host "http://localhost:11434")
+#+end_src
+
+** Provider Selection
+
+#+begin_src elisp
+;; Options: 'gemini, 'ollama, 'openai
+(setq gemini-repl-provider 'gemini)
+
+;; Model override (optional)
+(setq gemini-repl-model "gemini-2.0-flash-exp")
+#+end_src
+
+** Permission Settings
+
+#+begin_src elisp
+;; Skip all permission checks (dangerous!)
+(setq gemini-repl-yolo-mode nil)
+
+;; Require confirmation even for read-only tools
+(setq gemini-repl-confirm-safe-tools nil)
+
+;; Maximum tool iterations per request
+(setq gemini-repl-max-tool-iterations 10)
+#+end_src
+
+** Workspace
+
+#+begin_src elisp
+;; Set workspace for file operations (defaults to current directory)
+(setq gemini-repl-workspace "/path/to/project")
+#+end_src
+
+* Usage
+
+** Starting the REPL
+
+#+begin_src
+M-x gemini-repl
+#+end_src
+
+Type your message at the =>=  prompt and press =RET= to send.
+
+** Key Bindings
+
+| Key       | Command                | Description           |
+|-----------+------------------------+-----------------------|
+| =RET=     | gemini-repl-send-input | Send message          |
+| =C-c C-k= | gemini-repl-clear      | Clear conversation    |
+| =C-c C-c= | gemini-repl-interrupt  | Interrupt request     |
+
+** Commands
+
+- =M-x gemini-repl= - Start interactive REPL
+- =M-x gemini-repl-exec= - Single-shot prompt execution
+- =M-x gemini-repl-send-region= - Send selected region to AI
+
+* Built-in Tools
+
+| Tool        | Description                      | Safe? |
+|-------------+----------------------------------+-------|
+| read_file   | Read file contents               | Yes   |
+| list_files  | List files in directory          | Yes   |
+| write_file  | Write content to file            | No    |
+| git_status  | Get git status                   | Yes   |
+| git_diff    | Get git diff                     | Yes   |
+| git_log     | Get git log                      | Yes   |
+| code_search | Search code with ripgrep         | Yes   |
+| glob_files  | Find files matching glob pattern | Yes   |
+
+* Custom Tools
+
+Register custom tools:
+
+#+begin_src elisp
+(gemini-repl-register-tool
+ "my_tool"
+ "Description of what the tool does"
+ '((type . "object")
+   (properties . ((arg1 . ((type . "string")
+                          (description . "First argument")))))
+   (required . ["arg1"]))
+ (lambda (args)
+   (let ((arg1 (alist-get 'arg1 args)))
+     (format "Result for %s" arg1))))
+#+end_src
+
+* Security
+
+The package includes several security measures:
+
+1. *Path validation*: File operations are restricted to the workspace
+2. *Traversal protection*: =..= paths are rejected
+3. *Sensitive file blocking*: =.env=, =.git/=, =.ssh/= are protected
+4. *Permission prompts*: Dangerous operations require confirmation
+
+* Comparison with Other Tools
+
+| Feature          | gemini-repl.el | Claude Code | Efrit | Aider |
+|------------------+----------------+-------------+-------+-------|
+| Emacs native     | Yes            | No          | Yes   | No    |
+| Multi-provider   | Yes            | No          | No    | Yes   |
+| Tool calling     | Yes            | Yes         | Yes   | Yes   |
+| Local inference  | Yes (Ollama)   | No          | No    | Yes   |
+| Permission system| Yes            | Yes         | Yes   | Yes   |
+
+* Contributing
+
+Contributions welcome! Please see the GitHub repository for issues and pull requests.
+
+* License
+
+GPL-3.0 (to be compatible with Emacs)
+
+* See Also
+
+- [[https://github.com/aygp-dr/gemini-repl-009][gemini-repl-009]] - Rust implementation
+- [[https://github.com/steveyegge/efrit][Efrit]] - AI-Powered Emacs Coding Assistant
+- [[https://aider.chat][Aider]] - AI Pair Programming

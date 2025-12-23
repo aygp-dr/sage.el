@@ -1,0 +1,25 @@
+# Compiled Elisp
+*.elc
+
+# Cask
+.cask/
+
+# Generated package files
+gemini-repl-pkg.el
+gemini-repl-autoloads.el
+
+# Backups
+*~
+\#*\#
+.\#*
+
+# Byte-compiled
+*.pyc
+
+# Environment
+.env
+.env.local
+
+# Emacs
+.projectile
+.dir-locals-2.el
