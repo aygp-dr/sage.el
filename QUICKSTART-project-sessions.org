@@ -1,0 +1,206 @@
+#+TITLE: Quick Start: Project-Based Sessions
+#+AUTHOR: Jason Walsh
+#+DATE: 2024-12-23
+
+* 5-Minute Setup
+
+** Step 1: Load the Module
+
+#+begin_src elisp
+(require 'gemini-repl-project)
+#+end_src
+
+** Step 2: Configure (Optional)
+
+#+begin_src elisp
+;; Enable auto-load and auto-save (recommended)
+(setq gemini-repl-project-auto-load t)
+(setq gemini-repl-project-auto-save t)
+
+;; Set storage directory (optional, defaults to ~/.emacs.d/gemini-repl/projects)
+(setq gemini-repl-project-directory
+      (expand-file-name "gemini-repl/projects" user-emacs-directory))
+#+end_src
+
+** Step 3: Start Using
+
+Open a file in your project and start the REPL:
+
+#+begin_src elisp
+M-x gemini-repl
+#+end_src
+
+Your conversation will automatically be saved per-project!
+
+* Common Commands
+
+** Interactive Functions
+
+| Command                              | Description                    |
+|--------------------------------------+--------------------------------|
+| =M-x gemini-repl-project-load=       | Load project conversation      |
+| =M-x gemini-repl-project-stats=      | Show conversation stats        |
+| =M-x gemini-repl-project-clear=      | Clear (and archive) conversation |
+| =M-x gemini-repl-project-list-archives= | List archived conversations |
+
+** Programmatic Usage
+
+#+begin_src elisp
+;; Append a message
+(gemini-repl-project-append '("user" "How do I fix this bug?"))
+
+;; Archive current conversation
+(gemini-repl-project-archive "before-major-refactor")
+
+;; Export to Markdown
+(gemini-repl-project-export "conversation.md" 'markdown)
+
+;; Set custom metadata
+(gemini-repl-project-metadata :task_id "PROJ-123")
+#+end_src
+
+* File Locations
+
+Your conversations are stored at:
+
+#+begin_example
+~/.emacs.d/gemini-repl/projects/-home-user-myproject/
+├── conversation.jsonl   # Current conversation
+├── metadata.json        # Project info
+└── history/            # Old conversations
+    └── 20241223-140530.jsonl
+#+end_example
+
+* Working with Multiple Projects
+
+Simply change directories - the conversation switches automatically:
+
+#+begin_src bash
+cd ~/project-a
+emacs file.py  # Loads project-a conversation
+
+cd ~/project-b
+emacs main.rs  # Loads project-b conversation
+#+end_src
+
+Each project has its own isolated conversation history.
+
+* Archive Your Conversations
+
+#+begin_src elisp
+;; Manual archive with custom name
+(gemini-repl-project-archive "sprint-42-completion")
+
+;; Auto-archive happens when you exceed max-messages (default: 1000)
+;; Configure with:
+(setq gemini-repl-project-max-messages 500)
+#+end_src
+
+* Export and Share
+
+#+begin_src elisp
+;; Export to JSON
+(gemini-repl-project-export "conversation.json" 'json)
+
+;; Export to Markdown for documentation
+(gemini-repl-project-export "conversation.md" 'markdown)
+#+end_src
+
+* Track Custom Metadata
+
+#+begin_src elisp
+;; Store git branch
+(gemini-repl-project-metadata :git_branch "feature/new-api")
+
+;; Store task/issue ID
+(gemini-repl-project-metadata :task_id "PROJ-123")
+
+;; Any custom field
+(gemini-repl-project-metadata :sprint "Sprint-42")
+
+;; Retrieve metadata
+(gemini-repl-project-metadata :git_branch)  ; Returns "feature/new-api"
+#+end_src
+
+* Troubleshooting
+
+** Conversation Not Loading?
+
+#+begin_src elisp
+;; Check project directory detection
+(gemini-repl-project-dir)
+
+;; Manually set project directory
+(gemini-repl-project-set-dir "/path/to/project")
+#+end_src
+
+** Want to Start Fresh?
+
+#+begin_src elisp
+;; Clear conversation (archives it first)
+(gemini-repl-project-clear)
+#+end_src
+
+** Need to Find Old Conversations?
+
+#+begin_src elisp
+;; List all archives
+(gemini-repl-project-list-archives)
+
+;; Load an archive
+(gemini-repl-project-load-archive "20241223-140530.jsonl")
+#+end_src
+
+* Advanced: Integration with Hooks
+
+#+begin_src elisp
+;; Auto-save git context when starting REPL
+(defun my-save-git-context ()
+  "Save git commit and branch to metadata."
+  (when-let ((rev (vc-git-working-revision default-directory)))
+    (gemini-repl-project-metadata :git_commit rev)
+    (when-let ((branch (vc-git--symbolic-ref default-directory)))
+      (gemini-repl-project-metadata :git_branch branch))))
+
+(add-hook 'gemini-repl-mode-hook #'my-save-git-context)
+#+end_src
+
+* Example: Daily Workflow
+
+#+begin_src elisp
+;; Morning: Start work on project
+(cd "~/my-project")
+(gemini-repl)  ; Loads yesterday's conversation automatically
+
+;; Throughout the day: Chat with AI
+;; All messages are automatically saved
+
+;; Before major refactor: Archive current state
+(gemini-repl-project-archive "before-refactor")
+
+;; End of day: View stats
+(gemini-repl-project-stats)
+;; => Project: /home/user/my-project
+;; => Messages: 42 (user: 21, assistant: 21)
+;; => Size: 15234 bytes
+
+;; End of week: Export for documentation
+(gemini-repl-project-export "weekly-notes.md" 'markdown)
+#+end_src
+
+* See Also
+
+- [[file:PROJECT-SESSIONS.org][PROJECT-SESSIONS.org]] - Full documentation
+- [[file:examples/project-sessions-example.el][project-sessions-example.el]] - 10 detailed examples
+- [[file:docs/project-sessions-diagram.txt][project-sessions-diagram.txt]] - Visual diagrams
+- [[file:CHANGELOG-project-sessions.org][CHANGELOG-project-sessions.org]] - What was added
+
+* Next Steps
+
+1. Try it with your current project
+2. Set up auto-archiving strategy
+3. Integrate with your workflow (git hooks, etc.)
+4. Export conversations for team documentation
+5. Customize metadata fields for your needs
+
+Happy coding!

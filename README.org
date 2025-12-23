@@ -13,6 +13,7 @@ This is the Elisp version of [[https://github.com/aygp-dr/gemini-repl-009][gemin
 - *Multi-provider support*: Google Gemini, Ollama (local), OpenAI
 - *Tool/function calling*: AI can use tools to interact with your system
 - *Permission system*: Configurable prompts for dangerous operations
+- *Rate limiting*: Automatic rate limiting per model with 90% safety margin
 - *Built-in tools*:
   - File operations (read, write, list)
   - Git integration (status, diff, log, blame)
@@ -150,6 +151,44 @@ Type your message at the =>=  prompt and press =RET= to send.
 | git_log     | Get git log                      | Yes   |
 | code_search | Search code with ripgrep         | Yes   |
 | glob_files  | Find files matching glob pattern | Yes   |
+
+* Rate Limiting
+
+=gemini-repl-ratelimit= provides automatic rate limiting to prevent exceeding API limits.
+
+** Features
+
+- Per-model rate tracking using ring buffers
+- 90% safety margin (configurable)
+- Automatic waiting with countdown display
+- REPL commands for status checking
+- Support for all major providers
+
+** Model Limits
+
+| Provider | Model                 | Limit (RPM) | Effective (90%) |
+|----------+-----------------------+-------------+-----------------|
+| Gemini   | gemini-1.5-flash-lite |          30 |              27 |
+| Gemini   | gemini-1.5-flash      |          15 |              13 |
+| Gemini   | gemini-1.5-pro        |           5 |               4 |
+| Gemini   | gemini-2.0-flash-exp  |          10 |               9 |
+| OpenAI   | gpt-4o                |          10 |               9 |
+| OpenAI   | gpt-4o-mini           |          30 |              27 |
+| Ollama   | All models            |   Unlimited |       Unlimited |
+
+** Usage
+
+Rate limiting is automatic. Check status in REPL:
+
+#+begin_example
+> /ratelimit
+gemini-2.0-flash-exp: 3/9 requests used (33% limit). Ready
+
+> /ratelimit-reset
+Rate limit reset for gemini-2.0-flash-exp
+#+end_example
+
+For more details, see [[file:RATELIMITING.org][RATELIMITING.org]].
 
 * Project-Based Conversations
 

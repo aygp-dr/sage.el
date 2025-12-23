@@ -1,0 +1,148 @@
+#+TITLE: Gemini REPL Tools - Quick Reference
+#+AUTHOR: gemini-repl-tools.el
+#+DATE: 2024
+
+* File Operations
+
+| Tool       | Parameters                          | Description                    | Safe? |
+|------------+-------------------------------------+--------------------------------+-------|
+| read_file  | path                                | Read file contents             | Yes   |
+| write_file | path, content                       | Write to file                  | No    |
+| list_files | path, pattern (optional)            | List directory with glob       | Yes   |
+| edit_file  | path, old_text, new_text            | Replace text in file           | No    |
+
+* Git Operations
+
+| Tool        | Parameters                | Description              | Safe? |
+|-------------+---------------------------+--------------------------+-------|
+| git_status  | -                         | Repository status        | Yes   |
+| git_diff    | staged, path (optional)   | Show diffs               | Yes   |
+| git_log     | count, path (optional)    | Commit history           | Yes   |
+| git_branch  | -                         | List branches            | Yes   |
+| git_blame   | path                      | Line authorship          | Yes   |
+
+* Search Operations
+
+| Tool           | Parameters                             | Description                   | Safe? |
+|----------------+----------------------------------------+-------------------------------+-------|
+| code_search    | pattern, file_type, context (optional) | Search code                   | Yes   |
+| glob_files     | pattern                                | Match files by pattern        | Yes   |
+| search_preview | pattern, file_pattern, context_lines   | Search with line numbers      | Yes   |
+
+* Emacs Integration
+
+| Tool              | Parameters              | Description                   | Safe? |
+|-------------------+-------------------------+-------------------------------+-------|
+| eval_elisp        | code                    | Evaluate Emacs Lisp           | No    |
+| describe_function | function                | Function documentation        | Yes   |
+| describe_variable | variable                | Variable documentation        | Yes   |
+| find_definition   | symbol                  | Locate symbol definition      | Yes   |
+| list_buffers      | -                       | Show open buffers             | Yes   |
+| switch_buffer     | buffer_name             | Switch to buffer              | No    |
+| insert_at_point   | text, buffer_name (opt) | Insert text in buffer         | No    |
+
+* Self-Awareness
+
+| Tool            | Parameters | Description                    | Safe? |
+|-----------------+------------+--------------------------------+-------|
+| project_map     | -          | Project structure              | Yes   |
+| get_capabilities| -          | List tools and system info     | Yes   |
+
+* Parameter Types
+
+** Common Parameters
+- ~path~: String, relative to workspace
+- ~pattern~: String, glob pattern or regex
+- ~count~: Integer
+- ~content~: String, file content
+- ~code~: String, Emacs Lisp code
+
+** Optional Parameters
+Parameters marked (optional) can be omitted.
+
+* Safety Levels
+
+** Safe Tools (Auto-allowed)
+All tools marked "Yes" in Safe column are automatically allowed unless
+~gemini-repl-confirm-safe-tools~ is set to ~t~.
+
+** Unsafe Tools (Require Confirmation)
+Tools marked "No" require user confirmation unless ~gemini-repl-yolo-mode~
+is set to ~t~.
+
+* Dependencies
+
+** Required
+- Emacs 28.1+
+- json.el (built-in)
+
+** Optional (with fallbacks)
+- magit :: Enhanced git operations
+- xref :: Symbol navigation (built-in 28+)
+- project :: Project management (built-in 28+)
+- projectile :: Alternative project system
+- ripgrep (rg) :: Fast search (falls back to grep)
+
+* Configuration
+
+#+BEGIN_SRC emacs-lisp
+;; Set workspace directory
+(setq gemini-repl-workspace "/path/to/project")
+
+;; Skip all confirmations (use with caution!)
+(setq gemini-repl-yolo-mode t)
+
+;; Confirm even safe tools
+(setq gemini-repl-confirm-safe-tools t)
+
+;; Load comprehensive tools
+(require 'gemini-repl-tools)
+(gemini-repl--init-default-tools)
+#+END_SRC
+
+* Usage Examples
+
+** From REPL
+#+BEGIN_EXAMPLE
+> Read the README file
+[AI calls: read_file with path="README.md"]
+
+> Show git status
+[AI calls: git_status]
+
+> Find all TODO comments
+[AI calls: code_search with pattern="TODO"]
+
+> What does the function `gemini-repl--execute-tool` do?
+[AI calls: describe_function with function="gemini-repl--execute-tool"]
+#+END_EXAMPLE
+
+** Programmatic
+#+BEGIN_SRC emacs-lisp
+;; Read a file
+(gemini-repl--tool-read-file '((path . "README.md")))
+
+;; Search code
+(gemini-repl--tool-code-search
+ '((pattern . "defun gemini-repl")
+   (file_type . "el")))
+
+;; Get capabilities
+(gemini-repl--tool-get-capabilities '())
+#+END_SRC
+
+* Slash Commands (REPL)
+
+| Command  | Description          |
+|----------+----------------------|
+| /tools   | List all tools       |
+| /help    | Show all commands    |
+| /model   | Show model info      |
+
+* Total Tools: 21
+
+- File Operations: 4
+- Git Operations: 5
+- Search Operations: 3
+- Emacs Integration: 7
+- Self-Awareness: 2

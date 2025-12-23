@@ -1,0 +1,233 @@
+gemini-repl-project Storage Structure
+=====================================
+
+Directory Layout:
+-----------------
+
+~/.emacs.d/gemini-repl/projects/
+│
+├── -home-user-project1/                    # Encoded path for /home/user/project1
+│   ├── conversation.jsonl                  # Current conversation (append-only)
+│   ├── metadata.json                       # Project metadata
+│   └── history/                           # Archived conversations
+│       ├── 20241223-140530.jsonl          # Auto-archived
+│       ├── 20241223-151045.jsonl          # Manual archive
+│       └── before-refactor.jsonl          # Named archive
+│
+├── -home-user-project2/                    # Another project
+│   ├── conversation.jsonl
+│   ├── metadata.json
+│   └── history/
+│       └── week-2024-w51.jsonl
+│
+└── -home-user-docs-research/               # Yet another project
+    ├── conversation.jsonl
+    ├── metadata.json
+    └── history/
+
+
+File Formats:
+-------------
+
+conversation.jsonl (JSONL - one JSON object per line):
+-------------------------------------------------------
+{"role":"user","content":"How do I fix this bug?","timestamp":"2024-12-23T14:30:00-0500"}
+{"role":"assistant","content":"Here's how to fix it...","timestamp":"2024-12-23T14:30:15-0500"}
+{"role":"user","content":"What about edge cases?","timestamp":"2024-12-23T14:31:00-0500"}
+{"role":"assistant","content":"Good question...","timestamp":"2024-12-23T14:31:20-0500"}
+
+
+metadata.json (Pretty-printed JSON):
+------------------------------------
+{
+  "project_dir": "/home/user/project1",
+  "created_at": "2024-12-20T10:30:00-0500",
+  "updated_at": "2024-12-23T14:31:20-0500",
+  "message_count": 4,
+  "total_size": 1234,
+  "git_branch": "feature/new-api",      # Custom field
+  "task_id": "PROJ-123"                 # Custom field
+}
+
+
+Workflow Diagram:
+-----------------
+
+┌─────────────────────────────────────────────────────────────────┐
+│  User starts gemini-repl in /home/user/project1                │
+└───────────────────┬─────────────────────────────────────────────┘
+                    │
+                    ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  gemini-repl-project-dir() detects project root                │
+│  → Checks: projectile, project.el, git, default-directory      │
+└───────────────────┬─────────────────────────────────────────────┘
+                    │
+                    ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Encode path: /home/user/project1 → -home-user-project1        │
+└───────────────────┬─────────────────────────────────────────────┘
+                    │
+                    ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  gemini-repl-project-load() loads conversation                 │
+│  → Reads: ~/.emacs.d/gemini-repl/projects/                     │
+│            -home-user-project1/conversation.jsonl               │
+│  → Reads: -home-user-project1/metadata.json                    │
+└───────────────────┬─────────────────────────────────────────────┘
+                    │
+                    ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  User sends message: "How do I optimize this?"                 │
+└───────────────────┬─────────────────────────────────────────────┘
+                    │
+                    ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  gemini-repl-project-append() appends message                  │
+│  → Adds to in-memory conversation                              │
+│  → Appends JSON line to conversation.jsonl                     │
+│  → Updates metadata.json                                        │
+└───────────────────┬─────────────────────────────────────────────┘
+                    │
+                    ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  AI responds, response is appended                              │
+└───────────────────┬─────────────────────────────────────────────┘
+                    │
+                    ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Conversation continues...                                      │
+│  Each message is immediately saved (auto-save=t)                │
+└───────────────────┬─────────────────────────────────────────────┘
+                    │
+                    ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  When message count > max-messages (default: 1000)              │
+│  → Auto-archive oldest messages                                 │
+│  → Save to history/YYYYMMDD-HHMMSS.jsonl                        │
+│  → Keep only recent messages in conversation.jsonl              │
+└─────────────────────────────────────────────────────────────────┘
+
+
+Multi-Project Workflow:
+------------------------
+
+┌─────────────────┐          ┌─────────────────┐          ┌─────────────────┐
+│  Project A      │          │  Project B      │          │  Project C      │
+│  /home/u/proj-a │          │  /home/u/proj-b │          │  /home/u/proj-c │
+└────────┬────────┘          └────────┬────────┘          └────────┬────────┘
+         │                            │                            │
+         ▼                            ▼                            ▼
+  ┌──────────────┐            ┌──────────────┐            ┌──────────────┐
+  │ Conv A       │            │ Conv B       │            │ Conv C       │
+  │ 42 messages  │            │ 18 messages  │            │ 105 messages │
+  └──────────────┘            └──────────────┘            └──────────────┘
+         │                            │                            │
+         ▼                            ▼                            ▼
+  ┌──────────────┐            ┌──────────────┐            ┌──────────────┐
+  │ Stored at:   │            │ Stored at:   │            │ Stored at:   │
+  │ -home-u-     │            │ -home-u-     │            │ -home-u-     │
+  │ proj-a/      │            │ proj-b/      │            │ proj-c/      │
+  └──────────────┘            └──────────────┘            └──────────────┘
+
+Each project maintains completely isolated conversation history.
+Switching between projects (cd) automatically loads the correct conversation.
+
+
+Archive Lifecycle:
+------------------
+
+                          Conversation Timeline
+                                    │
+  ┌─────────────────────────────────┼─────────────────────────────────┐
+  │                                 │                                 │
+  │  Messages 1-50                  │  Messages 51-100                │
+  │  (Day 1-2)                      │  (Day 3-4)                      │
+  │                                 │                                 │
+  └─────────────┬───────────────────┴─────────────┬───────────────────┘
+                │                                 │
+                ▼                                 ▼
+    ┌──────────────────────┐          ┌──────────────────────┐
+    │ Auto-archived at     │          │ Still in active      │
+    │ message count 1000   │          │ conversation.jsonl   │
+    │                      │          │                      │
+    │ Saved to:            │          │ Being actively       │
+    │ history/             │          │ appended to          │
+    │ 20241220-153000.jsonl│          │                      │
+    └──────────────────────┘          └──────────────────────┘
+                │                                 │
+                │                                 │
+                ▼                                 ▼
+    ┌──────────────────────┐          ┌──────────────────────┐
+    │ Can be loaded back   │          │ Continues growing... │
+    │ with:                │          │                      │
+    │ gemini-repl-project- │          │ Will auto-archive    │
+    │ load-archive()       │          │ when limit reached   │
+    └──────────────────────┘          └──────────────────────┘
+
+
+Integration Points:
+-------------------
+
+                    gemini-repl (Main REPL)
+                           │
+                           ▼
+         ┌─────────────────────────────────────┐
+         │   gemini-repl-project-load()        │ ◄── Auto-load on startup
+         │   - Loads project conversation       │
+         │   - Sets up metadata                 │
+         └─────────────────┬───────────────────┘
+                           │
+                           ▼
+         ┌─────────────────────────────────────┐
+         │   gemini-repl-project-append()      │ ◄── After each message
+         │   - Appends to conversation          │
+         │   - Auto-saves to disk               │
+         │   - Updates metadata                 │
+         └─────────────────┬───────────────────┘
+                           │
+                           ▼
+         ┌─────────────────────────────────────┐
+         │   Auto-archive check                │
+         │   - Triggers at max-messages         │
+         │   - Archives oldest messages         │
+         └─────────────────────────────────────┘
+
+
+Path Encoding Examples:
+-----------------------
+
+Original Path                    Encoded Directory Name
+────────────────────────────────────────────────────────────────
+/home/user/project              -home-user-project
+/Users/alice/work/proj-A        -Users-alice-work-proj-A
+/var/www/site                   -var-www-site
+/tmp/test                       -tmp-test
+C:\Users\bob\code               C:-Users-bob-code  (Windows)
+
+
+Custom Metadata Examples:
+--------------------------
+
+{
+  "project_dir": "/home/user/my-project",
+  "created_at": "2024-12-20T10:30:00-0500",
+  "updated_at": "2024-12-23T14:30:00-0500",
+  "message_count": 42,
+  "total_size": 15234,
+
+  // Git context
+  "git_branch": "feature/new-api",
+  "git_commit": "abc123def",
+
+  // Project tracking
+  "task_id": "PROJ-123",
+  "sprint": "Sprint-42",
+
+  // Team info
+  "developer": "alice",
+  "last_session": "2024-12-23T14:30:00-0500",
+
+  // Custom tags
+  "tags": ["api", "authentication", "refactor"]
+}

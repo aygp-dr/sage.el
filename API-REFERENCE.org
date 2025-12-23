@@ -1,0 +1,534 @@
+#+TITLE: gemini-repl-memory API Reference
+#+AUTHOR: Quick Reference Guide
+#+DATE: 2024-12-23
+
+* Quick Start
+
+#+begin_src emacs-lisp
+;; Load the package
+(require 'gemini-repl-memory)
+
+;; Add a fact
+(gemini-repl-memory-add "name" "Alice" 'general)
+
+;; Get a fact
+(gemini-repl-memory-get "name")
+
+;; List all facts
+(gemini-repl-memory-list)
+#+end_src
+
+* API Functions
+
+** gemini-repl-memory-add
+
+#+begin_src emacs-lisp
+(gemini-repl-memory-add KEY VALUE &optional CATEGORY)
+#+end_src
+
+Add or update a fact.
+
+*Parameters:*
+- =KEY= (string): Unique identifier
+- =VALUE= (string): Fact value
+- =CATEGORY= (symbol, optional): One of =general=, =preference=, =project=, =technical= (default: =general=)
+
+*Returns:* Fact plist
+
+*Examples:*
+#+begin_src emacs-lisp
+(gemini-repl-memory-add "editor" "Emacs" 'preference)
+(gemini-repl-memory-add "name" "Bob")  ; Uses 'general
+#+end_src
+
+*Interactive:* Yes
+
+---
+
+** gemini-repl-memory-get
+
+#+begin_src emacs-lisp
+(gemini-repl-memory-get KEY)
+#+end_src
+
+Retrieve a fact by key.
+
+*Parameters:*
+- =KEY= (string): Fact identifier
+
+*Returns:* Fact plist or =nil= if not found
+
+*Examples:*
+#+begin_src emacs-lisp
+(gemini-repl-memory-get "editor")
+;; => (:key "editor" :value "Emacs" :category preference :timestamp "2024-12-23T...")
+
+(plist-get (gemini-repl-memory-get "editor") :value)
+;; => "Emacs"
+#+end_src
+
+*Interactive:* Yes (displays in minibuffer)
+
+---
+
+** gemini-repl-memory-remove
+
+#+begin_src emacs-lisp
+(gemini-repl-memory-remove KEY)
+#+end_src
+
+Remove a fact.
+
+*Parameters:*
+- =KEY= (string): Fact identifier
+
+*Returns:* =t= if removed, =nil= if not found
+
+*Examples:*
+#+begin_src emacs-lisp
+(gemini-repl-memory-remove "old-fact")
+;; => t (if existed)
+#+end_src
+
+*Interactive:* Yes (with completion)
+
+---
+
+** gemini-repl-memory-list
+
+#+begin_src emacs-lisp
+(gemini-repl-memory-list &optional CATEGORY)
+#+end_src
+
+List all facts or filter by category.
+
+*Parameters:*
+- =CATEGORY= (symbol, optional): Filter by category
+
+*Returns:* List of fact plists
+
+*Examples:*
+#+begin_src emacs-lisp
+;; All facts
+(gemini-repl-memory-list)
+;; => ((:key "editor" ...) (:key "name" ...))
+
+;; Only preferences
+(gemini-repl-memory-list 'preference)
+
+;; Count facts by category
+(length (gemini-repl-memory-list 'project))
+;; => 3
+#+end_src
+
+*Interactive:* Yes (displays in buffer)
+- =M-x gemini-repl-memory-list= - Show all facts
+- =C-u M-x gemini-repl-memory-list= - Select category
+
+---
+
+** gemini-repl-memory-clear
+
+#+begin_src emacs-lisp
+(gemini-repl-memory-clear)
+#+end_src
+
+Clear all facts from memory (with confirmation).
+
+*Parameters:* None
+
+*Returns:* Void
+
+*Examples:*
+#+begin_src emacs-lisp
+(gemini-repl-memory-clear)
+;; Prompts: "Clear all facts? This cannot be undone."
+#+end_src
+
+*Interactive:* Yes
+
+---
+
+** gemini-repl-memory-to-context
+
+#+begin_src emacs-lisp
+(gemini-repl-memory-to-context)
+#+end_src
+
+Generate system prompt context from all facts.
+
+*Parameters:* None
+
+*Returns:* Formatted string (markdown) or empty string if no facts
+
+*Examples:*
+#+begin_src emacs-lisp
+(gemini-repl-memory-to-context)
+;; => "# Stored Facts\n\nThe following facts have been learned...\n\n## General\n\n- name: Alice\n..."
+#+end_src
+
+*Interactive:* Yes (displays message)
+
+---
+
+** gemini-repl-memory-save
+
+#+begin_src emacs-lisp
+(gemini-repl-memory-save)
+#+end_src
+
+Manually save facts to disk.
+
+*Parameters:* None
+
+*Returns:* Void
+
+*Side effects:* Writes to =gemini-repl-memory-file=
+
+*Examples:*
+#+begin_src emacs-lisp
+;; Disable auto-save
+(setq gemini-repl-memory-auto-save nil)
+
+;; Make changes
+(gemini-repl-memory-add "key" "value")
+
+;; Save manually
+(gemini-repl-memory-save)
+#+end_src
+
+*Interactive:* Yes
+
+---
+
+** gemini-repl-memory-load
+
+#+begin_src emacs-lisp
+(gemini-repl-memory-load)
+#+end_src
+
+Manually load facts from disk.
+
+*Parameters:* None
+
+*Returns:* Void
+
+*Side effects:* Reads from =gemini-repl-memory-file=, updates =gemini-repl-memory--facts=
+
+*Examples:*
+#+begin_src emacs-lisp
+;; Reload from disk (discards unsaved changes)
+(gemini-repl-memory-load)
+#+end_src
+
+*Interactive:* Yes
+
+* Data Types
+
+** Fact Plist
+
+#+begin_src emacs-lisp
+(:key "editor"
+ :value "Emacs"
+ :category preference
+ :timestamp "2024-12-23T17:00:00-0800")
+#+end_src
+
+*Properties:*
+- =:key= (string): Unique identifier
+- =:value= (string): Fact value
+- =:category= (symbol): Category (general, preference, project, technical)
+- =:timestamp= (string): ISO 8601 timestamp
+
+*Access:*
+#+begin_src emacs-lisp
+(let ((fact (gemini-repl-memory-get "editor")))
+  (plist-get fact :key)       ; => "editor"
+  (plist-get fact :value)     ; => "Emacs"
+  (plist-get fact :category)  ; => preference
+  (plist-get fact :timestamp)) ; => "2024-12-23T..."
+#+end_src
+
+** Categories
+
+Valid category symbols:
+- =general= - General information about the user
+- =preference= - User preferences
+- =project= - Project-specific information
+- =technical= - Technical knowledge and environment
+
+* Configuration Variables
+
+** gemini-repl-memory-file
+
+#+begin_src emacs-lisp
+(defcustom gemini-repl-memory-file
+  (expand-file-name "gemini-repl/memory/facts.json" user-emacs-directory)
+  ...)
+#+end_src
+
+*Type:* file path (string)
+
+*Default:* =~/.emacs.d/gemini-repl/memory/facts.json=
+
+*Example:*
+#+begin_src emacs-lisp
+(setq gemini-repl-memory-file "/path/to/my-facts.json")
+#+end_src
+
+---
+
+** gemini-repl-memory-auto-load
+
+#+begin_src emacs-lisp
+(defcustom gemini-repl-memory-auto-load t ...)
+#+end_src
+
+*Type:* boolean
+
+*Default:* =t=
+
+When non-nil, automatically load facts from disk on first access.
+
+*Example:*
+#+begin_src emacs-lisp
+;; Disable auto-load
+(setq gemini-repl-memory-auto-load nil)
+
+;; Load manually when needed
+(gemini-repl-memory-load)
+#+end_src
+
+---
+
+** gemini-repl-memory-auto-save
+
+#+begin_src emacs-lisp
+(defcustom gemini-repl-memory-auto-save t ...)
+#+end_src
+
+*Type:* boolean
+
+*Default:* =t=
+
+When non-nil, automatically save facts after modifications (add, remove, clear).
+
+*Example:*
+#+begin_src emacs-lisp
+;; Disable auto-save for batch operations
+(let ((gemini-repl-memory-auto-save nil))
+  (gemini-repl-memory-add "key1" "val1")
+  (gemini-repl-memory-add "key2" "val2")
+  (gemini-repl-memory-add "key3" "val3")
+  ;; Save once at the end
+  (gemini-repl-memory-save))
+#+end_src
+
+---
+
+** gemini-repl-use-memory
+
+#+begin_src emacs-lisp
+(defcustom gemini-repl-use-memory t ...)
+#+end_src
+
+*Type:* boolean
+
+*Default:* =t=
+
+*Location:* Defined in =gemini-repl.el=
+
+When non-nil, include memory context in conversations.
+
+*Example:*
+#+begin_src emacs-lisp
+;; Disable memory for this session
+(setq gemini-repl-use-memory nil)
+
+;; Start REPL without memory context
+(gemini-repl)
+#+end_src
+
+* Internal Variables
+
+** gemini-repl-memory--facts
+
+#+begin_src emacs-lisp
+(defvar gemini-repl-memory--facts nil)
+#+end_src
+
+Alist of =(KEY . FACT-PLIST)= pairs.
+
+*Not for direct use* - use API functions instead.
+
+---
+
+** gemini-repl-memory--loaded
+
+#+begin_src emacs-lisp
+(defvar gemini-repl-memory--loaded nil)
+#+end_src
+
+Boolean flag indicating whether facts have been loaded from disk.
+
+---
+
+** gemini-repl-memory-categories
+
+#+begin_src emacs-lisp
+(defvar gemini-repl-memory-categories
+  '(general preference project technical))
+#+end_src
+
+List of valid category symbols.
+
+* Common Patterns
+
+** Check if fact exists
+
+#+begin_src emacs-lisp
+(when (gemini-repl-memory-get "key")
+  (message "Fact exists"))
+#+end_src
+
+** Update fact if exists, add otherwise
+
+#+begin_src emacs-lisp
+;; Always works - add replaces existing facts
+(gemini-repl-memory-add "key" "new-value" 'general)
+#+end_src
+
+** Iterate over all facts
+
+#+begin_src emacs-lisp
+(dolist (fact (gemini-repl-memory-list))
+  (message "%s: %s"
+           (plist-get fact :key)
+           (plist-get fact :value)))
+#+end_src
+
+** Iterate over category
+
+#+begin_src emacs-lisp
+(dolist (fact (gemini-repl-memory-list 'preference))
+  (message "Preference: %s = %s"
+           (plist-get fact :key)
+           (plist-get fact :value)))
+#+end_src
+
+** Find fact by value
+
+#+begin_src emacs-lisp
+(cl-find-if (lambda (fact)
+              (string= (plist-get fact :value) "Emacs"))
+            (gemini-repl-memory-list))
+#+end_src
+
+** Count facts
+
+#+begin_src emacs-lisp
+;; Total
+(length (gemini-repl-memory-list))
+
+;; By category
+(length (gemini-repl-memory-list 'technical))
+#+end_src
+
+** Batch add with error handling
+
+#+begin_src emacs-lisp
+(dolist (fact-spec '(("key1" "val1" general)
+                     ("key2" "val2" preference)))
+  (condition-case err
+      (apply #'gemini-repl-memory-add fact-spec)
+    (error (message "Failed to add fact: %s" err))))
+#+end_src
+
+** Export to JSON manually
+
+#+begin_src emacs-lisp
+(with-temp-file "/tmp/facts-export.json"
+  (insert (json-encode
+           (mapcar (lambda (fact-entry)
+                     (let ((fact (cdr fact-entry)))
+                       `((key . ,(plist-get fact :key))
+                         (value . ,(plist-get fact :value))
+                         (category . ,(symbol-name (plist-get fact :category)))
+                         (timestamp . ,(plist-get fact :timestamp)))))
+                   gemini-repl-memory--facts))))
+#+end_src
+
+** Search facts
+
+#+begin_src emacs-lisp
+;; Find facts containing text
+(cl-remove-if-not
+ (lambda (fact)
+   (string-match-p "emacs" (plist-get fact :value)))
+ (gemini-repl-memory-list))
+#+end_src
+
+* Error Handling
+
+** Invalid category
+
+#+begin_src emacs-lisp
+(gemini-repl-memory-add "key" "value" 'invalid-category)
+;; Error: Invalid category: invalid-category. Must be one of: (general preference project technical)
+#+end_src
+
+** Missing file
+
+If =gemini-repl-memory-file= doesn't exist:
+- =gemini-repl-memory-load= creates empty facts list
+- No error raised
+
+** Corrupted JSON
+
+#+begin_src emacs-lisp
+;; If JSON file is corrupted, load catches error
+(gemini-repl-memory-load)
+;; Message: "Error loading facts: ..."
+;; Facts are reset to nil
+#+end_src
+
+* Performance Notes
+
+- Facts stored in memory as alist
+- Linear search by key (O(n))
+- Suitable for 100s of facts
+- For 1000s, consider hash table
+
+* Integration Examples
+
+** Custom context for specific conversation
+
+#+begin_src emacs-lisp
+(defun my-custom-context ()
+  "Generate custom context from project facts only."
+  (let ((facts (gemini-repl-memory-list 'project)))
+    (concat "# Project Context\n\n"
+            (mapconcat
+             (lambda (fact)
+               (format "- %s: %s"
+                       (plist-get fact :key)
+                       (plist-get fact :value)))
+             facts "\n"))))
+#+end_src
+
+** Conditional memory injection
+
+#+begin_src emacs-lisp
+(defun my-selective-memory ()
+  "Only inject memory for work projects."
+  (when-let ((project (gemini-repl-memory-get "current-project")))
+    (when (string-match-p "work" (plist-get project :value))
+      (gemini-repl-memory-to-context))))
+#+end_src
+
+* See Also
+
+- =MEMORY.org= - Complete user guide
+- =examples/memory-usage.el= - Usage examples
+- =test/gemini-repl-memory-test.el= - Test suite
+- =INTEGRATION-SUMMARY.org= - Integration details
