@@ -368,7 +368,7 @@ DESCRIPTION explains what it does.
 PARAMETERS is a JSON schema for arguments.
 EXECUTE-FN is called with arguments and returns result."
   (if (fboundp 'gemini-repl-register-tool)
-      (gemini-repl-register-tool name description parameters execute-fn)
+      (gemini-repl-tools--register name description parameters execute-fn)
     ;; Fallback: register directly
     (unless (boundp 'gemini-repl-tools)
       (setq gemini-repl-tools nil))
@@ -385,7 +385,7 @@ EXECUTE-FN is called with arguments and returns result."
     (setq gemini-repl-tools nil)) ; Clear existing tools
 
   ;; FILE TOOLS
-  (gemini-repl-register-tool
+  (gemini-repl-tools--register
    "read_file"
    "Read contents of a file"
    '((type . "object")
@@ -394,7 +394,7 @@ EXECUTE-FN is called with arguments and returns result."
      (required . ["path"]))
    #'gemini-repl--tool-read-file)
 
-  (gemini-repl-register-tool
+  (gemini-repl-tools--register
    "write_file"
    "Write content to a file"
    '((type . "object")
@@ -405,7 +405,7 @@ EXECUTE-FN is called with arguments and returns result."
      (required . ["path" "content"]))
    #'gemini-repl--tool-write-file)
 
-  (gemini-repl-register-tool
+  (gemini-repl-tools--register
    "list_files"
    "List files in a directory"
    '((type . "object")
@@ -416,7 +416,7 @@ EXECUTE-FN is called with arguments and returns result."
      (required . ["path"]))
    #'gemini-repl--tool-list-files)
 
-  (gemini-repl-register-tool
+  (gemini-repl-tools--register
    "edit_file"
    "Edit file by replacing old text with new text"
    '((type . "object")
@@ -430,7 +430,7 @@ EXECUTE-FN is called with arguments and returns result."
    #'gemini-repl--tool-edit-file)
 
   ;; GIT TOOLS
-  (gemini-repl-register-tool
+  (gemini-repl-tools--register
    "git_status"
    "Get git status (uses magit if available)"
    '((type . "object")
@@ -438,7 +438,7 @@ EXECUTE-FN is called with arguments and returns result."
      (required . []))
    #'gemini-repl--tool-git-status)
 
-  (gemini-repl-register-tool
+  (gemini-repl-tools--register
    "git_diff"
    "Get git diff (uses magit if available)"
    '((type . "object")
@@ -449,7 +449,7 @@ EXECUTE-FN is called with arguments and returns result."
      (required . []))
    #'gemini-repl--tool-git-diff)
 
-  (gemini-repl-register-tool
+  (gemini-repl-tools--register
    "git_log"
    "Get git log (uses magit if available)"
    '((type . "object")
@@ -460,7 +460,7 @@ EXECUTE-FN is called with arguments and returns result."
      (required . []))
    #'gemini-repl--tool-git-log)
 
-  (gemini-repl-register-tool
+  (gemini-repl-tools--register
    "git_branch"
    "List git branches (uses magit if available)"
    '((type . "object")
@@ -468,7 +468,7 @@ EXECUTE-FN is called with arguments and returns result."
      (required . []))
    #'gemini-repl--tool-git-branch)
 
-  (gemini-repl-register-tool
+  (gemini-repl-tools--register
    "git_blame"
    "Get git blame for a file (uses magit if available)"
    '((type . "object")
@@ -478,7 +478,7 @@ EXECUTE-FN is called with arguments and returns result."
    #'gemini-repl--tool-git-blame)
 
   ;; SEARCH TOOLS
-  (gemini-repl-register-tool
+  (gemini-repl-tools--register
    "code_search"
    "Search code using ripgrep or grep"
    '((type . "object")
@@ -491,7 +491,7 @@ EXECUTE-FN is called with arguments and returns result."
      (required . ["pattern"]))
    #'gemini-repl--tool-code-search)
 
-  (gemini-repl-register-tool
+  (gemini-repl-tools--register
    "glob_files"
    "Find files matching a glob pattern"
    '((type . "object")
@@ -500,7 +500,7 @@ EXECUTE-FN is called with arguments and returns result."
      (required . ["pattern"]))
    #'gemini-repl--tool-glob-files)
 
-  (gemini-repl-register-tool
+  (gemini-repl-tools--register
    "search_preview"
    "Search with context preview (line numbers and context)"
    '((type . "object")
@@ -514,7 +514,7 @@ EXECUTE-FN is called with arguments and returns result."
    #'gemini-repl--tool-search-preview)
 
   ;; EMACS-SPECIFIC TOOLS
-  (gemini-repl-register-tool
+  (gemini-repl-tools--register
    "eval_elisp"
    "Evaluate Elisp code safely"
    '((type . "object")
@@ -523,7 +523,7 @@ EXECUTE-FN is called with arguments and returns result."
      (required . ["code"]))
    #'gemini-repl--tool-eval-elisp)
 
-  (gemini-repl-register-tool
+  (gemini-repl-tools--register
    "describe_function"
    "Get function documentation"
    '((type . "object")
@@ -532,7 +532,7 @@ EXECUTE-FN is called with arguments and returns result."
      (required . ["function"]))
    #'gemini-repl--tool-describe-function)
 
-  (gemini-repl-register-tool
+  (gemini-repl-tools--register
    "describe_variable"
    "Get variable documentation"
    '((type . "object")
@@ -541,7 +541,7 @@ EXECUTE-FN is called with arguments and returns result."
      (required . ["variable"]))
    #'gemini-repl--tool-describe-variable)
 
-  (gemini-repl-register-tool
+  (gemini-repl-tools--register
    "find_definition"
    "Use xref to find symbol definitions"
    '((type . "object")
@@ -550,7 +550,7 @@ EXECUTE-FN is called with arguments and returns result."
      (required . ["symbol"]))
    #'gemini-repl--tool-find-definition)
 
-  (gemini-repl-register-tool
+  (gemini-repl-tools--register
    "list_buffers"
    "List open buffers with their modes and files"
    '((type . "object")
@@ -558,7 +558,7 @@ EXECUTE-FN is called with arguments and returns result."
      (required . []))
    #'gemini-repl--tool-list-buffers)
 
-  (gemini-repl-register-tool
+  (gemini-repl-tools--register
    "switch_buffer"
    "Switch to a buffer by name"
    '((type . "object")
@@ -567,7 +567,7 @@ EXECUTE-FN is called with arguments and returns result."
      (required . ["buffer_name"]))
    #'gemini-repl--tool-switch-buffer)
 
-  (gemini-repl-register-tool
+  (gemini-repl-tools--register
    "insert_at_point"
    "Insert text at point in current buffer or specified buffer"
    '((type . "object")
@@ -579,7 +579,7 @@ EXECUTE-FN is called with arguments and returns result."
    #'gemini-repl--tool-insert-at-point)
 
   ;; SELF-AWARENESS TOOLS
-  (gemini-repl-register-tool
+  (gemini-repl-tools--register
    "project_map"
    "Get project structure using project.el or projectile"
    '((type . "object")
@@ -587,7 +587,7 @@ EXECUTE-FN is called with arguments and returns result."
      (required . []))
    #'gemini-repl--tool-project-map)
 
-  (gemini-repl-register-tool
+  (gemini-repl-tools--register
    "get_capabilities"
    "List available tools and system capabilities"
    '((type . "object")

@@ -1,0 +1,392 @@
+#+TITLE: Gemini REPL Emacs Integration - Usage Guide
+#+AUTHOR: Jason Walsh
+#+EMAIL: j@wal.sh
+
+* Introduction
+
+This guide demonstrates practical usage patterns for =gemini-repl-emacs.el=, showing how to integrate AI assistance into your Emacs workflow.
+
+* Quick Start
+
+1. Load the package:
+   #+begin_src elisp
+   (require 'gemini-repl-emacs)
+   (global-gemini-repl-mode 1)
+   #+end_src
+
+2. Set your API key:
+   #+begin_src bash
+   export GEMINI_API_KEY="your-key-here"
+   #+end_src
+
+3. Start the REPL:
+   =M-x gemini-repl= or =C-c C-g r=
+
+* Common Workflows
+
+** Code Review and Understanding
+
+*** Review Current Function
+1. Place cursor in function
+2. Press =C-c C-g d= to send the function definition
+3. AI will explain what the function does
+
+*** Understand Complex Code
+1. Select the confusing code region
+2. Press =C-c C-g g=
+3. Ask: "Explain what this code does and suggest improvements"
+
+*** Get Project Overview
+1. Press =C-c C-g p=
+2. Ask: "What is the overall architecture of this project?"
+3. AI will use tools to explore and summarize
+
+** Debugging
+
+*** Explain an Error
+When you encounter an error:
+1. Place cursor on the error line
+2. Press =C-c C-g x=
+3. AI will explain with context
+
+*** Get Fix Suggestion
+1. Navigate to problematic code
+2. Press =C-c C-g f=
+3. AI suggests fixes with explanation
+
+*** Compilation Errors
+In compilation buffer:
+1. Navigate to error message
+2. Press =C-c C-g e=
+3. Get detailed explanation
+
+** Org Mode Integration
+
+*** Document Code with AI
+#+begin_example
+#+begin_src emacs-lisp
+(defun my-function (arg)
+  "TODO: Add documentation"
+  (do-something arg))
+#+end_src
+#+end_example
+
+1. Place cursor in source block
+2. Press =C-c C-g o c=
+3. Ask: "Generate comprehensive documentation for this function"
+4. Press =C-c C-g o i= to insert as org block
+
+*** Interactive Documentation
+Create an AI block in your org document:
+
+#+begin_example
+#+begin_ai
+Explain the Actor model and how it relates to Erlang
+#+end_ai
+#+end_example
+
+Then run =M-x gemini-repl-org-process-ai-blocks= to process all AI blocks.
+
+*** Research Notes
+1. Create org subtree with research topic
+2. Press =C-c C-g o s= to send subtree
+3. Ask: "Summarize key points and suggest related topics"
+4. Insert response with =C-c C-g o i=
+
+** File Management with Dired
+
+*** Analyze Project Structure
+1. Open Dired in project root
+2. Mark directories with =m=
+3. Press =C-c C-g s=
+4. Get structural analysis and suggestions
+
+*** Batch File Analysis
+1. Mark multiple files (=m=)
+2. Press =C-c C-g s=
+3. Ask: "Find common patterns or issues across these files"
+
+*** Code Migration
+1. Mark old files to migrate
+2. Press =C-c C-g s=
+3. Ask: "Suggest migration strategy to new framework"
+
+** Writing and Refactoring
+
+*** Generate Boilerplate
+1. Create empty buffer or function
+2. Press =C-c C-g a=
+3. Ask: "Generate boilerplate for REST API client in Python"
+
+*** Refactor Code
+1. Select code to refactor
+2. Press =C-c C-g g=
+3. Ask: "Refactor this to be more functional/clean/testable"
+
+*** Add Tests
+1. Send function with =C-c C-g d=
+2. Ask: "Generate comprehensive unit tests for this function"
+3. Insert with =C-c C-g i=
+
+* Advanced Patterns
+
+** Context-Aware Assistance
+
+*** Building Context
+#+begin_src elisp
+;; First, give AI context about the project
+(defun my-gemini-set-project-context ()
+  "Set project context for AI."
+  (interactive)
+  (gemini-repl)
+  (with-current-buffer gemini-repl-buffer-name
+    (insert "I'm working on a ")
+    (insert (read-string "Project type: "))
+    (insert " project. The main files are:\n")
+    (insert (shell-command-to-string "find . -name '*.el' -o -name '*.py' | head -20"))
+    (gemini-repl-send-input)))
+#+end_src
+
+*** Multi-Step Analysis
+1. Send overview: =C-c C-g p= "Analyze project structure"
+2. Send specific file: =C-c C-g b=
+3. Ask detailed questions in REPL
+4. Insert refined answer: =C-c C-g i=
+
+** Workflow Automation
+
+*** Code Review Workflow
+#+begin_src elisp
+(defun my-gemini-review-changes ()
+  "Review git changes with AI."
+  (interactive)
+  (gemini-repl)
+  (with-current-buffer gemini-repl-buffer-name
+    (insert "Review my recent changes:\n\n")
+    (insert (shell-command-to-string "git diff HEAD~1"))
+    (insert "\n\nProvide:\n")
+    (insert "1. Summary of changes\n")
+    (insert "2. Potential issues\n")
+    (insert "3. Test suggestions\n")
+    (gemini-repl-send-input)))
+#+end_src
+
+*** Documentation Generation
+#+begin_src elisp
+(defun my-gemini-document-buffer ()
+  "Generate documentation for current buffer."
+  (interactive)
+  (let ((code (buffer-substring-no-properties (point-min) (point-max)))
+        (mode (symbol-name major-mode)))
+    (gemini-repl)
+    (with-current-buffer gemini-repl-buffer-name
+      (insert (format "Generate documentation for this %s code:\n\n" mode))
+      (insert "```\n" code "\n```\n\n")
+      (insert "Include:\n")
+      (insert "- Module/file overview\n")
+      (insert "- Function/class documentation\n")
+      (insert "- Usage examples\n")
+      (gemini-repl-send-input))))
+#+end_src
+
+** Learning and Exploration
+
+*** Learn New APIs
+1. Open documentation or example code
+2. Press =C-c C-g b=
+3. Ask: "Explain this API and show common usage patterns"
+
+*** Understand Error Messages
+1. Copy error from compilation buffer
+2. Press =C-c C-g r= to open REPL
+3. Paste error and ask for explanation
+4. Ask follow-up questions interactively
+
+*** Code Golf / Optimization
+1. Select working code
+2. Press =C-c C-g g=
+3. Ask: "Optimize this code for performance/readability"
+4. Compare suggestions
+
+* Tips and Best Practices
+
+** Effective Prompting
+
+*** Be Specific
+- BAD: "Fix this"
+- GOOD: "This function has a race condition. Suggest thread-safe alternatives"
+
+*** Provide Context
+#+begin_example
+I'm working on a Django REST API. This view is returning 500 errors
+when handling concurrent requests. [Send code]
+#+end_example
+
+*** Iterate
+1. Start with broad question
+2. Drill down based on response
+3. Ask for clarification as needed
+
+** Managing Conversations
+
+*** Clear Context When Switching Topics
+- Use =C-c C-k= in REPL to clear conversation
+- Start fresh for unrelated questions
+
+*** Save Important Responses
+- Use =C-c C-g i= to insert responses
+- Copy to scratch buffer for reference
+- Create org file with AI conversations
+
+*** Use Project-Based Sessions
+- Different workspace for different projects
+- Keep conversations focused
+
+** Performance Tips
+
+*** Avoid Sending Large Files
+- Send only relevant sections
+- Use =C-c C-g d= for functions instead of whole buffer
+- Summarize large contexts
+
+*** Batch Related Questions
+- Ask multiple questions in one prompt
+- Use REPL for back-and-forth discussion
+- Avoid reopening REPL repeatedly
+
+** Security Considerations
+
+*** Review Tool Permissions
+- Keep =gemini-repl-yolo-mode= off in production
+- Review file write operations
+- Check git operations before allowing
+
+*** Sensitive Data
+- Don't send API keys or credentials
+- Review diffs before sending
+- Be cautious with =.env= files
+
+* Integration with Other Tools
+
+** With Magit
+#+begin_src elisp
+(defun my-gemini-review-commit ()
+  "Review current commit with AI."
+  (interactive)
+  (when (derived-mode-p 'magit-mode)
+    (let ((commit (magit-commit-at-point)))
+      (gemini-repl)
+      (with-current-buffer gemini-repl-buffer-name
+        (insert "Review this commit:\n\n")
+        (insert (magit-git-string "show" commit))
+        (gemini-repl-send-input)))))
+#+end_src
+
+** With LSP Mode
+#+begin_src elisp
+(defun my-gemini-explain-diagnostic ()
+  "Explain LSP diagnostic at point."
+  (interactive)
+  (when-let ((diagnostic (lsp-diagnostics-at-point)))
+    (gemini-repl)
+    (with-current-buffer gemini-repl-buffer-name
+      (insert "Explain this error and suggest fixes:\n\n")
+      (insert (lsp-diagnostic-message diagnostic))
+      (gemini-repl-send-input))))
+#+end_src
+
+** With Projectile
+#+begin_src elisp
+(defun my-gemini-project-overview ()
+  "Get AI overview of projectile project."
+  (interactive)
+  (when (projectile-project-p)
+    (let ((files (projectile-current-project-files)))
+      (gemini-repl)
+      (with-current-buffer gemini-repl-buffer-name
+        (insert "Analyze this project structure:\n\n")
+        (insert (mapconcat #'identity (seq-take files 50) "\n"))
+        (gemini-repl-send-input)))))
+#+end_src
+
+* Troubleshooting
+
+** REPL Not Responding
+- Check API key is set correctly
+- Verify network connection
+- Check provider endpoint (for Ollama)
+- Look at =*Messages*= buffer for errors
+
+** Permission Denied Errors
+- Workspace not set correctly
+- Path traversal protection triggered
+- File in sensitive directory
+
+** Tool Calls Failing
+- Insufficient permissions in workspace
+- Git repository not initialized
+- Missing dependencies (ripgrep, git)
+
+** Unexpected Responses
+- Clear conversation with =C-c C-k=
+- Restart REPL
+- Try different prompt
+
+* Keyboard Shortcut Quick Reference
+
+| Action                    | Keybinding   |
+|---------------------------+--------------|
+| Open REPL                 | =C-c C-g r=  |
+| Send region               | =C-c C-g g=  |
+| Send buffer               | =C-c C-g b=  |
+| Send function             | =C-c C-g d=  |
+| Explain at point          | =C-c C-g e=  |
+| Insert response           | =C-c C-g i=  |
+| Ask about buffer          | =C-c C-g a=  |
+| Ask about project         | =C-c C-g p=  |
+| Explain error (prog mode) | =C-c C-g x=  |
+| Suggest fix (prog mode)   | =C-c C-g f=  |
+
+* Example Sessions
+
+** Session 1: Understanding Legacy Code
+
+#+begin_example
+1. Open mysterious file: legacy-parser.py
+2. C-c C-g b (send buffer)
+3. AI explains: "This is a recursive descent parser for..."
+4. Select confusing function
+5. C-c C-g g, ask: "Why is this implemented this way?"
+6. AI explains trade-offs
+7. C-c C-g i to insert as comment
+#+end_example
+
+** Session 2: Debugging
+
+#+begin_example
+1. Tests failing, error in compilation buffer
+2. C-c C-g e (explain compilation error)
+3. AI identifies issue: "Missing import statement"
+4. Navigate to relevant code
+5. C-c C-g f (suggest fix)
+6. Review suggestion, apply fix
+7. Rerun tests
+#+end_example
+
+** Session 3: Documentation
+
+#+begin_example
+1. Open API client file
+2. C-c C-g a, ask: "Generate API documentation"
+3. Create new org file: api-docs.org
+4. For each function:
+   - C-c C-g d (send function)
+   - Insert response as org subtree
+5. C-c C-g o p to process remaining AI blocks
+#+end_example
+
+* Conclusion
+
+The Emacs-native integrations make AI assistance a natural part of your workflow. Start with basic commands like =C-c C-g g= and =C-c C-g b=, then gradually incorporate more advanced patterns as you become comfortable.
+
+Remember: AI is a tool to augment your capabilities, not replace your judgment. Always review suggestions critically and test thoroughly.

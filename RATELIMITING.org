@@ -1,0 +1,316 @@
+#+TITLE: Rate Limiting in gemini-repl
+#+AUTHOR: Jason Walsh
+#+DATE: 2024-12-23
+
+* Overview
+
+The =gemini-repl-ratelimit= module provides automatic rate limiting for API requests to prevent exceeding provider limits and potential service interruptions or account penalties.
+
+* Features
+
+- Automatic rate limiting based on model type
+- Per-model request tracking using ring buffers
+- 90% safety margin to stay well within limits
+- Countdown timer display when rate limited
+- Interactive status checking
+- Integration with REPL slash commands
+
+* Model Limits
+
+** Google Gemini Models
+
+| Model                  | Raw Limit (RPM) | Effective Limit (90%) |
+|------------------------+-----------------+-----------------------|
+| gemini-1.5-flash-lite  |              30 |                    27 |
+| gemini-1.5-flash       |              15 |                    13 |
+| gemini-1.5-pro         |               5 |                     4 |
+| gemini-2.0-flash-exp   |              10 |                     9 |
+
+** OpenAI Models
+
+| Model         | Raw Limit (RPM) | Effective Limit (90%) |
+|---------------+-----------------+-----------------------|
+| gpt-4o        |              10 |                     9 |
+| gpt-4o-mini   |              30 |                    27 |
+| gpt-4-turbo   |              10 |                     9 |
+| gpt-3.5-turbo |              60 |                    54 |
+
+** Local Models (Ollama)
+
+All local models have unlimited rate limits:
+- llama3.2
+- llama3.1
+- llama2
+- Any other Ollama model
+
+* Implementation
+
+** Tracking
+
+The module uses ring buffers (via Emacs =ring.el=) to track request timestamps in a rolling 60-second window.
+
+- Each model has its own ring buffer
+- Timestamps are stored as float-time values
+- Old requests (>60 seconds) are automatically cleaned
+
+** Safety Margin
+
+By default, the module applies a 90% safety margin to all rate limits. This means:
+
+- A 10 RPM limit becomes 9 requests
+- A 30 RPM limit becomes 27 requests
+
+This buffer prevents hitting hard limits due to timing variations or concurrent requests.
+
+Configure via:
+#+begin_src elisp
+(setq gemini-repl-ratelimit-safety-margin 0.8)  ; 80% instead of 90%
+#+end_src
+
+** Wait Strategy
+
+When rate limited:
+
+1. Calculate time until oldest request expires
+2. Optionally display countdown timer
+3. Sleep until allowed
+4. Record new request
+5. Proceed with API call
+
+* Usage
+
+** Automatic Integration
+
+Rate limiting is automatically applied to all API requests in =gemini-repl=. No configuration needed.
+
+** REPL Commands
+
+*** Check Status
+
+#+begin_example
+> /ratelimit
+gemini-2.0-flash-exp: 5/9 requests used (56% limit, safety margin: 90%). Ready
+#+end_example
+
+*** Reset History
+
+#+begin_example
+> /ratelimit-reset
+Rate limit reset for gemini-2.0-flash-exp
+#+end_example
+
+** Programmatic API
+
+*** Check if Request Allowed
+
+#+begin_src elisp
+(if (gemini-repl-ratelimit-check "gemini-2.0-flash-exp")
+    (message "Can make request")
+  (message "Rate limited"))
+#+end_src
+
+*** Record a Request
+
+#+begin_src elisp
+(gemini-repl-ratelimit-record "gemini-2.0-flash-exp")
+#+end_src
+
+*** Wait Until Allowed
+
+#+begin_src elisp
+;; Blocks until request is allowed
+(gemini-repl-ratelimit-wait "gemini-2.0-flash-exp")
+#+end_src
+
+*** Wrap Request with Rate Limiting
+
+#+begin_src elisp
+(gemini-repl-ratelimit-wrap-request
+ "gemini-2.0-flash-exp"
+ (lambda ()
+   ;; Make API request here
+   (my-api-call)))
+#+end_src
+
+*** Get Status
+
+#+begin_src elisp
+;; Interactive
+M-x gemini-repl-ratelimit-status
+
+;; Programmatic
+(gemini-repl-ratelimit-status "gemini-2.0-flash-exp")
+#+end_src
+
+** Modeline Display
+
+Enable real-time rate limit display in the modeline:
+
+#+begin_src elisp
+(gemini-repl-ratelimit-enable-modeline "gemini-2.0-flash-exp")
+#+end_src
+
+Shows:
+- =[RL:5/9]= - 5 of 9 requests used
+- =[RL:3.2s]= - Rate limited, 3.2 seconds remaining
+
+* Configuration
+
+** Custom Limits
+
+Add or modify model limits:
+
+#+begin_src elisp
+;; Set custom limit for a model
+(gemini-repl-ratelimit-configure-limit "my-custom-model" 20)  ; 20 RPM
+
+;; Set unlimited
+(gemini-repl-ratelimit-configure-limit "my-local-model" nil)
+#+end_src
+
+** Countdown Display
+
+Disable countdown timer:
+
+#+begin_src elisp
+(setq gemini-repl-ratelimit-show-countdown nil)
+#+end_src
+
+** Time Window
+
+Change from 60 seconds (default for RPM):
+
+#+begin_src elisp
+(setq gemini-repl-ratelimit-window 120)  ; 2 minutes
+#+end_src
+
+* Testing
+
+The module includes comprehensive tests in =test/gemini-repl-ratelimit-test.el=.
+
+Run tests:
+#+begin_src bash
+cd /path/to/gemini-repl-010
+gmake test-ratelimit
+#+end_src
+
+Test coverage includes:
+- Limit configuration
+- Request recording and tracking
+- Time-based cleanup
+- Safety margins
+- Multiple model isolation
+- Custom limit configuration
+- Reset functionality
+
+* Architecture
+
+** Data Structures
+
+#+begin_src
+gemini-repl-ratelimit--history (hash-table)
+  ├─ "model-name-1" → ring-buffer of timestamps
+  ├─ "model-name-2" → ring-buffer of timestamps
+  └─ ...
+
+gemini-repl-ratelimit--limits (alist)
+  ├─ ("gemini-2.0-flash-exp" . 10)
+  ├─ ("gpt-4o" . 10)
+  └─ ...
+#+end_src
+
+** Flow
+
+1. User makes request via =gemini-repl--request=
+2. Request wrapped by =gemini-repl-ratelimit-wrap-request=
+3. Check if allowed via =gemini-repl-ratelimit-check=
+4. If not allowed, wait via =gemini-repl-ratelimit-wait=
+5. Record request via =gemini-repl-ratelimit-record=
+6. Proceed with actual API call
+
+* Examples
+
+** Basic Usage
+
+#+begin_src elisp
+;; Start REPL
+M-x gemini-repl
+
+;; Check rate limit status
+> /ratelimit
+gemini-2.0-flash-exp: 0/9 requests used (0% limit, safety margin: 90%). Ready
+
+;; Make some requests...
+> What is the capital of France?
+> Explain quantum computing
+> Write a haiku about code
+
+;; Check again
+> /ratelimit
+gemini-2.0-flash-exp: 3/9 requests used (33% limit, safety margin: 90%). Ready
+#+end_src
+
+** Programmatic
+
+#+begin_src elisp
+;; Configure custom model
+(gemini-repl-ratelimit-configure-limit "claude-3-opus" 5)
+
+;; Use in code
+(defun my-ai-function ()
+  (gemini-repl-ratelimit-wrap-request
+   "claude-3-opus"
+   (lambda ()
+     ;; Make API call
+     (my-api-call-to-claude))))
+
+;; Check status
+(gemini-repl-ratelimit-status "claude-3-opus")
+#+end_src
+
+** Monitoring
+
+#+begin_src elisp
+;; Enable modeline
+(gemini-repl-ratelimit-enable-modeline "gemini-2.0-flash-exp")
+
+;; Watch in modeline as you make requests
+;; [RL:0/9] → [RL:1/9] → [RL:2/9] → ...
+#+end_src
+
+* Troubleshooting
+
+** Still Getting Rate Limited
+
+- Check safety margin (increase if needed)
+- Verify model name matches exactly
+- Check for concurrent sessions
+- Reset history if stuck: =/ratelimit-reset=
+
+** Unexpected Unlimited
+
+- Verify model name is in limits table
+- Check for typos in model name
+- Unknown models default to unlimited
+
+** Modeline Not Updating
+
+- Ensure =gemini-repl-ratelimit-enable-modeline= was called
+- Check that timer is running
+- Force update: =M-x force-mode-line-update=
+
+* Future Enhancements
+
+Potential improvements:
+
+- [ ] Token-based rate limiting (in addition to RPM)
+- [ ] Burst allowance
+- [ ] Per-user rate limit tracking
+- [ ] Exponential backoff
+- [ ] Rate limit prediction/warnings
+- [ ] Integration with provider error responses
+- [ ] Persistent rate limit history across sessions
+
+* License
+
+GPL-3.0 (same as gemini-repl)
