@@ -1,0 +1,321 @@
+#+TITLE: Gemini REPL Memory System
+#+AUTHOR: Jason Walsh
+#+DATE: 2024-12-23
+
+* Overview
+
+The =gemini-repl-memory= package provides a persistent memory/facts system for the gemini-repl. It allows the AI to remember facts about you, your preferences, projects, and technical details across sessions.
+
+* Features
+
+- *Persistent Storage*: Facts are stored in JSON format at =~/.emacs.d/gemini-repl/memory/facts.json=
+- *Categorization*: Organize facts into general, preference, project, or technical categories
+- *Automatic Timestamping*: Each fact includes when it was created/updated
+- *Context Generation*: Automatically inject facts into conversation context
+- *Interactive Management*: Add, remove, list, and search facts interactively
+
+* Installation
+
+The memory system is automatically available when you use =gemini-repl=. Just ensure =gemini-repl-memory.el= is in your load path.
+
+#+begin_src emacs-lisp
+(require 'gemini-repl-memory)
+#+end_src
+
+* Usage
+
+** Adding Facts
+
+*** Interactively
+#+begin_src emacs-lisp
+M-x gemini-repl-memory-add
+#+end_src
+
+You'll be prompted for:
+1. Fact key (unique identifier)
+2. Fact value
+3. Category (general, preference, project, technical)
+
+*** Programmatically
+#+begin_src emacs-lisp
+;; Add a preference
+(gemini-repl-memory-add "editor" "Emacs" 'preference)
+
+;; Add a project fact
+(gemini-repl-memory-add "current-project" "gemini-repl" 'project)
+
+;; Add technical knowledge
+(gemini-repl-memory-add "language" "Emacs Lisp" 'technical)
+
+;; Add general information (default category)
+(gemini-repl-memory-add "name" "Alice")
+#+end_src
+
+** Retrieving Facts
+
+#+begin_src emacs-lisp
+;; Get a fact
+(gemini-repl-memory-get "editor")
+;; => (:key "editor" :value "Emacs" :category preference :timestamp "2024-12-23T...")
+
+;; Interactively view a fact
+M-x gemini-repl-memory-get
+#+end_src
+
+** Listing Facts
+
+#+begin_src emacs-lisp
+;; List all facts
+(gemini-repl-memory-list)
+
+;; List facts by category
+(gemini-repl-memory-list 'preference)
+(gemini-repl-memory-list 'project)
+
+;; Interactively
+M-x gemini-repl-memory-list        ;; All facts
+C-u M-x gemini-repl-memory-list    ;; Select category
+#+end_src
+
+** Removing Facts
+
+#+begin_src emacs-lisp
+;; Remove a fact
+(gemini-repl-memory-remove "editor")
+
+;; Interactively (with completion)
+M-x gemini-repl-memory-remove
+#+end_src
+
+** Clearing All Facts
+
+#+begin_src emacs-lisp
+;; Clear all facts (prompts for confirmation)
+M-x gemini-repl-memory-clear
+#+end_src
+
+** Generating Context
+
+The memory system automatically generates context for the AI when starting a new conversation:
+
+#+begin_src emacs-lisp
+;; Generate context string from all facts
+(gemini-repl-memory-to-context)
+#+end_src
+
+This returns a formatted string like:
+
+#+begin_example
+# Stored Facts
+
+The following facts have been learned about the user and their environment:
+
+## Preference
+
+- editor: Emacs
+- theme: dark
+
+## Project
+
+- current-project: gemini-repl
+- language: Emacs Lisp
+
+## Technical
+
+- os: FreeBSD
+- shell: zsh
+#+end_example
+
+* Configuration
+
+** Auto-loading
+
+#+begin_src emacs-lisp
+;; Automatically load facts from disk on first access (default: t)
+(setq gemini-repl-memory-auto-load t)
+#+end_src
+
+** Auto-saving
+
+#+begin_src emacs-lisp
+;; Automatically save facts after modifications (default: t)
+(setq gemini-repl-memory-auto-save t)
+#+end_src
+
+** Storage Location
+
+#+begin_src emacs-lisp
+;; Change where facts are stored
+(setq gemini-repl-memory-file
+      (expand-file-name "my-facts.json" user-emacs-directory))
+#+end_src
+
+** Enable/Disable Memory in Conversations
+
+#+begin_src emacs-lisp
+;; Include memory context in conversations (default: t)
+(setq gemini-repl-use-memory t)
+
+;; Disable memory context
+(setq gemini-repl-use-memory nil)
+#+end_src
+
+* Categories
+
+Facts are organized into four categories:
+
+1. *general*: General information about the user
+2. *preference*: User preferences (editor, theme, workflow)
+3. *project*: Project-specific information
+4. *technical*: Technical knowledge and environment details
+
+* Data Structure
+
+Each fact is stored as a plist with the following keys:
+
+- =:key= - Unique identifier (string)
+- =:value= - Fact value (string)
+- =:category= - Category symbol (general, preference, project, technical)
+- =:timestamp= - ISO 8601 timestamp (string)
+
+Example:
+#+begin_src emacs-lisp
+(:key "editor"
+ :value "Emacs"
+ :category preference
+ :timestamp "2024-12-23T14:30:00-0800")
+#+end_src
+
+* JSON Storage Format
+
+Facts are persisted as JSON:
+
+#+begin_src json
+[
+  {
+    "key": "editor",
+    "value": "Emacs",
+    "category": "preference",
+    "timestamp": "2024-12-23T14:30:00-0800"
+  },
+  {
+    "key": "current-project",
+    "value": "gemini-repl",
+    "category": "project",
+    "timestamp": "2024-12-23T14:31:00-0800"
+  }
+]
+#+end_src
+
+* Integration with gemini-repl
+
+When =gemini-repl-use-memory= is enabled (default), the memory context is automatically injected at the start of new conversations. This allows the AI to have context about:
+
+- Your preferences
+- Current projects
+- Technical environment
+- Previous learnings
+
+* Example Workflow
+
+#+begin_src emacs-lisp
+;; Initial setup - teach the AI about yourself
+(gemini-repl-memory-add "name" "Alice" 'general)
+(gemini-repl-memory-add "editor" "Emacs" 'preference)
+(gemini-repl-memory-add "os" "FreeBSD" 'technical)
+(gemini-repl-memory-add "current-project" "gemini-repl" 'project)
+(gemini-repl-memory-add "build-tool" "gmake" 'technical)
+
+;; Start a conversation - AI will know these facts
+M-x gemini-repl
+
+;; List all facts to review
+M-x gemini-repl-memory-list
+
+;; Update a fact
+(gemini-repl-memory-add "current-project" "new-project" 'project)
+
+;; Remove outdated fact
+(gemini-repl-memory-remove "old-fact")
+
+;; Save manually if auto-save is disabled
+M-x gemini-repl-memory-save
+#+end_src
+
+* Testing
+
+Run the test suite:
+
+#+begin_src emacs-lisp
+;; Load tests
+(load-file "test/gemini-repl-memory-test.el")
+
+;; Run all tests
+M-x ert RET t RET
+
+;; Run specific test
+M-x ert RET test-memory-add-fact RET
+#+end_src
+
+* Advanced Usage
+
+** Custom Categories
+
+While the system validates categories against =gemini-repl-memory-categories=, you can extend this:
+
+#+begin_src emacs-lisp
+;; Add custom categories (modify before use)
+(add-to-list 'gemini-repl-memory-categories 'personal)
+#+end_src
+
+** Batch Operations
+
+#+begin_src emacs-lisp
+;; Add multiple facts
+(dolist (fact '(("lang-rust" "Rust" technical)
+                ("lang-elisp" "Emacs Lisp" technical)
+                ("lang-python" "Python" technical)))
+  (apply #'gemini-repl-memory-add fact))
+
+;; Export facts to variable
+(defvar my-facts (gemini-repl-memory-list))
+#+end_src
+
+** Conditional Context
+
+#+begin_src emacs-lisp
+;; Generate context only for specific categories
+(let ((project-facts (gemini-repl-memory-list 'project)))
+  (when project-facts
+    ;; Use project-facts for context
+    ...))
+#+end_src
+
+* Troubleshooting
+
+** Facts not loading
+
+#+begin_src emacs-lisp
+;; Manually load facts
+(gemini-repl-memory-load)
+
+;; Check file exists
+(file-exists-p gemini-repl-memory-file)
+#+end_src
+
+** Invalid JSON
+
+If the facts file becomes corrupted:
+
+#+begin_src emacs-lisp
+;; Backup old file
+;; mv ~/.emacs.d/gemini-repl/memory/facts.json{,.bak}
+
+;; Clear and start fresh
+(setq gemini-repl-memory--facts nil
+      gemini-repl-memory--loaded nil)
+#+end_src
+
+* License
+
+Same license as gemini-repl (see main package).

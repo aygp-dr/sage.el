@@ -1,0 +1,618 @@
+#+TITLE: Gemini REPL Queue System
+#+AUTHOR: Jason Walsh
+#+EMAIL: j@wal.sh
+
+* Overview
+
+The =gemini-repl-queue= system provides file-based inter-agent communication for Emacs. It enables multiple AI agents, processes, or Emacs instances to communicate asynchronously through JSON files in a watched directory structure.
+
+* Architecture
+
+** Directory Structure
+
+#+begin_src
+~/.emacs.d/gemini-repl/queues/
+├── input/    # Incoming requests (JSON files)
+├── output/   # Responses from processing
+└── archive/  # Processed and completed requests
+#+end_src
+
+** Message Flow
+
+1. Agent A submits a request → creates JSON file in =input/=
+2. Queue system detects new file (via file-notify or polling)
+3. Registered handler processes the request
+4. Response written to =output/=
+5. Request and response archived to =archive/=
+
+** Request Format
+
+JSON structure for requests:
+
+#+begin_src json
+{
+  "id": "20241223-153045-a1b2c3d4",
+  "type": "prompt|command|ping",
+  "content": "Request content here",
+  "context": {
+    "key": "value",
+    "metadata": "..."
+  },
+  "created_at": "2024-12-23T15:30:45+0000"
+}
+#+end_src
+
+** Response Format
+
+JSON structure for responses:
+
+#+begin_src json
+{
+  "request_id": "20241223-153045-a1b2c3d4",
+  "status": "success|error",
+  "content": "Response content here",
+  "metadata": {
+    "processing_time": "1.2s",
+    "handler": "prompt-handler"
+  },
+  "processed_at": "2024-12-23T15:30:47+0000"
+}
+#+end_src
+
+* Installation
+
+** Basic Setup
+
+#+begin_src elisp
+;; Add to your init.el
+(add-to-list 'load-path "~/.emacs.d/site-lisp/gemini-repl-010")
+(require 'gemini-repl-queue)
+
+;; Optional: customize queue directory
+(setq gemini-repl-queue-directory
+      (expand-file-name "~/my-queues"))
+#+end_src
+
+** With use-package
+
+#+begin_src elisp
+(use-package gemini-repl-queue
+  :load-path "~/.emacs.d/site-lisp/gemini-repl-010"
+  :config
+  (setq gemini-repl-queue-auto-process t)
+  (setq gemini-repl-queue-retention-days 7)
+  ;; Enable watch mode on startup
+  (gemini-repl-queue-watch-mode 1))
+#+end_src
+
+* Usage
+
+** Submitting Requests
+
+*** Interactive
+
+#+begin_src elisp
+M-x gemini-repl-queue-submit
+Type: prompt
+Content: What is the weather today?
+#+end_src
+
+*** Programmatic
+
+#+begin_src elisp
+;; Simple ping
+(gemini-repl-queue-submit 'ping "Hello")
+
+;; With context
+(gemini-repl-queue-submit
+ 'prompt
+ "Analyze this code"
+ '((file . "/path/to/code.el")
+   (language . "elisp")))
+#+end_src
+
+** Polling for Requests
+
+#+begin_src elisp
+;; Manual poll
+(let ((request (gemini-repl-queue-poll)))
+  (when request
+    (message "Found: %s" (alist-get 'content request))))
+#+end_src
+
+** Responding to Requests
+
+#+begin_src elisp
+;; Success response
+(gemini-repl-queue-respond "request-id" 'success "Here's the result")
+
+;; Error response
+(gemini-repl-queue-respond "request-id" 'error "Failed to process")
+#+end_src
+
+** Archiving
+
+#+begin_src elisp
+;; Archive completed request
+(gemini-repl-queue-archive "request-id")
+
+;; Clean old archives (>7 days)
+(gemini-repl-queue-cleanup-archives)
+#+end_src
+
+** Watch Mode
+
+Enable automatic processing:
+
+#+begin_src elisp
+;; Enable
+(gemini-repl-queue-watch-mode 1)
+
+;; Disable
+(gemini-repl-queue-watch-mode -1)
+#+end_src
+
+Watch mode will:
+- Monitor =input/= directory for new requests
+- Automatically process them with registered handlers
+- Write responses and archive
+
+** Custom Handlers
+
+Register handlers for specific request types:
+
+#+begin_src elisp
+(gemini-repl-queue-register-handler
+ 'my-custom-type
+ (lambda (request)
+   (let ((content (alist-get 'content request))
+         (context (alist-get 'context request)))
+     ;; Process the request
+     (cons 'success "Processing complete"))))
+#+end_src
+
+Handler function must:
+- Accept a request alist
+- Return a cons cell: =(status . content)=
+- Status should be ='success= or ='error=
+
+* Built-in Handlers
+
+** Ping Handler
+
+Type: =ping=
+
+Simple echo handler for testing:
+
+#+begin_src elisp
+(gemini-repl-queue-submit 'ping "test")
+;; Response: "pong: 2024-12-23T15:30:45+0000"
+#+end_src
+
+** Prompt Handler
+
+Type: =prompt=
+
+Executes prompts through =gemini-repl-exec=:
+
+#+begin_src elisp
+(gemini-repl-queue-submit 'prompt "What is 2+2?")
+;; Response: AI-generated answer
+#+end_src
+
+* Advanced Features
+
+** Agent Communication
+
+*** Direct Messaging
+
+#+begin_src elisp
+;; Send to specific agent
+(gemini-repl-queue-send-to-agent "agent-b" "Process this data")
+#+end_src
+
+*** Broadcasting
+
+#+begin_src elisp
+;; Send to all agents
+(gemini-repl-queue-broadcast "System maintenance starting")
+#+end_src
+
+** Multi-Step Workflows
+
+#+begin_src elisp
+;; Step 1 handler chains to Step 2
+(gemini-repl-queue-register-handler
+ 'step1
+ (lambda (request)
+   (let ((result (process-step-1 request)))
+     ;; Queue next step
+     (gemini-repl-queue-submit 'step2 result)
+     (cons 'success "Step 1 done"))))
+
+(gemini-repl-queue-register-handler
+ 'step2
+ (lambda (request)
+   (cons 'success "Workflow complete")))
+#+end_src
+
+** Monitoring
+
+Check queue status:
+
+#+begin_src elisp
+M-x gemini-repl-queue-status
+#+end_src
+
+Shows:
+- Current queue counts (input/output/archive)
+- Session statistics (submitted/processed/errors)
+- Watch mode status
+- File-notify status
+
+* Configuration
+
+** Customization Variables
+
+#+begin_src elisp
+;; Queue directory location
+(setq gemini-repl-queue-directory
+      (expand-file-name "gemini-repl/queues" user-emacs-directory))
+
+;; Polling interval (when file-notify unavailable)
+(setq gemini-repl-queue-poll-interval 2.0)
+
+;; Auto-process in watch mode
+(setq gemini-repl-queue-auto-process t)
+
+;; Max retries for failed requests
+(setq gemini-repl-queue-max-retries 3)
+
+;; Archive retention
+(setq gemini-repl-queue-retention-days 7)
+#+end_src
+
+** File Watching
+
+The system uses:
+1. =file-notify= (if available) - most efficient
+2. Timer-based polling (fallback) - polls every N seconds
+
+To force polling:
+
+#+begin_src elisp
+(setq gemini-repl-queue-poll-interval 1.0)
+#+end_src
+
+* Use Cases
+
+** 1. Multi-Agent Collaboration
+
+Multiple Emacs instances or AI agents working on the same project:
+
+#+begin_src elisp
+;; Agent 1: Code analysis
+(gemini-repl-queue-submit 'analyze "file.el")
+
+;; Agent 2: Testing
+(gemini-repl-queue-submit 'test "file.el")
+
+;; Agent 3: Documentation
+(gemini-repl-queue-submit 'document "file.el")
+#+end_src
+
+** 2. Asynchronous Task Processing
+
+Long-running tasks that shouldn't block Emacs:
+
+#+begin_src elisp
+(gemini-repl-queue-register-handler
+ 'heavy-analysis
+ (lambda (request)
+   ;; Process data without blocking
+   (cons 'success (analyze-large-dataset request))))
+#+end_src
+
+** 3. Integration with External Processes
+
+Bridge between Emacs and external tools:
+
+#+begin_src elisp
+;; External script creates request file
+;; Emacs processes it and writes response
+;; External script reads response
+#+end_src
+
+** 4. Distributed AI Agents
+
+Multiple AI agents specializing in different tasks:
+
+#+begin_src elisp
+;; Code review agent
+(gemini-repl-queue-register-handler 'review #'review-handler)
+
+;; Documentation agent
+(gemini-repl-queue-register-handler 'docs #'docs-handler)
+
+;; Testing agent
+(gemini-repl-queue-register-handler 'test #'test-handler)
+#+end_src
+
+** 5. Request/Response Logging
+
+All interactions logged as JSON files:
+
+#+begin_src elisp
+;; Audit trail in archive/
+;; Can be analyzed, replayed, or used for training
+#+end_src
+
+* Examples
+
+See =examples/queue-demo.el= for comprehensive examples:
+
+- Basic request/response
+- Custom handlers
+- Watch mode
+- Agent communication
+- Async workflows
+- Batch processing
+- Error handling
+- Monitoring
+- Context/metadata usage
+- Cleanup/maintenance
+
+Run the demo menu:
+
+#+begin_src elisp
+M-x queue-demo-menu
+#+end_src
+
+* Testing
+
+Run the test suite:
+
+#+begin_src elisp
+;; Load tests
+(load-file "test/gemini-repl-queue-test.el")
+
+;; Run all tests
+M-x ert RET t RET
+
+;; Run specific test
+M-x ert RET gemini-repl-queue-test-submit-request RET
+#+end_src
+
+** Test Coverage
+
+- Directory creation
+- Request submission
+- Response writing
+- Polling
+- Archiving
+- JSON serialization
+- Handler registration
+- ID generation
+- Timestamp formatting
+- Batch operations
+
+* Security Considerations
+
+** File System Access
+
+- Queue operates in =~/.emacs.d/gemini-repl/queues/= by default
+- No automatic execution of arbitrary code
+- Handlers must be explicitly registered
+
+** Input Validation
+
+- All JSON parsing wrapped in error handlers
+- Invalid files logged but don't crash system
+- Malformed requests get error responses
+
+** Path Traversal
+
+- All paths relative to queue directory
+- No =..= traversal allowed
+- Files outside queue directory ignored
+
+** Sensitive Data
+
+- Queue files are plain JSON
+- Don't submit API keys or secrets
+- Consider encrypting sensitive content before submission
+
+* Troubleshooting
+
+** File-notify Not Working
+
+#+begin_src elisp
+;; Check if file-notify is available
+(featurep 'filenotify)
+
+;; Fall back to polling
+(setq gemini-repl-queue-poll-interval 1.0)
+#+end_src
+
+** Requests Not Processing
+
+1. Check watch mode is enabled: =M-x gemini-repl-queue-status=
+2. Verify handlers are registered
+3. Check =*Messages*= buffer for errors
+4. Manually poll: =(gemini-repl-queue-poll)=
+
+** Permission Issues
+
+#+begin_src elisp
+;; Ensure directory is writable
+(file-writable-p gemini-repl-queue-directory)
+
+;; Check file permissions
+(file-attributes (expand-file-name "input" gemini-repl-queue-directory))
+#+end_src
+
+** Old Archives Accumulating
+
+#+begin_src elisp
+;; Set up periodic cleanup
+(run-with-timer 0 (* 24 60 60) ; daily
+  #'gemini-repl-queue-cleanup-archives)
+#+end_src
+
+* Performance
+
+** Benchmarks
+
+| Operation        | Time (ms) | Notes                    |
+|------------------+-----------+--------------------------|
+| Submit request   |       ~5  | Write JSON file          |
+| Poll             |       ~3  | List directory, read one |
+| Respond          |       ~5  | Write JSON file          |
+| Archive          |       ~8  | Move 2 files             |
+| Process (simple) |      ~15  | Full cycle               |
+
+** Optimization Tips
+
+1. Use file-notify instead of polling
+2. Set appropriate poll interval
+3. Archive old requests regularly
+4. Limit context size in requests
+5. Use batch operations when possible
+
+* API Reference
+
+** Functions
+
+*** gemini-repl-queue-submit (type content &optional context)
+
+Submit a request to the queue.
+
+*Arguments:*
+- =type= - Request type (symbol)
+- =content= - Request content (string)
+- =context= - Optional metadata (alist)
+
+*Returns:* Request ID (string)
+
+*** gemini-repl-queue-poll ()
+
+Poll for the oldest pending request.
+
+*Returns:* Request alist or nil
+
+*** gemini-repl-queue-respond (request-id status content &optional metadata)
+
+Write a response for a request.
+
+*Arguments:*
+- =request-id= - Request ID (string)
+- =status= - 'success or 'error (symbol)
+- =content= - Response content (string)
+- =metadata= - Optional metadata (alist)
+
+*Returns:* Request ID (string)
+
+*** gemini-repl-queue-archive (request-id)
+
+Archive a completed request.
+
+*Arguments:*
+- =request-id= - Request ID (string)
+
+*** gemini-repl-queue-status ()
+
+Display queue status and statistics.
+
+Interactive command.
+
+*** gemini-repl-queue-watch-mode (&optional arg)
+
+Minor mode for automatic request processing.
+
+*Arguments:*
+- =arg= - 1 to enable, -1 to disable, toggle if nil
+
+*** gemini-repl-queue-register-handler (type handler-fn)
+
+Register a handler for a request type.
+
+*Arguments:*
+- =type= - Request type (symbol)
+- =handler-fn= - Function accepting request alist, returning =(status . content)=
+
+*** gemini-repl-queue-cleanup-archives (&optional days)
+
+Remove archived requests older than days.
+
+*Arguments:*
+- =days= - Number of days (default: =gemini-repl-queue-retention-days=)
+
+*** gemini-repl-queue-send-to-agent (agent-id message)
+
+Send a message to a specific agent.
+
+*Arguments:*
+- =agent-id= - Target agent ID (string)
+- =message= - Message content (string)
+
+*** gemini-repl-queue-broadcast (message)
+
+Broadcast a message to all agents.
+
+*Arguments:*
+- =message= - Message content (string)
+
+* Comparison with Other Systems
+
+| Feature              | gemini-repl-queue | RabbitMQ | Redis | DBus |
+|----------------------+-------------------+----------+-------+------|
+| Setup complexity     | Low               | High     | Med   | Med  |
+| Dependencies         | None              | Server   | Server| OS   |
+| Emacs integration    | Native            | Client   | Client| Some |
+| Persistence          | File-based        | Optional | Optional| No |
+| Human-readable       | Yes (JSON)        | No       | No    | No   |
+| Cross-platform       | Yes               | Yes      | Yes   | Linux|
+| Audit trail          | Built-in          | Plugin   | No    | No   |
+
+* Roadmap
+
+** Planned Features
+
+- [ ] Request priority queues
+- [ ] Scheduled/delayed requests
+- [ ] Request expiration/TTL
+- [ ] Compression for large payloads
+- [ ] Encryption for sensitive data
+- [ ] Request chaining/pipelines
+- [ ] Web interface for monitoring
+- [ ] Integration with org-mode tasks
+- [ ] Metrics and analytics
+- [ ] Request rate limiting
+
+** Ideas
+
+- Distributed queue across network
+- SQL backend option
+- GraphQL query support
+- Webhook notifications
+- Slack/Discord integration
+
+* Contributing
+
+Contributions welcome! Areas of interest:
+
+- Performance optimization
+- Additional built-in handlers
+- Better error handling
+- Documentation improvements
+- Test coverage
+
+* License
+
+GPL-3.0 (compatible with Emacs)
+
+* See Also
+
+- [[file:README.org][gemini-repl.el]] - Main REPL package
+- [[file:examples/queue-demo.el][Queue demos]] - Usage examples
+- [[file:test/gemini-repl-queue-test.el][Tests]] - Test suite

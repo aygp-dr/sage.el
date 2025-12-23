@@ -1,0 +1,397 @@
+#+TITLE: Project-Based Sessions for Gemini REPL
+#+AUTHOR: Jason Walsh
+#+DATE: 2024-12-23
+
+* Overview
+
+The =gemini-repl-project= module provides project-based conversation history
+management for =gemini-repl=. Each project directory gets its own persistent
+conversation history that is automatically loaded when you start the REPL.
+
+* Features
+
+- *Per-directory storage*: Each project has its own isolated conversation history
+- *Auto-load*: Conversations are automatically loaded when starting REPL in a project
+- *JSONL format*: Efficient append-only format for conversation storage
+- *Archive support*: Archive old conversations while keeping history
+- *Project metadata*: Track creation time, update time, message count, etc.
+- *Multiple project backends*: Works with project.el, projectile, or git repositories
+
+* Storage Structure
+
+Conversations are stored in =~/.emacs.d/gemini-repl/projects/=:
+
+#+begin_example
+~/.emacs.d/gemini-repl/projects/
+├── -home-user-project1/
+│   ├── conversation.jsonl   # Current conversation (append-only)
+│   ├── metadata.json        # Project metadata
+│   └── history/            # Archived conversations
+│       ├── 20241223-140530.jsonl
+│       └── 20241223-151045.jsonl
+└── -home-user-project2/
+    ├── conversation.jsonl
+    ├── metadata.json
+    └── history/
+#+end_example
+
+* Path Encoding
+
+Project paths are encoded to create safe directory names:
+- All =/= characters are replaced with =-=
+- Example: =/home/user/my-project= → =-home-user-my-project=
+
+This encoding matches the approach used by Claude Code.
+
+* Usage
+
+** Basic Functions
+
+*** Load Project Conversation
+
+#+begin_src emacs-lisp
+;; Load conversation for current project
+(gemini-repl-project-load)
+#+end_src
+
+This is automatically called when =gemini-repl-project-auto-load= is =t=.
+
+*** Append Messages
+
+#+begin_src emacs-lisp
+;; Append a message (plist format)
+(gemini-repl-project-append
+ '(:role "user" :content "How do I optimize this code?"))
+
+;; Append a message (list format)
+(gemini-repl-project-append
+ '("assistant" "Here are some optimization tips..."))
+#+end_src
+
+Messages are automatically saved to disk when =gemini-repl-project-auto-save= is =t=.
+
+*** Clear Conversation
+
+#+begin_src emacs-lisp
+;; Clear current conversation (archives it first)
+(gemini-repl-project-clear)
+#+end_src
+
+*** Archive Conversation
+
+#+begin_src emacs-lisp
+;; Archive current conversation with timestamp name
+(gemini-repl-project-archive)
+
+;; Archive with custom name
+(gemini-repl-project-archive "before-refactor")
+#+end_src
+
+** Metadata Management
+
+#+begin_src emacs-lisp
+;; Get entire metadata
+(gemini-repl-project-metadata)
+
+;; Get specific key
+(gemini-repl-project-metadata :message_count)
+
+;; Set custom metadata
+(gemini-repl-project-metadata :branch "feature/new-api")
+#+end_src
+
+** History Management
+
+#+begin_src emacs-lisp
+;; List all archives for current project
+(gemini-repl-project-list-archives)
+
+;; Load an archived conversation
+(gemini-repl-project-load-archive "20241223-140530.jsonl")
+#+end_src
+
+** Statistics
+
+#+begin_src emacs-lisp
+;; Display conversation statistics
+(gemini-repl-project-stats)
+#+end_src
+
+Example output:
+#+begin_example
+Project: /home/user/my-project
+Messages: 42 (user: 21, assistant: 21)
+Size: 15234 bytes
+Archives: 3
+Created: 2024-12-20T10:30:00-0500
+Updated: 2024-12-23T14:22:15-0500
+#+end_example
+
+** Export
+
+#+begin_src emacs-lisp
+;; Export to JSON
+(gemini-repl-project-export "conversation-backup.json" 'json)
+
+;; Export to Markdown
+(gemini-repl-project-export "conversation-notes.md" 'markdown)
+#+end_src
+
+* Configuration
+
+** Basic Configuration
+
+#+begin_src emacs-lisp
+;; Set storage directory
+(setq gemini-repl-project-directory
+      (expand-file-name "gemini-repl/projects" user-emacs-directory))
+
+;; Enable auto-load
+(setq gemini-repl-project-auto-load t)
+
+;; Enable auto-save after each message
+(setq gemini-repl-project-auto-save t)
+
+;; Set maximum messages before auto-archive
+(setq gemini-repl-project-max-messages 1000)
+#+end_src
+
+** Project Detection
+
+#+begin_src emacs-lisp
+;; Prefer projectile over project.el
+(setq gemini-repl-project-prefer-projectile t)
+
+;; Manually set project directory
+(gemini-repl-project-set-dir "/path/to/project")
+#+end_src
+
+** Integration with gemini-repl
+
+Add to your =init.el=:
+
+#+begin_src emacs-lisp
+(require 'gemini-repl-project)
+
+;; Load project conversation when starting REPL
+(add-hook 'gemini-repl-mode-hook
+          (lambda ()
+            (when gemini-repl-project-auto-load
+              (gemini-repl-project-load))))
+
+;; Save messages automatically
+(defun my-gemini-repl-save-message (role content)
+  "Save message to project conversation."
+  (when gemini-repl-project-auto-save
+    (gemini-repl-project-append (list role content))))
+
+;; Hook into message sending/receiving
+;; (This depends on your gemini-repl implementation)
+#+end_src
+
+* Message Format
+
+Messages are stored as JSON Lines (JSONL), with one message per line:
+
+#+begin_src json
+{"role":"user","content":"How do I optimize this?","timestamp":"2024-12-23T14:30:00-0500"}
+{"role":"assistant","content":"Here are some tips...","timestamp":"2024-12-23T14:30:15-0500"}
+#+end_src
+
+Each message has:
+- =role=: "user" or "assistant"
+- =content=: The message text
+- =timestamp=: ISO 8601 timestamp
+
+* Metadata Format
+
+Project metadata is stored as pretty-printed JSON:
+
+#+begin_src json
+{
+  "project_dir": "/home/user/my-project",
+  "created_at": "2024-12-20T10:30:00-0500",
+  "updated_at": "2024-12-23T14:30:15-0500",
+  "message_count": 42,
+  "total_size": 15234
+}
+#+end_src
+
+You can add custom metadata fields:
+
+#+begin_src emacs-lisp
+(gemini-repl-project-metadata :git_branch "main")
+(gemini-repl-project-metadata :task_id "PROJ-123")
+#+end_src
+
+* Workflow Examples
+
+** Daily Development Workflow
+
+#+begin_src emacs-lisp
+;; Morning: Load yesterday's conversation
+(gemini-repl-project-load)
+
+;; Work on feature, chat with AI
+(gemini-repl-project-append '("user" "Help me implement authentication"))
+
+;; Evening: Archive conversation before switching tasks
+(gemini-repl-project-archive "auth-implementation")
+(gemini-repl-project-clear)
+#+end_src
+
+** Multi-Project Workflow
+
+#+begin_src emacs-lisp
+;; Project A
+(cd "/home/user/project-a")
+(gemini-repl-project-load)  ; Loads project-a conversation
+;; Work on project A...
+
+;; Switch to Project B
+(cd "/home/user/project-b")
+(gemini-repl-project-load)  ; Loads project-b conversation
+;; Work on project B...
+
+;; Conversations are kept separate per project
+#+end_src
+
+** Archiving Strategy
+
+#+begin_src emacs-lisp
+;; Archive before major changes
+(gemini-repl-project-archive "before-refactor")
+
+;; Archive weekly
+(gemini-repl-project-archive
+ (format-time-string "week-%Y-w%U"))
+
+;; Archive by feature
+(gemini-repl-project-metadata :feature "user-auth")
+(gemini-repl-project-archive "feature-user-auth")
+#+end_src
+
+* Advanced Usage
+
+** Custom Message Processing
+
+#+begin_src emacs-lisp
+(defun my-process-and-save (role content)
+  "Process message before saving."
+  (let ((processed-content
+         (my-custom-filter content)))
+    (gemini-repl-project-append
+     (list :role role
+           :content processed-content
+           :custom-field "value"))))
+#+end_src
+
+** Searching Conversations
+
+#+begin_src emacs-lisp
+(defun my-search-conversation (pattern)
+  "Search current conversation for PATTERN."
+  (let ((msgs (gemini-repl-project--get-conversation)))
+    (seq-filter
+     (lambda (msg)
+       (string-match-p pattern (plist-get msg :content)))
+     msgs)))
+#+end_src
+
+** Merging Archives
+
+#+begin_src emacs-lisp
+(defun my-merge-archives (archive1 archive2 output)
+  "Merge two archives into one."
+  ;; Implementation left as exercise
+  )
+#+end_src
+
+* Troubleshooting
+
+** Conversation Not Loading
+
+#+begin_src emacs-lisp
+;; Check if project directory is detected
+(gemini-repl-project-dir)
+
+;; Manually set project directory
+(gemini-repl-project-set-dir "/path/to/project")
+
+;; Check if conversation file exists
+(file-exists-p (gemini-repl-project--conversation-file
+                (gemini-repl-project-dir)))
+#+end_src
+
+** Corrupted JSONL File
+
+If a JSONL file becomes corrupted, you can repair it:
+
+#+begin_src emacs-lisp
+(defun my-repair-jsonl (file)
+  "Remove invalid lines from JSONL FILE."
+  (let ((valid-lines nil))
+    (with-temp-buffer
+      (insert-file-contents file)
+      (goto-char (point-min))
+      (while (not (eobp))
+        (let ((line (buffer-substring-no-properties
+                    (line-beginning-position)
+                    (line-end-position))))
+          (unless (string-empty-p (string-trim line))
+            (condition-case nil
+                (progn
+                  (json-read-from-string line)
+                  (push line valid-lines))
+              (error nil))))
+        (forward-line 1)))
+    (with-temp-file file
+      (dolist (line (nreverse valid-lines))
+        (insert line "\n")))))
+#+end_src
+
+** Performance with Large Conversations
+
+If you have very large conversations (>1000 messages), consider:
+
+1. Reducing =gemini-repl-project-max-messages=
+2. Archiving more frequently
+3. Using =gemini-repl-project-clear= to start fresh
+
+* Integration with Other Tools
+
+** org-mode Integration
+
+#+begin_src emacs-lisp
+(defun my-export-to-org ()
+  "Export conversation to org-mode format."
+  (let ((msgs (gemini-repl-project--get-conversation)))
+    (with-temp-buffer
+      (org-mode)
+      (insert "#+TITLE: Conversation Export\n\n")
+      (dolist (msg msgs)
+        (insert (format "* %s\n"
+                       (capitalize (plist-get msg :role))))
+        (insert (format "<%s>\n\n"
+                       (plist-get msg :timestamp)))
+        (insert (plist-get msg :content))
+        (insert "\n\n"))
+      (write-file "conversation.org"))))
+#+end_src
+
+** Git Integration
+
+#+begin_src emacs-lisp
+;; Store git commit hash in metadata
+(defun my-save-git-context ()
+  (when-let ((rev (vc-git-working-revision default-directory)))
+    (gemini-repl-project-metadata :git_commit rev)))
+
+(add-hook 'gemini-repl-project-mode-hook #'my-save-git-context)
+#+end_src
+
+* See Also
+
+- =gemini-repl.el= - Main REPL implementation
+- =gemini-repl-session.el= - Named session management
+- =gemini-repl-memory.el= - Persistent facts/memory system

@@ -21,13 +21,23 @@
 ;; - File operations (read, write, list)
 ;; - Git integration (status, diff, log, blame)
 ;; - Code search via ripgrep
-;; - Session persistence
-;; - Project-based conversation history
+;; - Session persistence and management
+;; - Memory system for facts
+;; - Slash commands for REPL control
+;; - Emacs integration (region, buffer, org-mode)
 ;;
 ;; Usage:
 ;;   M-x gemini-repl        - Start REPL in dedicated buffer
 ;;   M-x gemini-repl-send   - Send region or prompt to AI
 ;;   M-x gemini-repl-exec   - Single-shot execution
+;;
+;; Slash Commands:
+;;   /help                  - Show all commands
+;;   /save [name]           - Save conversation
+;;   /load <name>           - Load session
+;;   /remember <key> <val>  - Remember fact
+;;   /region                - Send region to AI
+;;   /yank                  - Insert last response
 ;;
 ;; Configuration:
 ;;   (setq gemini-repl-api-key "your-api-key")
@@ -39,6 +49,9 @@
 (require 'json)
 (require 'url)
 (require 'seq)
+(require 'gemini-repl-ratelimit)
+(require 'gemini-repl-memory)
+(require 'gemini-repl-session)
 
 ;;; Customization
 
@@ -103,6 +116,11 @@ If nil, uses `default-directory'."
   :type 'file
   :group 'gemini-repl)
 
+(defcustom gemini-repl-use-memory t
+  "When non-nil, include memory/facts in conversation context."
+  :type 'boolean
+  :group 'gemini-repl)
+
 ;;; Variables
 
 (defvar gemini-repl-buffer-name "*gemini-repl*"
@@ -118,6 +136,26 @@ If nil, uses `default-directory'."
   '("read_file" "list_files" "git_status" "git_diff" "git_log"
     "git_branch" "git_blame" "code_search" "glob_files")
   "Tools that are safe (read-only) and don't require confirmation.")
+
+(defvar gemini-repl-sessions (make-hash-table :test 'equal)
+  "Hash table of saved sessions.
+Keys are session names, values are conversation histories.")
+
+(defvar gemini-repl-memory (make-hash-table :test 'equal)
+  "Hash table of remembered facts.
+Keys are fact names, values are fact content.")
+
+(defvar gemini-repl-current-session nil
+  "Name of the current session, if any.")
+
+(defvar gemini-repl-last-response nil
+  "Content of the last AI response for yanking.")
+
+(defvar gemini-repl-token-count 0
+  "Approximate token count for current session.")
+
+(defvar gemini-repl-request-count 0
+  "Number of requests in current session.")
 
 ;;; Provider API
 
@@ -272,30 +310,35 @@ TOOLS is the list of available tools."
 ;;; HTTP Client
 
 (defun gemini-repl--request (messages tools callback)
-  "Send request to LLM provider.
+  "Send request to LLM provider with rate limiting.
 MESSAGES is conversation history.
 TOOLS is available tools.
 CALLBACK receives the parsed response."
-  (let* ((url-request-method "POST")
-         (url-request-extra-headers
-          `(("Content-Type" . "application/json")
-            ,@(when (eq gemini-repl-provider 'openai)
-                `(("Authorization" . ,(format "Bearer %s" (gemini-repl--get-api-key)))))))
-         (url-request-data
-          (encode-coding-string
-           (json-encode (gemini-repl--format-request messages tools))
-           'utf-8)))
-    (url-retrieve
-     (gemini-repl--get-endpoint)
-     (lambda (status)
-       (if-let ((err (plist-get status :error)))
-           (funcall callback nil (format "Request failed: %s" err))
-         (goto-char url-http-end-of-headers)
-         (condition-case err
-             (let ((response (json-read)))
-               (funcall callback (gemini-repl--parse-response response) nil))
-           (error (funcall callback nil (format "Parse error: %s" err))))))
-     nil t t)))
+  (let ((model (gemini-repl--get-model)))
+    ;; Apply rate limiting
+    (gemini-repl-ratelimit-wrap-request
+     model
+     (lambda ()
+       (let* ((url-request-method "POST")
+              (url-request-extra-headers
+               `(("Content-Type" . "application/json")
+                 ,@(when (eq gemini-repl-provider 'openai)
+                     `(("Authorization" . ,(format "Bearer %s" (gemini-repl--get-api-key)))))))
+              (url-request-data
+               (encode-coding-string
+                (json-encode (gemini-repl--format-request messages tools))
+                'utf-8)))
+         (url-retrieve
+          (gemini-repl--get-endpoint)
+          (lambda (status)
+            (if-let ((err (plist-get status :error)))
+                (funcall callback nil (format "Request failed: %s" err))
+              (goto-char url-http-end-of-headers)
+              (condition-case err
+                  (let ((response (json-read)))
+                    (funcall callback (gemini-repl--parse-response response) nil))
+                (error (funcall callback nil (format "Parse error: %s" err))))))
+          nil t t))))))
 
 ;;; Tools
 
@@ -488,6 +531,271 @@ Returns t if allowed, nil if denied."
                    t)
                   "\n")))))
 
+;;; Slash Commands
+
+(defun gemini-repl--command-help ()
+  "Display help for slash commands."
+  (concat
+   "Available Commands:\n\n"
+   "SESSION:\n"
+   "  /save [name]          - Save conversation\n"
+   "  /load <name>          - Load session\n"
+   "  /sessions             - List sessions\n"
+   "  /delete <name>        - Delete session\n"
+   "  /export [format] [file] - Export (json/markdown)\n"
+   "  /reset                - Clear conversation\n\n"
+   "MEMORY:\n"
+   "  /memory               - List facts\n"
+   "  /remember <key> <value> - Add fact\n"
+   "  /forget <key>         - Remove fact\n\n"
+   "RATE LIMITING:\n"
+   "  /ratelimit            - Show rate limit status\n"
+   "  /ratelimit-reset      - Reset rate limit history\n\n"
+   "INFO:\n"
+   "  /help                 - Show commands\n"
+   "  /tools                - List tools\n"
+   "  /model                - Show model info\n"
+   "  /stats                - Show statistics\n"
+   "  /tokens               - Token usage\n\n"
+   "EMACS-SPECIFIC:\n"
+   "  /region               - Send region to AI\n"
+   "  /buffer               - Send buffer to AI\n"
+   "  /org                  - Send org subtree to AI\n"
+   "  /yank                 - Yank last response\n"))
+
+(defun gemini-repl--command-save (&optional name)
+  "Save current conversation as NAME."
+  (let ((session-name (or name
+                          (format-time-string "session-%Y%m%d-%H%M%S"))))
+    (puthash session-name (copy-sequence gemini-repl-conversation)
+             gemini-repl-sessions)
+    (setq gemini-repl-current-session session-name)
+    (format "Session saved as '%s'" session-name)))
+
+(defun gemini-repl--command-load (name)
+  "Load conversation from session NAME."
+  (if-let ((session (gethash name gemini-repl-sessions)))
+      (progn
+        (setq gemini-repl-conversation (copy-sequence session))
+        (setq gemini-repl-current-session name)
+        (format "Session '%s' loaded (%d messages)"
+                name (length gemini-repl-conversation)))
+    (format "Session '%s' not found" name)))
+
+(defun gemini-repl--command-sessions ()
+  "List all saved sessions."
+  (if (zerop (hash-table-count gemini-repl-sessions))
+      "No saved sessions"
+    (let ((sessions nil))
+      (maphash (lambda (name conv)
+                 (push (format "%s%s (%d messages)"
+                               name
+                               (if (equal name gemini-repl-current-session)
+                                   " [current]" "")
+                               (length conv))
+                       sessions))
+               gemini-repl-sessions)
+      (concat "Saved sessions:\n"
+              (mapconcat #'identity (nreverse sessions) "\n")))))
+
+(defun gemini-repl--command-delete (name)
+  "Delete session NAME."
+  (if (gethash name gemini-repl-sessions)
+      (progn
+        (remhash name gemini-repl-sessions)
+        (when (equal name gemini-repl-current-session)
+          (setq gemini-repl-current-session nil))
+        (format "Session '%s' deleted" name))
+    (format "Session '%s' not found" name)))
+
+(defun gemini-repl--command-export (&optional format file)
+  "Export current conversation to FILE in FORMAT."
+  (let ((export-format (or format "json"))
+        (export-file (or file
+                         (format-time-string "gemini-export-%Y%m%d-%H%M%S.%s"
+                                             (if (equal format "markdown") "md" "json")))))
+    (pcase export-format
+      ("json"
+       (with-temp-file export-file
+         (insert (json-encode gemini-repl-conversation)))
+       (format "Exported to %s (JSON)" export-file))
+      ("markdown"
+       (with-temp-file export-file
+         (insert "# Gemini REPL Conversation\n\n")
+         (dolist (msg (reverse gemini-repl-conversation))
+           (insert (format "## %s\n\n%s\n\n"
+                           (capitalize (alist-get 'role msg))
+                           (alist-get 'content msg)))))
+       (format "Exported to %s (Markdown)" export-file))
+      (_
+       (format "Unknown format: %s (use 'json' or 'markdown')" export-format)))))
+
+(defun gemini-repl--command-reset ()
+  "Clear conversation history."
+  (setq gemini-repl-conversation nil)
+  (setq gemini-repl-token-count 0)
+  (setq gemini-repl-request-count 0)
+  (setq gemini-repl-current-session nil)
+  "Conversation cleared")
+
+(defun gemini-repl--command-memory ()
+  "List all remembered facts."
+  (if (zerop (hash-table-count gemini-repl-memory))
+      "No facts in memory"
+    (let ((facts nil))
+      (maphash (lambda (key value)
+                 (push (format "%s: %s" key value) facts))
+               gemini-repl-memory)
+      (concat "Remembered facts:\n"
+              (mapconcat #'identity (nreverse facts) "\n")))))
+
+(defun gemini-repl--command-remember (key value)
+  "Remember VALUE under KEY."
+  (puthash key value gemini-repl-memory)
+  (format "Remembered: %s = %s" key value))
+
+(defun gemini-repl--command-forget (key)
+  "Forget fact KEY."
+  (if (gethash key gemini-repl-memory)
+      (progn
+        (remhash key gemini-repl-memory)
+        (format "Forgot: %s" key))
+    (format "No fact named '%s'" key)))
+
+(defun gemini-repl--command-tools ()
+  "List all registered tools."
+  (if (null gemini-repl-tools)
+      "No tools registered"
+    (concat "Registered tools:\n"
+            (mapconcat (lambda (tool)
+                         (format "- %s: %s"
+                                 (alist-get 'name tool)
+                                 (alist-get 'description tool)))
+                       (reverse gemini-repl-tools)
+                       "\n"))))
+
+(defun gemini-repl--command-model ()
+  "Show current model information."
+  (format "Provider: %s\nModel: %s\nEndpoint: %s"
+          gemini-repl-provider
+          (gemini-repl--get-model)
+          (gemini-repl--get-endpoint)))
+
+(defun gemini-repl--command-stats ()
+  "Show session statistics."
+  (format "Session Statistics:\nMessages: %d\nRequests: %d\nApprox. tokens: %d\nSession: %s"
+          (length gemini-repl-conversation)
+          gemini-repl-request-count
+          gemini-repl-token-count
+          (or gemini-repl-current-session "unsaved")))
+
+(defun gemini-repl--command-tokens ()
+  "Show token usage information."
+  (format "Token Usage:\nCurrent session: ~%d tokens\nMessages: %d\nAvg per message: ~%d tokens"
+          gemini-repl-token-count
+          (length gemini-repl-conversation)
+          (if (zerop (length gemini-repl-conversation))
+              0
+            (/ gemini-repl-token-count (length gemini-repl-conversation)))))
+
+(defun gemini-repl--command-region ()
+  "Send current region to AI."
+  (if (use-region-p)
+      (let ((text (buffer-substring-no-properties (region-beginning) (region-end))))
+        (with-current-buffer gemini-repl-buffer-name
+          (goto-char (point-max))
+          (insert text)
+          (gemini-repl-send-input))
+        "Region sent to AI")
+    "No active region"))
+
+(defun gemini-repl--command-buffer ()
+  "Send current buffer to AI."
+  (let ((text (with-current-buffer (other-buffer (current-buffer) t)
+                (buffer-substring-no-properties (point-min) (point-max)))))
+    (with-current-buffer gemini-repl-buffer-name
+      (goto-char (point-max))
+      (insert text)
+      (gemini-repl-send-input))
+    "Buffer sent to AI"))
+
+(defun gemini-repl--command-org ()
+  "Send current org subtree to AI."
+  (if (derived-mode-p 'org-mode)
+      (let ((text (save-excursion
+                    (org-back-to-heading t)
+                    (let ((start (point)))
+                      (org-end-of-subtree t t)
+                      (buffer-substring-no-properties start (point))))))
+        (with-current-buffer gemini-repl-buffer-name
+          (goto-char (point-max))
+          (insert text)
+          (gemini-repl-send-input))
+        "Org subtree sent to AI")
+    "Not in org-mode"))
+
+(defun gemini-repl--command-yank ()
+  "Yank last AI response."
+  (if gemini-repl-last-response
+      (progn
+        (with-current-buffer (other-buffer (current-buffer) t)
+          (insert gemini-repl-last-response))
+        "Last response yanked")
+    "No response to yank"))
+
+(defun gemini-repl--dispatch-command (input)
+  "Dispatch slash command INPUT.
+Returns result string if command was handled, nil otherwise."
+  (when (string-prefix-p "/" input)
+    (let* ((parts (split-string (substring input 1) " " t))
+           (cmd (car parts))
+           (args (cdr parts)))
+      (pcase cmd
+        ;; SESSION
+        ("save" (gemini-repl--command-save (car args)))
+        ("load" (if args
+                    (gemini-repl--command-load (car args))
+                  "Usage: /load <name>"))
+        ("sessions" (gemini-repl--command-sessions))
+        ("delete" (if args
+                      (gemini-repl--command-delete (car args))
+                    "Usage: /delete <name>"))
+        ("export" (gemini-repl--command-export (car args) (cadr args)))
+        ("reset" (gemini-repl--command-reset))
+
+        ;; MEMORY
+        ("memory" (gemini-repl--command-memory))
+        ("remember" (if (>= (length args) 2)
+                        (gemini-repl--command-remember
+                         (car args)
+                         (mapconcat #'identity (cdr args) " "))
+                      "Usage: /remember <key> <value>"))
+        ("forget" (if args
+                      (gemini-repl--command-forget (car args))
+                    "Usage: /forget <key>"))
+
+        ;; RATE LIMITING
+        ("ratelimit" (gemini-repl-ratelimit-status (gemini-repl--get-model)))
+        ("ratelimit-reset" (progn
+                             (gemini-repl-ratelimit-reset (gemini-repl--get-model))
+                             (format "Rate limit reset for %s" (gemini-repl--get-model))))
+
+        ;; INFO
+        ("help" (gemini-repl--command-help))
+        ("tools" (gemini-repl--command-tools))
+        ("model" (gemini-repl--command-model))
+        ("stats" (gemini-repl--command-stats))
+        ("tokens" (gemini-repl--command-tokens))
+
+        ;; EMACS-SPECIFIC
+        ("region" (gemini-repl--command-region))
+        ("buffer" (gemini-repl--command-buffer))
+        ("org" (gemini-repl--command-org))
+        ("yank" (gemini-repl--command-yank))
+
+        ;; Unknown command
+        (_ (format "Unknown command: /%s\nType /help for available commands" cmd))))))
+
 ;;; REPL Interface
 
 (defvar gemini-repl-mode-map
@@ -536,7 +844,7 @@ Returns t if allowed, nil if denied."
     (pop-to-buffer buf)))
 
 (defun gemini-repl-send-input ()
-  "Send current input to the AI."
+  "Send current input to the AI or execute slash command."
   (interactive)
   (let ((input (buffer-substring-no-properties
                 (save-excursion
@@ -546,13 +854,33 @@ Returns t if allowed, nil if denied."
                 (point-max))))
     (when (string-match-p "[^ \t\n]" input)
       (gemini-repl--insert "\n")
-      (gemini-repl--process-input input))))
+      ;; Check for slash commands first
+      (if-let ((result (gemini-repl--dispatch-command input)))
+          (progn
+            (gemini-repl--insert (format "[Command] %s\n\n" input) 'font-lock-keyword-face)
+            (gemini-repl--insert (format "%s\n" result) 'font-lock-comment-face)
+            (gemini-repl--prompt))
+        ;; Not a command, process as normal AI input
+        (gemini-repl--process-input input)))))
 
 (defun gemini-repl--process-input (input)
   "Process user INPUT and get response."
+  ;; Add memory context to first message if enabled and conversation is empty/new
+  (when (and gemini-repl-use-memory
+             (or (null gemini-repl-conversation)
+                 (= (length gemini-repl-conversation) 0)))
+    (when-let ((memory-context (gemini-repl-memory-to-context)))
+      (unless (string-empty-p memory-context)
+        (push `((role . "system") (content . ,memory-context))
+              gemini-repl-conversation))))
+
   (push `((role . "user") (content . ,input)) gemini-repl-conversation)
   (gemini-repl--insert (format "\nYou: %s\n" input) 'font-lock-string-face)
   (gemini-repl--insert "\n[Thinking...]\n" 'font-lock-comment-face)
+
+  ;; Update statistics
+  (setq gemini-repl-request-count (1+ gemini-repl-request-count))
+  (setq gemini-repl-token-count (+ gemini-repl-token-count (/ (length input) 4))) ; rough estimate
 
   (gemini-repl--request
    gemini-repl-conversation
@@ -574,6 +902,10 @@ Returns t if allowed, nil if denied."
     ('text
      (let ((content (alist-get 'content response)))
        (push `((role . "assistant") (content . ,content)) gemini-repl-conversation)
+       ;; Store last response for yanking
+       (setq gemini-repl-last-response content)
+       ;; Update token count
+       (setq gemini-repl-token-count (+ gemini-repl-token-count (/ (length content) 4)))
        (gemini-repl--insert (format "\nAssistant: %s\n" content) 'font-lock-doc-face)
        (gemini-repl--prompt)))
     ('function_call
@@ -608,6 +940,9 @@ Returns t if allowed, nil if denied."
   "Clear conversation history."
   (interactive)
   (setq gemini-repl-conversation nil)
+  (setq gemini-repl-token-count 0)
+  (setq gemini-repl-request-count 0)
+  (setq gemini-repl-current-session nil)
   (with-current-buffer gemini-repl-buffer-name
     (erase-buffer)
     (gemini-repl--insert "Conversation cleared.\n" 'font-lock-comment-face)

@@ -18,7 +18,14 @@ This is the Elisp version of [[https://github.com/aygp-dr/gemini-repl-009][gemin
   - Git integration (status, diff, log, blame)
   - Code search via ripgrep
 - *Session persistence*: Save and restore conversations
+- *Project-based conversations*: Per-directory conversation history
 - *Project-aware*: Workspace-scoped file operations
+- *Emacs-native integrations*:
+  - Org mode: Send subtrees, source blocks, AI blocks
+  - Buffer operations: Send buffer, region, defun
+  - Dired integration: Summarize files
+  - Prog mode: Explain errors, suggest fixes
+  - Minor mode with convenient keybindings
 
 * Installation
 
@@ -47,6 +54,19 @@ git clone https://github.com/aygp-dr/gemini-repl-010 ~/.emacs.d/site-lisp/gemini
   :config
   (setq gemini-repl-api-key (getenv "GEMINI_API_KEY"))
   (setq gemini-repl-provider 'gemini))
+
+;; Project-based conversation history (optional)
+(use-package gemini-repl-project
+  :after gemini-repl
+  :config
+  (setq gemini-repl-project-auto-load t)
+  (setq gemini-repl-project-auto-save t))
+
+;; Emacs-native integrations (optional)
+(use-package gemini-repl-emacs
+  :after gemini-repl
+  :config
+  (global-gemini-repl-mode 1))
 #+end_src
 
 * Configuration
@@ -131,6 +151,140 @@ Type your message at the =>=  prompt and press =RET= to send.
 | code_search | Search code with ripgrep         | Yes   |
 | glob_files  | Find files matching glob pattern | Yes   |
 
+* Project-Based Conversations
+
+=gemini-repl-project.el= provides per-directory conversation history management, allowing each project to maintain its own persistent conversation context.
+
+** Features
+
+- *Per-directory storage*: Each project has isolated conversation history
+- *Auto-load*: Conversations automatically load when starting REPL
+- *JSONL format*: Efficient append-only storage format
+- *Archive support*: Archive old conversations while keeping history
+- *Project metadata*: Track creation, updates, message counts, etc.
+- *Multiple backends*: Works with project.el, projectile, or git
+
+** Storage Structure
+
+#+begin_example
+~/.emacs.d/gemini-repl/projects/
+├── -home-user-project1/
+│   ├── conversation.jsonl   # Current conversation
+│   ├── metadata.json        # Project metadata
+│   └── history/            # Archived conversations
+└── -home-user-project2/
+    └── ...
+#+end_example
+
+** Configuration
+
+#+begin_src elisp
+(require 'gemini-repl-project)
+
+;; Enable auto-load and auto-save
+(setq gemini-repl-project-auto-load t)
+(setq gemini-repl-project-auto-save t)
+
+;; Set maximum messages before auto-archive
+(setq gemini-repl-project-max-messages 1000)
+
+;; Prefer projectile over project.el
+(setq gemini-repl-project-prefer-projectile nil)
+#+end_src
+
+** Usage
+
+#+begin_src elisp
+;; Load conversation for current project
+(gemini-repl-project-load)
+
+;; Append a message
+(gemini-repl-project-append '("user" "How do I optimize this?"))
+
+;; Clear conversation (archives first)
+(gemini-repl-project-clear)
+
+;; Archive current conversation
+(gemini-repl-project-archive "before-refactor")
+
+;; List archives
+(gemini-repl-project-list-archives)
+
+;; Load an archive
+(gemini-repl-project-load-archive "20241223-140530.jsonl")
+
+;; Display statistics
+(gemini-repl-project-stats)
+
+;; Export to JSON or Markdown
+(gemini-repl-project-export "conversation.json" 'json)
+(gemini-repl-project-export "conversation.md" 'markdown)
+#+end_src
+
+See [[file:PROJECT-SESSIONS.org][PROJECT-SESSIONS.org]] for detailed documentation.
+
+* Context Management
+
+=gemini-repl-context.el= provides token counting and context window management to prevent exceeding provider limits.
+
+** Features
+
+- *Token estimation*: Rough character-based heuristic (chars/4)
+- *Role tracking*: Count tokens separately for user, assistant, and function messages
+- *Usage monitoring*: Automatic warnings at 80%, compaction at 90%
+- *Multiple strategies*:
+  - Sliding window: Keep most recent N messages
+  - Summarization: Use LLM to summarize old messages
+  - Hybrid: Combine both approaches
+- *Provider limits*: Pre-configured limits for Gemini, OpenAI, Ollama models
+
+** Configuration
+
+#+begin_src elisp
+(require 'gemini-repl-context)
+
+;; Set warning and compaction thresholds
+(setq gemini-repl-context-warning-threshold 0.80)      ; Warn at 80%
+(setq gemini-repl-context-compaction-threshold 0.90)   ; Compact at 90%
+
+;; Enable automatic compaction
+(setq gemini-repl-context-auto-compact t)
+
+;; Choose default strategy
+(setq gemini-repl-context-default-strategy 'sliding-window)
+;; Options: 'sliding-window, 'summarization, 'hybrid
+
+;; Configure sliding window size
+(setq gemini-repl-context-window-size 20)
+#+end_src
+
+** Usage
+
+#+begin_src elisp
+;; Show context status
+(gemini-repl-context-status)
+
+;; Manually compact conversation
+(gemini-repl-context-compact-now)
+
+;; Check token usage
+(gemini-repl-context-tokens messages)
+(gemini-repl-context-usage messages)
+#+end_src
+
+** Provider Token Limits
+
+| Provider          | Model              | Max Tokens |
+|-------------------+--------------------+------------|
+| Google Gemini     | gemini-1.5-pro     |  1,000,000 |
+| Google Gemini     | gemini-1.5-flash   |    128,000 |
+| Google Gemini     | gemini-2.0-flash   |    128,000 |
+| OpenAI            | gpt-4o             |    128,000 |
+| OpenAI            | gpt-4o-mini        |    128,000 |
+| Ollama            | llama3.2           |      8,192 |
+| Ollama            | llama3.1           |    128,000 |
+| Default (unknown) | -                  |      8,192 |
+
 * Custom Tools
 
 Register custom tools:
@@ -147,6 +301,121 @@ Register custom tools:
    (let ((arg1 (alist-get 'arg1 args)))
      (format "Result for %s" arg1))))
 #+end_src
+
+* Emacs-Native Integrations (gemini-repl-emacs.el)
+
+The =gemini-repl-emacs= package provides deep integration with Emacs modes and workflows.
+
+** Org Mode Integration
+
+| Function                           | Description                              | Keybinding     |
+|------------------------------------+------------------------------------------+----------------|
+| =gemini-repl-org-send-subtree=     | Send current org subtree as context      | =C-c C-g o s=  |
+| =gemini-repl-org-send-src-block=   | Send org source block to AI              | =C-c C-g o c=  |
+| =gemini-repl-org-insert-response=  | Insert response as org AI block          | =C-c C-g o i=  |
+| =gemini-repl-org-process-ai-blocks= | Process all #+begin_ai blocks in buffer | =C-c C-g o p=  |
+
+*** AI Blocks in Org Mode
+
+You can use special blocks in your org documents:
+
+#+begin_example
+#+begin_ai
+Explain the key concepts in this document
+#+end_ai
+#+end_example
+
+Use =M-x gemini-repl-org-process-ai-blocks= to process all blocks and insert responses.
+
+** Buffer Integration
+
+| Function                          | Description                    | Keybinding   |
+|-----------------------------------+--------------------------------+--------------|
+| =gemini-repl-send-buffer=         | Send entire buffer to AI       | =C-c C-g b=  |
+| =gemini-repl-send-region-improved= | Send selected region           | =C-c C-g g=  |
+| =gemini-repl-send-defun=          | Send current function          | =C-c C-g d=  |
+| =gemini-repl-insert-response=     | Insert last response at point  | =C-c C-g i=  |
+| =gemini-repl-ask-about-buffer=    | Ask question about buffer      | =C-c C-g a=  |
+| =gemini-repl-ask-about-project=   | Ask question about project     | =C-c C-g p=  |
+
+** Dired Integration
+
+When in Dired mode, additional commands are available:
+
+| Function                        | Description                | Keybinding   |
+|---------------------------------+----------------------------+--------------|
+| =gemini-repl-dired-summarize=   | Summarize marked files     | =C-c C-g s=  |
+| =gemini-repl-dired-describe-file= | Describe file at point   | =C-c C-g d=  |
+
+** Prog Mode Integration
+
+Available in all programming modes:
+
+| Function                      | Description                        | Keybinding   |
+|-------------------------------+------------------------------------+--------------|
+| =gemini-repl-explain-error=   | Explain error at point with context | =C-c C-g x=  |
+| =gemini-repl-suggest-fix=     | Suggest fix for code at point      | =C-c C-g f=  |
+| =gemini-repl-explain-at-point= | Explain symbol/code at point       | =C-c C-g e=  |
+
+** Compilation Mode Integration
+
+In compilation buffers:
+
+| Function                             | Description              | Keybinding   |
+|--------------------------------------+--------------------------+--------------|
+| =gemini-repl-explain-compilation-error= | Explain compilation error | =C-c C-g e=  |
+
+** Minor Mode
+
+Enable =gemini-repl-mode= to activate all keybindings:
+
+#+begin_src elisp
+;; Enable globally
+(global-gemini-repl-mode 1)
+
+;; Or enable for specific buffers
+(add-hook 'emacs-lisp-mode-hook #'gemini-repl-mode)
+(add-hook 'python-mode-hook #'gemini-repl-mode)
+#+end_src
+
+** Customization
+
+#+begin_src elisp
+;; Type of org block for AI interactions
+(setq gemini-repl-emacs-org-ai-block-type "ai")
+
+;; Insert responses as comments in code buffers
+(setq gemini-repl-emacs-insert-as-comment t)
+
+;; Lines of context for error explanations
+(setq gemini-repl-emacs-context-lines 5)
+
+;; Auto-format responses based on mode
+(setq gemini-repl-emacs-auto-format-response t)
+#+end_src
+
+** Complete Keybinding Reference
+
+All keybindings use the =C-c C-g= prefix:
+
+| Key         | Command                               | Context      |
+|-------------+---------------------------------------+--------------|
+| =C-c C-g r= | Open REPL                             | Global       |
+| =C-c C-g g= | Send region                           | Global       |
+| =C-c C-g b= | Send buffer                           | Global       |
+| =C-c C-g d= | Send defun                            | Global       |
+| =C-c C-g e= | Explain at point                      | Global       |
+| =C-c C-g i= | Insert response                       | Global       |
+| =C-c C-g a= | Ask about buffer                      | Global       |
+| =C-c C-g p= | Ask about project                     | Global       |
+| =C-c C-g x= | Explain error                         | Prog modes   |
+| =C-c C-g f= | Suggest fix                           | Prog modes   |
+| =C-c C-g o s= | Send org subtree                    | Org mode     |
+| =C-c C-g o c= | Send org source block               | Org mode     |
+| =C-c C-g o i= | Insert org AI block                 | Org mode     |
+| =C-c C-g o p= | Process org AI blocks               | Org mode     |
+| =C-c C-g s= | Summarize files                       | Dired        |
+| =C-c C-g d= | Describe file                         | Dired        |
 
 * Security
 
