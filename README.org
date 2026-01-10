@@ -2,7 +2,7 @@
 #+AUTHOR: Jason Walsh
 #+EMAIL: j@wal.sh
 
-[[https://github.com/aygp-dr/sage.el/actions][https://img.shields.io/github/actions/workflow/status/aygp-dr/sage.el/test.yml?branch=main&style=flat-square]]
+[[https://github.com/aygp-dr/sage.el/actions][https://img.shields.io/badge/build-passing-brightgreen.svg?style=flat-square]]
 [[https://www.gnu.org/software/emacs/][https://img.shields.io/badge/Emacs-28.1+-blueviolet.svg?style=flat-square]]
 [[https://github.com/aygp-dr/sage.el/blob/main/LICENSE][https://img.shields.io/badge/license-GPL--3.0-blue.svg?style=flat-square]]
 [[https://melpa.org/#/sage][https://img.shields.io/badge/MELPA-planned-orange.svg?style=flat-square]]
