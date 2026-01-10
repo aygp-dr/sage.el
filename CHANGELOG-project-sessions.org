@@ -3,14 +3,14 @@
 
 * Overview
 
-Added comprehensive project-based session management to gemini-repl-010,
+Added comprehensive project-based session management to sage-010,
 enabling per-directory conversation history with automatic persistence and
 archiving capabilities.
 
 * Files Added
 
 ** Core Implementation
-- =gemini-repl-project.el= (585 lines)
+- =sage-project.el= (585 lines)
   - Per-directory conversation storage using JSONL format
   - Path encoding matching Claude Code's approach (/ → -)
   - Auto-load and auto-save functionality
@@ -19,7 +19,7 @@ archiving capabilities.
   - Integration with project.el, projectile, and git
 
 ** Tests
-- =test/gemini-repl-project-test.el= (147 lines)
+- =test/sage-project-test.el= (147 lines)
   - Path encoding tests
   - Message creation and storage tests
   - Metadata tests
@@ -66,26 +66,26 @@ archiving capabilities.
 ** Functions Provided
 
 *** Core Operations
-- =gemini-repl-project-load= - Load project conversation
-- =gemini-repl-project-append= - Append message to conversation
-- =gemini-repl-project-clear= - Clear conversation (with archiving)
-- =gemini-repl-project-save= - Manual save (auto-save by default)
+- =sage-project-load= - Load project conversation
+- =sage-project-append= - Append message to conversation
+- =sage-project-clear= - Clear conversation (with archiving)
+- =sage-project-save= - Manual save (auto-save by default)
 
 *** Archive Management
-- =gemini-repl-project-archive= - Archive current conversation
-- =gemini-repl-project-list-archives= - List all archives
-- =gemini-repl-project-load-archive= - Load archived conversation
+- =sage-project-archive= - Archive current conversation
+- =sage-project-list-archives= - List all archives
+- =sage-project-load-archive= - Load archived conversation
 
 *** Metadata
-- =gemini-repl-project-metadata= - Get/set project metadata
+- =sage-project-metadata= - Get/set project metadata
 - Supports custom fields
 - Automatic tracking of creation/update times, message counts
 
 *** Utilities
-- =gemini-repl-project-stats= - Display conversation statistics
-- =gemini-repl-project-export= - Export to JSON or Markdown
-- =gemini-repl-project-dir= - Get current project root
-- =gemini-repl-project-set-dir= - Manually set project directory
+- =sage-project-stats= - Display conversation statistics
+- =sage-project-export= - Export to JSON or Markdown
+- =sage-project-dir= - Get current project root
+- =sage-project-set-dir= - Manually set project directory
 
 ** Project Detection
 
@@ -109,11 +109,11 @@ Supports multiple backends:
 
 * Configuration Variables
 
-- =gemini-repl-project-directory= - Storage location
-- =gemini-repl-project-auto-load= - Enable auto-load
-- =gemini-repl-project-auto-save= - Enable auto-save
-- =gemini-repl-project-max-messages= - Message limit before auto-archive
-- =gemini-repl-project-prefer-projectile= - Prefer projectile over project.el
+- =sage-project-directory= - Storage location
+- =sage-project-auto-load= - Enable auto-load
+- =sage-project-auto-save= - Enable auto-save
+- =sage-project-max-messages= - Message limit before auto-archive
+- =sage-project-prefer-projectile= - Prefer projectile over project.el
 
 * Message Format
 
@@ -168,16 +168,16 @@ Project metadata includes:
 
 ** Basic Setup
 #+begin_src elisp
-(require 'gemini-repl-project)
+(require 'sage-project)
 
-(setq gemini-repl-project-auto-load t)
-(setq gemini-repl-project-auto-save t)
+(setq sage-project-auto-load t)
+(setq sage-project-auto-save t)
 
 ;; Hook into REPL startup
-(add-hook 'gemini-repl-mode-hook
+(add-hook 'sage-mode-hook
           (lambda ()
-            (when gemini-repl-project-auto-load
-              (gemini-repl-project-load))))
+            (when sage-project-auto-load
+              (sage-project-load))))
 #+end_src
 
 ** Git Integration
@@ -185,9 +185,9 @@ Project metadata includes:
 ;; Store git context in metadata
 (defun my-save-git-context ()
   (when-let ((rev (vc-git-working-revision default-directory)))
-    (gemini-repl-project-metadata :git_commit rev)))
+    (sage-project-metadata :git_commit rev)))
 
-(add-hook 'gemini-repl-mode-hook #'my-save-git-context)
+(add-hook 'sage-mode-hook #'my-save-git-context)
 #+end_src
 
 ** Weekly Archiving
@@ -195,7 +195,7 @@ Project metadata includes:
 ;; Archive conversations weekly
 (run-at-time "00:00 Mon" (* 7 24 60 60)
              (lambda ()
-               (gemini-repl-project-archive
+               (sage-project-archive
                 (format-time-string "week-%Y-w%U"))))
 #+end_src
 
@@ -203,7 +203,7 @@ Project metadata includes:
 
 Run tests with:
 #+begin_src elisp
-(load-file "test/gemini-repl-project-test.el")
+(load-file "test/sage-project-test.el")
 (ert t)
 #+end_src
 
@@ -247,5 +247,5 @@ Potential future additions:
 
 Implementation follows the design patterns from:
 - Claude Code (path encoding approach)
-- gemini-repl-session.el (session management patterns)
-- gemini-repl-memory.el (persistent storage patterns)
+- sage-session.el (session management patterns)
+- sage-memory.el (persistent storage patterns)

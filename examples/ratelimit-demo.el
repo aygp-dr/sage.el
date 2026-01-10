@@ -1,23 +1,23 @@
-;;; ratelimit-demo.el --- Rate limiting examples for gemini-repl -*- lexical-binding: t; -*-
+;;; ratelimit-demo.el --- Rate limiting examples for sage -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 
-;; This file demonstrates various rate limiting features of gemini-repl.
+;; This file demonstrates various rate limiting features of sage.
 
 ;;; Code:
 
-(require 'gemini-repl-ratelimit)
+(require 'sage-ratelimit)
 
 ;;; Example 1: Basic Rate Limit Check
 
 (defun example-check-rate-limit ()
   "Check if we can make a request."
   (let ((model "gemini-2.0-flash-exp"))
-    (if (gemini-repl-ratelimit-check model)
+    (if (sage-ratelimit-check model)
         (message "✓ Can make request to %s" model)
       (message "✗ Rate limited for %s, wait %.1fs"
                model
-               (gemini-repl-ratelimit--time-until-allowed model)))))
+               (sage-ratelimit--time-until-allowed model)))))
 
 ;; Try it:
 ;; (example-check-rate-limit)
@@ -32,8 +32,8 @@ Shows how the system handles bursts."
         (results '()))
     (dotimes (i count)
       (let ((start (float-time)))
-        (gemini-repl-ratelimit-wait model)
-        (gemini-repl-ratelimit-record model)
+        (sage-ratelimit-wait model)
+        (sage-ratelimit-record model)
         (let ((wait-time (- (float-time) start)))
           (push (format "Request %d: waited %.2fs" (1+ i) wait-time)
                 results))))
@@ -54,9 +54,9 @@ Shows how the system handles bursts."
          (read-number "Duration (seconds): " 10)))
   (let ((end-time (+ (float-time) duration)))
     (while (< (float-time) end-time)
-      (let* ((count (gemini-repl-ratelimit--count-recent-requests model))
-             (limit (gemini-repl-ratelimit--get-limit model))
-             (wait (gemini-repl-ratelimit--time-until-allowed model)))
+      (let* ((count (sage-ratelimit--count-recent-requests model))
+             (limit (sage-ratelimit--get-limit model))
+             (wait (sage-ratelimit--time-until-allowed model)))
         (message "[%s] %d/%s requests, wait: %.1fs"
                  model
                  count
@@ -72,18 +72,18 @@ Shows how the system handles bursts."
 (defun example-custom-limits ()
   "Demonstrate setting custom rate limits."
   ;; Set a very low limit for testing
-  (gemini-repl-ratelimit-configure-limit "test-model" 3)
+  (sage-ratelimit-configure-limit "test-model" 3)
 
   ;; Make requests until limited
   (dotimes (i 5)
-    (if (gemini-repl-ratelimit-check "test-model")
+    (if (sage-ratelimit-check "test-model")
         (progn
-          (gemini-repl-ratelimit-record "test-model")
+          (sage-ratelimit-record "test-model")
           (message "Request %d: ✓ Allowed" (1+ i)))
       (message "Request %d: ✗ Rate limited" (1+ i))))
 
   ;; Reset for next test
-  (gemini-repl-ratelimit-reset "test-model"))
+  (sage-ratelimit-reset "test-model"))
 
 ;; Try it:
 ;; (example-custom-limits)
@@ -94,7 +94,7 @@ Shows how the system handles bursts."
   "Demonstrate wrapping an API call with rate limiting."
   (let ((model "gemini-2.0-flash-exp")
         (call-count 0))
-    (gemini-repl-ratelimit-wrap-request
+    (sage-ratelimit-wrap-request
      model
      (lambda ()
        (setq call-count (1+ call-count))
@@ -113,18 +113,18 @@ Shows how the system handles bursts."
   (let ((model "test-model")
         (base-limit 10))
     ;; Configure base limit
-    (gemini-repl-ratelimit-configure-limit model base-limit)
+    (sage-ratelimit-configure-limit model base-limit)
 
     ;; Test different safety margins
     (dolist (margin '(1.0 0.9 0.8 0.5))
-      (let ((gemini-repl-ratelimit-safety-margin margin))
+      (let ((sage-ratelimit-safety-margin margin))
         (message "Safety margin: %.0f%% → Effective limit: %d/%d"
                  (* 100 margin)
-                 (gemini-repl-ratelimit--get-limit model)
+                 (sage-ratelimit--get-limit model)
                  base-limit)))
 
     ;; Cleanup
-    (gemini-repl-ratelimit-reset model)))
+    (sage-ratelimit-reset model)))
 
 ;; Try it:
 ;; (example-safety-margins)
@@ -142,8 +142,8 @@ Shows how the system handles bursts."
                   "llama3.2")))
     (message "Model Rate Limit Comparison:\n")
     (dolist (model models)
-      (let ((limit (gemini-repl-ratelimit--get-limit model))
-            (raw-limit (alist-get model gemini-repl-ratelimit--limits
+      (let ((limit (sage-ratelimit--get-limit model))
+            (raw-limit (alist-get model sage-ratelimit--limits
                                   nil nil #'string=)))
         (message "  %s: %s → %s (with safety margin)"
                  (format "%-25s" model)
@@ -173,9 +173,9 @@ Shows how rate limiting prevents exceeding limits."
     (while (< (float-time) end-time)
       (setq total-requests (1+ total-requests))
 
-      (if (gemini-repl-ratelimit-check model)
+      (if (sage-ratelimit-check model)
           (progn
-            (gemini-repl-ratelimit-record model)
+            (sage-ratelimit-record model)
             (setq completed-requests (1+ completed-requests))
             (message "Request %d: completed" total-requests))
         (message "Request %d: rate limited (skipped)" total-requests))
@@ -203,11 +203,11 @@ Shows how rate limiting prevents exceeding limits."
     (insert "Rate Limit Status\n")
     (insert "=================\n\n")
 
-    (dolist (model-limit gemini-repl-ratelimit--limits)
+    (dolist (model-limit sage-ratelimit--limits)
       (let* ((model (car model-limit))
-             (limit (gemini-repl-ratelimit--get-limit model))
-             (count (gemini-repl-ratelimit--count-recent-requests model))
-             (wait (gemini-repl-ratelimit--time-until-allowed model)))
+             (limit (sage-ratelimit--get-limit model))
+             (count (sage-ratelimit--count-recent-requests model))
+             (wait (sage-ratelimit--time-until-allowed model)))
         (insert (format "%-25s " model))
         (if limit
             (insert (format "[%2d/%2d] " count limit)
@@ -231,26 +231,26 @@ Shows how rate limiting prevents exceeding limits."
   (interactive)
   (let ((model "test-model"))
     ;; Set a low limit for testing
-    (gemini-repl-ratelimit-configure-limit model 3)
+    (sage-ratelimit-configure-limit model 3)
 
     ;; Fill up the limit
     (message "Filling up rate limit...")
     (dotimes (i 3)
-      (gemini-repl-ratelimit-record model)
+      (sage-ratelimit-record model)
       (message "  Request %d recorded" (1+ i)))
 
     (message "\nRate limit full. Waiting for recovery...")
 
     ;; Monitor recovery
     (dotimes (i 60)
-      (let ((count (gemini-repl-ratelimit--count-recent-requests model))
-            (can-request (gemini-repl-ratelimit-check model)))
+      (let ((count (sage-ratelimit--count-recent-requests model))
+            (can-request (sage-ratelimit-check model)))
         (message "[%2ds] Count: %d/3, Can request: %s"
                  (1+ i) count (if can-request "YES" "NO")))
       (sleep-for 1))
 
     ;; Cleanup
-    (gemini-repl-ratelimit-reset model)
+    (sage-ratelimit-reset model)
     (message "\nTest complete!")))
 
 ;; Try it:

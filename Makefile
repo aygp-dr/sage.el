@@ -4,26 +4,26 @@ EMACS ?= emacs
 EMACS_BATCH = $(EMACS) -Q --batch -L .
 
 # Core modules
-EL_FILES = gemini-repl.el \
-           gemini-repl-context.el \
-           gemini-repl-emacs.el \
-           gemini-repl-memory.el \
-           gemini-repl-project.el \
-           gemini-repl-queue.el \
-           gemini-repl-ratelimit.el \
-           gemini-repl-session.el \
-           gemini-repl-tools.el
+EL_FILES = sage.el \
+           sage-context.el \
+           sage-emacs.el \
+           sage-memory.el \
+           sage-project.el \
+           sage-queue.el \
+           sage-ratelimit.el \
+           sage-session.el \
+           sage-tools.el
 
 ELC_FILES = $(EL_FILES:.el=.elc)
 
 # Test files
-TEST_FILES = test/gemini-repl-test.el \
-             test/gemini-repl-context-test.el \
-             test/gemini-repl-emacs-test.el \
-             test/gemini-repl-memory-test.el \
-             test/gemini-repl-project-test.el \
-             test/gemini-repl-queue-test.el \
-             test/gemini-repl-ratelimit-test.el
+TEST_FILES = test/sage-test.el \
+             test/sage-context-test.el \
+             test/sage-emacs-test.el \
+             test/sage-memory-test.el \
+             test/sage-project-test.el \
+             test/sage-queue-test.el \
+             test/sage-ratelimit-test.el
 
 all: compile
 
@@ -36,8 +36,8 @@ compile:
 
 # Run core tests (fast, stable)
 test: compile
-	$(EMACS_BATCH) -l ert -l test/gemini-repl-test.el -f ert-run-tests-batch-and-exit
-	$(EMACS_BATCH) -l ert -l gemini-repl-project.el -l test/gemini-repl-project-test.el -f ert-run-tests-batch-and-exit
+	$(EMACS_BATCH) -l ert -l test/sage-test.el -f ert-run-tests-batch-and-exit
+	$(EMACS_BATCH) -l ert -l sage-project.el -l test/sage-project-test.el -f ert-run-tests-batch-and-exit
 
 # Run all tests
 test-all: compile
@@ -47,13 +47,13 @@ test-all: compile
 	done
 
 test-ratelimit:
-	$(EMACS_BATCH) -l ert -l gemini-repl-ratelimit.el -l test/gemini-repl-ratelimit-test.el -f ert-run-tests-batch-and-exit
+	$(EMACS_BATCH) -l ert -l sage-ratelimit.el -l test/sage-ratelimit-test.el -f ert-run-tests-batch-and-exit
 
 test-context:
-	$(EMACS_BATCH) -l ert -l gemini-repl-context.el -l test/gemini-repl-context-test.el -f ert-run-tests-batch-and-exit
+	$(EMACS_BATCH) -l ert -l sage-context.el -l test/sage-context-test.el -f ert-run-tests-batch-and-exit
 
 test-project:
-	$(EMACS_BATCH) -l ert -l gemini-repl-project.el -l test/gemini-repl-project-test.el -f ert-run-tests-batch-and-exit
+	$(EMACS_BATCH) -l ert -l sage-project.el -l test/sage-project-test.el -f ert-run-tests-batch-and-exit
 
 lint:
 	$(EMACS_BATCH) --eval "(require 'package)" \

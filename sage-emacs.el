@@ -1,17 +1,17 @@
-;;; gemini-repl-emacs.el --- Emacs-native integrations for gemini-repl -*- lexical-binding: t; -*-
+;;; sage-emacs.el --- Emacs-native integrations for sage -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2024 Jason Walsh
 ;; Author: Jason Walsh <j@wal.sh>
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "28.1") (gemini-repl "0.1.0"))
+;; Package-Requires: ((emacs "28.1") (sage "0.1.0"))
 ;; Keywords: ai, tools, llm, org, dired
-;; URL: https://github.com/aygp-dr/gemini-repl-010
+;; URL: https://github.com/aygp-dr/sage-010
 
 ;; This file is not part of GNU Emacs.
 
 ;;; Commentary:
 
-;; Emacs-native integrations for gemini-repl, providing deep integration
+;; Emacs-native integrations for sage, providing deep integration
 ;; with Org mode, buffer operations, Dired, and prog-mode.
 ;;
 ;; Features:
@@ -22,53 +22,53 @@
 ;; - Minor mode with convenient keybindings
 ;;
 ;; Usage:
-;;   (require 'gemini-repl-emacs)
-;;   (gemini-repl-mode 1)  ; Enable minor mode globally
+;;   (require 'sage-emacs)
+;;   (sage-mode 1)  ; Enable minor mode globally
 ;;
 ;; Or with use-package:
-;;   (use-package gemini-repl-emacs
-;;     :after gemini-repl
+;;   (use-package sage-emacs
+;;     :after sage
 ;;     :config
-;;     (global-gemini-repl-mode 1))
+;;     (global-sage-mode 1))
 
 ;;; Code:
 
-(require 'gemini-repl)
+(require 'sage)
 (require 'org nil t)
 (require 'dired nil t)
 
 ;;; Customization
 
-(defgroup gemini-repl-emacs nil
-  "Emacs-native integrations for gemini-repl."
-  :group 'gemini-repl
-  :prefix "gemini-repl-emacs-")
+(defgroup sage-emacs nil
+  "Emacs-native integrations for sage."
+  :group 'sage
+  :prefix "sage-emacs-")
 
-(defcustom gemini-repl-emacs-org-ai-block-type "ai"
+(defcustom sage-emacs-org-ai-block-type "ai"
   "Type of org block to use for AI interactions.
 Common values: \"ai\", \"gemini\", \"llm\"."
   :type 'string
-  :group 'gemini-repl-emacs)
+  :group 'sage-emacs)
 
-(defcustom gemini-repl-emacs-insert-as-comment nil
+(defcustom sage-emacs-insert-as-comment nil
   "When non-nil, insert AI responses as comments in code buffers."
   :type 'boolean
-  :group 'gemini-repl-emacs)
+  :group 'sage-emacs)
 
-(defcustom gemini-repl-emacs-context-lines 5
+(defcustom sage-emacs-context-lines 5
   "Number of lines of context to include around point for error explanations."
   :type 'integer
-  :group 'gemini-repl-emacs)
+  :group 'sage-emacs)
 
-(defcustom gemini-repl-emacs-auto-format-response t
+(defcustom sage-emacs-auto-format-response t
   "When non-nil, automatically format responses based on major mode."
   :type 'boolean
-  :group 'gemini-repl-emacs)
+  :group 'sage-emacs)
 
 ;;; Org Mode Integration
 
-(defun gemini-repl-org-send-subtree ()
-  "Send current org subtree as context to gemini-repl."
+(defun sage-org-send-subtree ()
+  "Send current org subtree as context to sage."
   (interactive)
   (unless (derived-mode-p 'org-mode)
     (user-error "Not in org-mode"))
@@ -79,15 +79,15 @@ Common values: \"ai\", \"gemini\", \"llm\"."
            (end (org-element-property :end element))
            (content (buffer-substring-no-properties begin end))
            (heading (org-element-property :raw-value element)))
-      (gemini-repl)
-      (with-current-buffer gemini-repl-buffer-name
+      (sage)
+      (with-current-buffer sage-buffer-name
         (goto-char (point-max))
         (insert (format "Context from org subtree '%s':\n\n%s\n\nWhat would you like to know about this?"
                         heading content))
-        (gemini-repl-send-input)))))
+        (sage-send-input)))))
 
-(defun gemini-repl-org-send-src-block ()
-  "Send current org source block to gemini-repl."
+(defun sage-org-send-src-block ()
+  "Send current org source block to sage."
   (interactive)
   (unless (derived-mode-p 'org-mode)
     (user-error "Not in org-mode"))
@@ -99,28 +99,28 @@ Common values: \"ai\", \"gemini\", \"llm\"."
            (code (org-element-property :value element))
            (prompt (read-string "Question about this code: "
                                "Explain this code")))
-      (gemini-repl)
-      (with-current-buffer gemini-repl-buffer-name
+      (sage)
+      (with-current-buffer sage-buffer-name
         (goto-char (point-max))
         (insert (format "%s\n\nLanguage: %s\n\n```%s\n%s```"
                         prompt lang lang code))
-        (gemini-repl-send-input)))))
+        (sage-send-input)))))
 
-(defun gemini-repl-org-insert-response (response)
+(defun sage-org-insert-response (response)
   "Insert RESPONSE as an org block at point.
 Creates a #+begin_ai...#+end_ai block with the response."
   (interactive
-   (list (or gemini-repl-last-response
+   (list (or sage-last-response
              (read-string "Response to insert: "))))
   (unless (derived-mode-p 'org-mode)
     (user-error "Not in org-mode"))
-  (let ((block-type gemini-repl-emacs-org-ai-block-type))
+  (let ((block-type sage-emacs-org-ai-block-type))
     (insert (format "#+begin_%s\n%s\n#+end_%s\n"
                     block-type
                     (or response "")
                     block-type))))
 
-(defun gemini-repl-org-process-ai-blocks ()
+(defun sage-org-process-ai-blocks ()
   "Process all #+begin_ai blocks in current buffer.
 Sends content to AI and inserts response after the block."
   (interactive)
@@ -129,7 +129,7 @@ Sends content to AI and inserts response after the block."
   (save-excursion
     (goto-char (point-min))
     (let ((block-re (format "^[ \t]*#\\+begin_%s\\b"
-                           (regexp-quote gemini-repl-emacs-org-ai-block-type)))
+                           (regexp-quote sage-emacs-org-ai-block-type)))
           (case-fold-search t))
       (while (re-search-forward block-re nil t)
         (let* ((element (org-element-at-point))
@@ -141,25 +141,25 @@ Sends content to AI and inserts response after the block."
             (insert "\n#+begin_example\n")
             (insert "[Processing...]\n")
             (insert "#+end_example\n")
-            (gemini-repl-exec content)))))))
+            (sage-exec content)))))))
 
 ;;; Buffer Integration
 
-(defun gemini-repl-send-buffer ()
-  "Send entire current buffer to gemini-repl."
+(defun sage-send-buffer ()
+  "Send entire current buffer to sage."
   (interactive)
   (let ((content (buffer-substring-no-properties (point-min) (point-max)))
         (mode-name (symbol-name major-mode))
         (filename (or (buffer-file-name) (buffer-name))))
-    (gemini-repl)
-    (with-current-buffer gemini-repl-buffer-name
+    (sage)
+    (with-current-buffer sage-buffer-name
       (goto-char (point-max))
       (insert (format "File: %s\nMode: %s\n\n```\n%s\n```\n\nWhat would you like to know?"
                       filename mode-name content))
-      (gemini-repl-send-input))))
+      (sage-send-input))))
 
-(defun gemini-repl-send-region-improved (start end &optional prompt)
-  "Send region from START to END to gemini-repl with optional PROMPT.
+(defun sage-send-region-improved (start end &optional prompt)
+  "Send region from START to END to sage with optional PROMPT.
 If PROMPT is nil, asks for it interactively."
   (interactive "r")
   (let ((text (buffer-substring-no-properties start end))
@@ -167,43 +167,43 @@ If PROMPT is nil, asks for it interactively."
         (question (or prompt
                      (read-string "Question about this code: "
                                  "Explain this code"))))
-    (gemini-repl)
-    (with-current-buffer gemini-repl-buffer-name
+    (sage)
+    (with-current-buffer sage-buffer-name
       (goto-char (point-max))
       (insert (format "%s\n\nMode: %s\n\n```\n%s\n```"
                       question mode-name text))
-      (gemini-repl-send-input))))
+      (sage-send-input))))
 
-(defun gemini-repl-send-defun ()
-  "Send current function definition to gemini-repl."
+(defun sage-send-defun ()
+  "Send current function definition to sage."
   (interactive)
   (let ((bounds (bounds-of-thing-at-point 'defun)))
     (unless bounds
       (user-error "No function definition at point"))
     (let ((start (car bounds))
           (end (cdr bounds)))
-      (gemini-repl-send-region-improved start end "Explain this function"))))
+      (sage-send-region-improved start end "Explain this function"))))
 
-(defun gemini-repl-insert-response ()
+(defun sage-insert-response ()
   "Insert last AI response at point.
 Formats the response appropriately based on major mode."
   (interactive)
-  (unless gemini-repl-last-response
+  (unless sage-last-response
     (user-error "No previous response to insert"))
-  (let ((response gemini-repl-last-response))
+  (let ((response sage-last-response))
     (cond
      ;; Org mode: insert as block
      ((derived-mode-p 'org-mode)
-      (gemini-repl-org-insert-response response))
+      (sage-org-insert-response response))
      ;; Code modes: optionally insert as comment
      ((and (derived-mode-p 'prog-mode)
-           gemini-repl-emacs-insert-as-comment)
-      (gemini-repl--insert-as-comment response))
+           sage-emacs-insert-as-comment)
+      (sage--insert-as-comment response))
      ;; Default: insert as-is
      (t
       (insert response)))))
 
-(defun gemini-repl--insert-as-comment (text)
+(defun sage--insert-as-comment (text)
   "Insert TEXT as a comment in current buffer.
 Uses the appropriate comment syntax for the major mode."
   (let ((comment-start (or comment-start "# "))
@@ -216,8 +216,8 @@ Uses the appropriate comment syntax for the major mode."
 
 ;;; Dired Integration
 
-(defun gemini-repl-dired-summarize ()
-  "Summarize marked files in Dired using gemini-repl."
+(defun sage-dired-summarize ()
+  "Summarize marked files in Dired using sage."
   (interactive)
   (unless (derived-mode-p 'dired-mode)
     (user-error "Not in dired-mode"))
@@ -242,8 +242,8 @@ Uses the appropriate comment syntax for the major mode."
                                    (with-temp-buffer
                                      (insert-file-contents file)
                                      (buffer-string))))))))
-      (gemini-repl)
-      (with-current-buffer gemini-repl-buffer-name
+      (sage)
+      (with-current-buffer sage-buffer-name
         (goto-char (point-max))
         (insert (format "Summarize these %d files (total size: %s):\n\n%s\n%s"
                         file-count
@@ -252,16 +252,16 @@ Uses the appropriate comment syntax for the major mode."
                         (if (> (length contents) 0)
                             (format "\nContents:\n%s" contents)
                           "")))
-        (gemini-repl-send-input)))))
+        (sage-send-input)))))
 
-(defun gemini-repl-dired-describe-file ()
+(defun sage-dired-describe-file ()
   "Describe file at point in Dired."
   (interactive)
   (unless (derived-mode-p 'dired-mode)
     (user-error "Not in dired-mode"))
   (let ((file (dired-get-filename)))
-    (gemini-repl)
-    (with-current-buffer gemini-repl-buffer-name
+    (sage)
+    (with-current-buffer sage-buffer-name
       (goto-char (point-max))
       (insert (format "Describe this file: %s\n\nFile info:\n" file))
       (insert (format "- Size: %s\n"
@@ -274,11 +274,11 @@ Uses the appropriate comment syntax for the major mode."
                         (with-temp-buffer
                           (insert-file-contents file nil 0 1024)
                           (buffer-string)))))
-      (gemini-repl-send-input))))
+      (sage-send-input))))
 
 ;;; Prog Mode Integration
 
-(defun gemini-repl-explain-error ()
+(defun sage-explain-error ()
   "Explain compilation error at point using context."
   (interactive)
   (unless (derived-mode-p 'prog-mode)
@@ -286,30 +286,30 @@ Uses the appropriate comment syntax for the major mode."
   (let* ((line-num (line-number-at-pos))
          (context-start (max (point-min)
                             (save-excursion
-                              (forward-line (- gemini-repl-emacs-context-lines))
+                              (forward-line (- sage-emacs-context-lines))
                               (point))))
          (context-end (min (point-max)
                           (save-excursion
-                            (forward-line gemini-repl-emacs-context-lines)
+                            (forward-line sage-emacs-context-lines)
                             (point))))
          (context (buffer-substring-no-properties context-start context-end))
          (error-line (thing-at-point 'line t))
          (mode-name (symbol-name major-mode))
          (filename (or (buffer-file-name) (buffer-name))))
-    (gemini-repl)
-    (with-current-buffer gemini-repl-buffer-name
+    (sage)
+    (with-current-buffer sage-buffer-name
       (goto-char (point-max))
       (insert (format "Explain this error in %s (file: %s, line %d):\n\n"
                       mode-name filename line-num))
       (insert (format "Error line:\n%s\n\n" error-line))
       (insert (format "Context (lines %d-%d):\n```%s\n%s\n```"
-                      (- line-num gemini-repl-emacs-context-lines)
-                      (+ line-num gemini-repl-emacs-context-lines)
-                      (gemini-repl--lang-for-mode)
+                      (- line-num sage-emacs-context-lines)
+                      (+ line-num sage-emacs-context-lines)
+                      (sage--lang-for-mode)
                       context))
-      (gemini-repl-send-input))))
+      (sage-send-input))))
 
-(defun gemini-repl-suggest-fix ()
+(defun sage-suggest-fix ()
   "Suggest a fix for error at point."
   (interactive)
   (unless (derived-mode-p 'prog-mode)
@@ -317,27 +317,27 @@ Uses the appropriate comment syntax for the major mode."
   (let* ((line-num (line-number-at-pos))
          (context-start (max (point-min)
                             (save-excursion
-                              (forward-line (- gemini-repl-emacs-context-lines))
+                              (forward-line (- sage-emacs-context-lines))
                               (point))))
          (context-end (min (point-max)
                           (save-excursion
-                            (forward-line gemini-repl-emacs-context-lines)
+                            (forward-line sage-emacs-context-lines)
                             (point))))
          (context (buffer-substring-no-properties context-start context-end))
          (mode-name (symbol-name major-mode))
          (filename (or (buffer-file-name) (buffer-name))))
-    (gemini-repl)
-    (with-current-buffer gemini-repl-buffer-name
+    (sage)
+    (with-current-buffer sage-buffer-name
       (goto-char (point-max))
       (insert (format "Suggest a fix for the code in %s (file: %s, line %d):\n\n"
                       mode-name filename line-num))
       (insert (format "Context:\n```%s\n%s\n```\n\n"
-                      (gemini-repl--lang-for-mode)
+                      (sage--lang-for-mode)
                       context))
       (insert "Please suggest a fix and explain the issue.")
-      (gemini-repl-send-input))))
+      (sage-send-input))))
 
-(defun gemini-repl-explain-at-point ()
+(defun sage-explain-at-point ()
   "Explain code or symbol at point."
   (interactive)
   (let ((thing (cond
@@ -351,15 +351,15 @@ Uses the appropriate comment syntax for the major mode."
                 (t (thing-at-point 'line t)))))
     (unless thing
       (user-error "Nothing at point to explain"))
-    (gemini-repl)
-    (with-current-buffer gemini-repl-buffer-name
+    (sage)
+    (with-current-buffer sage-buffer-name
       (goto-char (point-max))
       (insert (format "Explain this in the context of %s:\n\n%s"
                       (symbol-name major-mode)
                       thing))
-      (gemini-repl-send-input))))
+      (sage-send-input))))
 
-(defun gemini-repl--lang-for-mode ()
+(defun sage--lang-for-mode ()
   "Get syntax highlighting language for current major mode."
   (let ((mode (symbol-name major-mode)))
     (cond
@@ -379,7 +379,7 @@ Uses the appropriate comment syntax for the major mode."
 
 ;;; Compilation Mode Integration
 
-(defun gemini-repl-explain-compilation-error ()
+(defun sage-explain-compilation-error ()
   "Explain error from compilation buffer."
   (interactive)
   (unless (derived-mode-p 'compilation-mode)
@@ -387,118 +387,118 @@ Uses the appropriate comment syntax for the major mode."
   (let ((error-msg (buffer-substring-no-properties
                    (line-beginning-position)
                    (line-end-position))))
-    (gemini-repl)
-    (with-current-buffer gemini-repl-buffer-name
+    (sage)
+    (with-current-buffer sage-buffer-name
       (goto-char (point-max))
       (insert (format "Explain this compilation error:\n\n%s" error-msg))
-      (gemini-repl-send-input))))
+      (sage-send-input))))
 
 ;;; Interactive Query Functions
 
-(defun gemini-repl-ask-about-buffer ()
+(defun sage-ask-about-buffer ()
   "Ask a question about the current buffer."
   (interactive)
   (let ((question (read-string "Ask about this buffer: "))
         (content (buffer-substring-no-properties (point-min) (point-max)))
         (filename (or (buffer-file-name) (buffer-name))))
-    (gemini-repl)
-    (with-current-buffer gemini-repl-buffer-name
+    (sage)
+    (with-current-buffer sage-buffer-name
       (goto-char (point-max))
       (insert (format "%s\n\nFile: %s\n\n```\n%s\n```"
                       question filename content))
-      (gemini-repl-send-input))))
+      (sage-send-input))))
 
-(defun gemini-repl-ask-about-project ()
+(defun sage-ask-about-project ()
   "Ask a question about the current project."
   (interactive)
   (let ((question (read-string "Ask about this project: "))
         (project-root (or (and (fboundp 'project-root)
                               (project-root (project-current)))
                          default-directory)))
-    (gemini-repl)
-    (with-current-buffer gemini-repl-buffer-name
+    (sage)
+    (with-current-buffer sage-buffer-name
       (goto-char (point-max))
       (insert (format "%s\n\nProject root: %s\n\n"
                       question project-root))
       (insert "Context: Use tools to explore the project structure and files.")
-      (gemini-repl-send-input))))
+      (sage-send-input))))
 
 ;;; Minor Mode
 
-(defvar gemini-repl-mode-map
+(defvar sage-mode-map
   (let ((map (make-sparse-keymap)))
     ;; Global bindings (C-c C-g prefix)
-    (define-key map (kbd "C-c C-g g") #'gemini-repl-send-region-improved)
-    (define-key map (kbd "C-c C-g b") #'gemini-repl-send-buffer)
-    (define-key map (kbd "C-c C-g d") #'gemini-repl-send-defun)
-    (define-key map (kbd "C-c C-g r") #'gemini-repl)
-    (define-key map (kbd "C-c C-g e") #'gemini-repl-explain-at-point)
-    (define-key map (kbd "C-c C-g i") #'gemini-repl-insert-response)
-    (define-key map (kbd "C-c C-g a") #'gemini-repl-ask-about-buffer)
-    (define-key map (kbd "C-c C-g p") #'gemini-repl-ask-about-project)
+    (define-key map (kbd "C-c C-g g") #'sage-send-region-improved)
+    (define-key map (kbd "C-c C-g b") #'sage-send-buffer)
+    (define-key map (kbd "C-c C-g d") #'sage-send-defun)
+    (define-key map (kbd "C-c C-g r") #'sage)
+    (define-key map (kbd "C-c C-g e") #'sage-explain-at-point)
+    (define-key map (kbd "C-c C-g i") #'sage-insert-response)
+    (define-key map (kbd "C-c C-g a") #'sage-ask-about-buffer)
+    (define-key map (kbd "C-c C-g p") #'sage-ask-about-project)
 
     ;; Org mode specific
-    (define-key map (kbd "C-c C-g o s") #'gemini-repl-org-send-subtree)
-    (define-key map (kbd "C-c C-g o c") #'gemini-repl-org-send-src-block)
-    (define-key map (kbd "C-c C-g o i") #'gemini-repl-org-insert-response)
-    (define-key map (kbd "C-c C-g o p") #'gemini-repl-org-process-ai-blocks)
+    (define-key map (kbd "C-c C-g o s") #'sage-org-send-subtree)
+    (define-key map (kbd "C-c C-g o c") #'sage-org-send-src-block)
+    (define-key map (kbd "C-c C-g o i") #'sage-org-insert-response)
+    (define-key map (kbd "C-c C-g o p") #'sage-org-process-ai-blocks)
 
     ;; Prog mode specific
-    (define-key map (kbd "C-c C-g x") #'gemini-repl-explain-error)
-    (define-key map (kbd "C-c C-g f") #'gemini-repl-suggest-fix)
+    (define-key map (kbd "C-c C-g x") #'sage-explain-error)
+    (define-key map (kbd "C-c C-g f") #'sage-suggest-fix)
 
     map)
-  "Keymap for gemini-repl-mode.")
+  "Keymap for sage-mode.")
 
 ;;;###autoload
-(define-minor-mode gemini-repl-mode
-  "Minor mode for gemini-repl Emacs integrations.
+(define-minor-mode sage-mode
+  "Minor mode for sage Emacs integrations.
 
 Provides convenient keybindings for AI-assisted coding:
 
-\\{gemini-repl-mode-map}"
+\\{sage-mode-map}"
   :lighter " GeminiREPL"
-  :keymap gemini-repl-mode-map
-  :group 'gemini-repl-emacs)
+  :keymap sage-mode-map
+  :group 'sage-emacs)
 
 ;;;###autoload
-(define-globalized-minor-mode global-gemini-repl-mode
-  gemini-repl-mode
-  (lambda () (gemini-repl-mode 1))
-  :group 'gemini-repl-emacs)
+(define-globalized-minor-mode global-sage-mode
+  sage-mode
+  (lambda () (sage-mode 1))
+  :group 'sage-emacs)
 
 ;;; Dired Mode Integration
 
-(defun gemini-repl-emacs-dired-setup ()
-  "Setup gemini-repl bindings in dired-mode."
+(defun sage-emacs-dired-setup ()
+  "Setup sage bindings in dired-mode."
   (when (derived-mode-p 'dired-mode)
-    (local-set-key (kbd "C-c C-g s") #'gemini-repl-dired-summarize)
-    (local-set-key (kbd "C-c C-g d") #'gemini-repl-dired-describe-file)))
+    (local-set-key (kbd "C-c C-g s") #'sage-dired-summarize)
+    (local-set-key (kbd "C-c C-g d") #'sage-dired-describe-file)))
 
-(add-hook 'dired-mode-hook #'gemini-repl-emacs-dired-setup)
+(add-hook 'dired-mode-hook #'sage-emacs-dired-setup)
 
 ;;; Compilation Mode Integration
 
-(defun gemini-repl-emacs-compilation-setup ()
-  "Setup gemini-repl bindings in compilation-mode."
+(defun sage-emacs-compilation-setup ()
+  "Setup sage bindings in compilation-mode."
   (when (derived-mode-p 'compilation-mode)
-    (local-set-key (kbd "C-c C-g e") #'gemini-repl-explain-compilation-error)))
+    (local-set-key (kbd "C-c C-g e") #'sage-explain-compilation-error)))
 
-(add-hook 'compilation-mode-hook #'gemini-repl-emacs-compilation-setup)
+(add-hook 'compilation-mode-hook #'sage-emacs-compilation-setup)
 
 ;;; Response Capture
 
-(defun gemini-repl-emacs-capture-response (response)
+(defun sage-emacs-capture-response (response)
   "Capture RESPONSE for later insertion.
-This is called internally by gemini-repl."
-  (setq gemini-repl-last-response response))
+This is called internally by sage."
+  (setq sage-last-response response))
 
 ;; Advice to capture responses
-(advice-add 'gemini-repl--handle-response :after
+(advice-add 'sage--handle-response :after
             (lambda (response)
               (when (eq (alist-get 'type response) 'text)
-                (gemini-repl-emacs-capture-response
+                (sage-emacs-capture-response
                  (alist-get 'content response)))))
 
-(provide 'gemini-repl-emacs)
-;;; gemini-repl-emacs.el ends here
+(provide 'sage-emacs)
+;;; sage-emacs.el ends here

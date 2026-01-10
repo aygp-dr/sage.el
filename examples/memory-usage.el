@@ -1,13 +1,13 @@
-;;; memory-usage.el --- Examples of using gemini-repl-memory -*- lexical-binding: t; -*-
+;;; memory-usage.el --- Examples of using sage-memory -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 
-;; This file demonstrates how to use the gemini-repl-memory system.
+;; This file demonstrates how to use the sage-memory system.
 ;; Load this file in an interactive Emacs session to try the examples.
 
 ;;; Code:
 
-(require 'gemini-repl-memory)
+(require 'sage-memory)
 
 ;;; Example 1: Basic fact management
 
@@ -16,20 +16,20 @@
   (interactive)
 
   ;; Add some facts about yourself
-  (gemini-repl-memory-add "name" "Alice" 'general)
-  (gemini-repl-memory-add "location" "San Francisco" 'general)
+  (sage-memory-add "name" "Alice" 'general)
+  (sage-memory-add "location" "San Francisco" 'general)
 
   ;; Add preferences
-  (gemini-repl-memory-add "editor" "Emacs" 'preference)
-  (gemini-repl-memory-add "theme" "dark" 'preference)
-  (gemini-repl-memory-add "font" "Iosevka" 'preference)
+  (sage-memory-add "editor" "Emacs" 'preference)
+  (sage-memory-add "theme" "dark" 'preference)
+  (sage-memory-add "font" "Iosevka" 'preference)
 
   ;; Retrieve a fact
-  (let ((editor-fact (gemini-repl-memory-get "editor")))
+  (let ((editor-fact (sage-memory-get "editor")))
     (message "Editor: %s" (plist-get editor-fact :value)))
 
   ;; List all preferences
-  (let ((prefs (gemini-repl-memory-list 'preference)))
+  (let ((prefs (sage-memory-list 'preference)))
     (message "Found %d preferences" (length prefs))))
 
 ;;; Example 2: Project-specific facts
@@ -39,16 +39,16 @@
   (interactive)
 
   ;; Add project information
-  (gemini-repl-memory-add "current-project" "gemini-repl" 'project)
-  (gemini-repl-memory-add "project-language" "Emacs Lisp" 'project)
-  (gemini-repl-memory-add "project-goal" "AI REPL with tool calling" 'project)
-  (gemini-repl-memory-add "repo-url" "https://github.com/aygp-dr/gemini-repl-010" 'project)
+  (sage-memory-add "current-project" "sage" 'project)
+  (sage-memory-add "project-language" "Emacs Lisp" 'project)
+  (sage-memory-add "project-goal" "AI REPL with tool calling" 'project)
+  (sage-memory-add "repo-url" "https://github.com/aygp-dr/sage-010" 'project)
 
   ;; When switching projects, update relevant facts
-  (gemini-repl-memory-add "current-project" "new-project" 'project)
+  (sage-memory-add "current-project" "new-project" 'project)
 
   ;; Query project facts
-  (let ((project-facts (gemini-repl-memory-list 'project)))
+  (let ((project-facts (sage-memory-list 'project)))
     (dolist (fact project-facts)
       (message "%s: %s"
                (plist-get fact :key)
@@ -61,17 +61,17 @@
   (interactive)
 
   ;; System information
-  (gemini-repl-memory-add "os" "FreeBSD" 'technical)
-  (gemini-repl-memory-add "shell" "zsh" 'technical)
-  (gemini-repl-memory-add "make-command" "gmake" 'technical)
+  (sage-memory-add "os" "FreeBSD" 'technical)
+  (sage-memory-add "shell" "zsh" 'technical)
+  (sage-memory-add "make-command" "gmake" 'technical)
 
   ;; Programming languages
-  (gemini-repl-memory-add "lang-primary" "Emacs Lisp" 'technical)
-  (gemini-repl-memory-add "lang-secondary" "Rust" 'technical)
+  (sage-memory-add "lang-primary" "Emacs Lisp" 'technical)
+  (sage-memory-add "lang-secondary" "Rust" 'technical)
 
   ;; Tools and utilities
-  (gemini-repl-memory-add "version-control" "git" 'technical)
-  (gemini-repl-memory-add "package-manager" "pkg" 'technical))
+  (sage-memory-add "version-control" "git" 'technical)
+  (sage-memory-add "package-manager" "pkg" 'technical))
 
 ;;; Example 4: Context generation
 
@@ -80,14 +80,14 @@
   (interactive)
 
   ;; Add various facts
-  (gemini-repl-memory-add "name" "Bob" 'general)
-  (gemini-repl-memory-add "role" "Software Engineer" 'general)
-  (gemini-repl-memory-add "editor" "Emacs" 'preference)
-  (gemini-repl-memory-add "current-project" "gemini-repl" 'project)
-  (gemini-repl-memory-add "os" "FreeBSD" 'technical)
+  (sage-memory-add "name" "Bob" 'general)
+  (sage-memory-add "role" "Software Engineer" 'general)
+  (sage-memory-add "editor" "Emacs" 'preference)
+  (sage-memory-add "current-project" "sage" 'project)
+  (sage-memory-add "os" "FreeBSD" 'technical)
 
   ;; Generate context for AI
-  (let ((context (gemini-repl-memory-to-context)))
+  (let ((context (sage-memory-to-context)))
     ;; Display in a buffer
     (with-current-buffer (get-buffer-create "*Memory Context*")
       (erase-buffer)
@@ -108,10 +108,10 @@
                       ("database" "PostgreSQL" technical)
                       ("cache" "Redis" technical))))
     (dolist (fact tech-stack)
-      (apply #'gemini-repl-memory-add fact)))
+      (apply #'sage-memory-add fact)))
 
   ;; Export technical facts to a variable
-  (let ((tech-facts (gemini-repl-memory-list 'technical)))
+  (let ((tech-facts (sage-memory-list 'technical)))
     (message "Technology stack has %d components" (length tech-facts))
 
     ;; Process each fact
@@ -127,17 +127,17 @@
   (interactive)
 
   ;; Initial state
-  (gemini-repl-memory-add "skill-level-elisp" "intermediate" 'technical)
+  (sage-memory-add "skill-level-elisp" "intermediate" 'technical)
   (message "Initial: %s"
-           (plist-get (gemini-repl-memory-get "skill-level-elisp") :value))
+           (plist-get (sage-memory-get "skill-level-elisp") :value))
 
   ;; Update after learning
-  (gemini-repl-memory-add "skill-level-elisp" "advanced" 'technical)
+  (sage-memory-add "skill-level-elisp" "advanced" 'technical)
   (message "Updated: %s"
-           (plist-get (gemini-repl-memory-get "skill-level-elisp") :value))
+           (plist-get (sage-memory-get "skill-level-elisp") :value))
 
   ;; Note: Only one entry exists, the update replaces the old value
-  (message "Total facts: %d" (length gemini-repl-memory--facts)))
+  (message "Total facts: %d" (length sage-memory--facts)))
 
 ;;; Example 7: Conditional fact usage
 
@@ -146,17 +146,17 @@
   (interactive)
 
   ;; Setup different project contexts
-  (gemini-repl-memory-add "work-project" "enterprise-app" 'project)
-  (gemini-repl-memory-add "personal-project" "gemini-repl" 'project)
-  (gemini-repl-memory-add "current-context" "work" 'general)
+  (sage-memory-add "work-project" "enterprise-app" 'project)
+  (sage-memory-add "personal-project" "sage" 'project)
+  (sage-memory-add "current-context" "work" 'general)
 
   ;; Use facts conditionally
-  (let* ((context-fact (gemini-repl-memory-get "current-context"))
+  (let* ((context-fact (sage-memory-get "current-context"))
          (context (plist-get context-fact :value))
          (project-key (if (string= context "work")
                           "work-project"
                         "personal-project"))
-         (project-fact (gemini-repl-memory-get project-key)))
+         (project-fact (sage-memory-get project-key)))
     (message "Current context: %s, Project: %s"
              context
              (plist-get project-fact :value))))
@@ -168,34 +168,34 @@
   (interactive)
 
   ;; Add temporary facts
-  (gemini-repl-memory-add "temp-note" "Remember to do X" 'general)
-  (gemini-repl-memory-add "session-id" "abc123" 'general)
+  (sage-memory-add "temp-note" "Remember to do X" 'general)
+  (sage-memory-add "session-id" "abc123" 'general)
 
   ;; Later, clean up
-  (gemini-repl-memory-remove "temp-note")
-  (gemini-repl-memory-remove "session-id")
+  (sage-memory-remove "temp-note")
+  (sage-memory-remove "session-id")
 
   (message "Temporary facts removed"))
 
-;;; Example 9: Integration with gemini-repl
+;;; Example 9: Integration with sage
 
 (defun memory-example-integration ()
-  "Demonstrate integration with gemini-repl."
+  "Demonstrate integration with sage."
   (interactive)
 
   ;; Setup your profile before starting REPL
-  (gemini-repl-memory-add "name" "Charlie" 'general)
-  (gemini-repl-memory-add "expertise" "Emacs Lisp, Rust" 'technical)
-  (gemini-repl-memory-add "workflow" "TDD, EDD" 'preference)
-  (gemini-repl-memory-add "communication-style" "concise" 'preference)
+  (sage-memory-add "name" "Charlie" 'general)
+  (sage-memory-add "expertise" "Emacs Lisp, Rust" 'technical)
+  (sage-memory-add "workflow" "TDD, EDD" 'preference)
+  (sage-memory-add "communication-style" "concise" 'preference)
 
   ;; Enable memory in conversations
-  (setq gemini-repl-use-memory t)
+  (setq sage-use-memory t)
 
-  ;; Now when you start gemini-repl, the AI will know these facts
-  ;; (gemini-repl)
+  ;; Now when you start sage, the AI will know these facts
+  ;; (sage)
 
-  (message "Memory configured for gemini-repl. Start REPL to use."))
+  (message "Memory configured for sage. Start REPL to use."))
 
 ;;; Example 10: Category-based workflows
 
@@ -204,24 +204,24 @@
   (interactive)
 
   ;; Personal facts (general)
-  (gemini-repl-memory-add "timezone" "PST" 'general)
-  (gemini-repl-memory-add "working-hours" "9-5" 'general)
+  (sage-memory-add "timezone" "PST" 'general)
+  (sage-memory-add "working-hours" "9-5" 'general)
 
   ;; Preferences
-  (gemini-repl-memory-add "code-style" "functional" 'preference)
-  (gemini-repl-memory-add "commit-style" "conventional" 'preference)
+  (sage-memory-add "code-style" "functional" 'preference)
+  (sage-memory-add "commit-style" "conventional" 'preference)
 
   ;; Current project
-  (gemini-repl-memory-add "project-phase" "Phase 2" 'project)
-  (gemini-repl-memory-add "project-deadline" "2024-12-31" 'project)
+  (sage-memory-add "project-phase" "Phase 2" 'project)
+  (sage-memory-add "project-deadline" "2024-12-31" 'project)
 
   ;; Technical details
-  (gemini-repl-memory-add "emacs-version" "31.0.50" 'technical)
-  (gemini-repl-memory-add "build-system" "gmake" 'technical)
+  (sage-memory-add "emacs-version" "31.0.50" 'technical)
+  (sage-memory-add "build-system" "gmake" 'technical)
 
   ;; Show category summaries
   (dolist (category '(general preference project technical))
-    (let ((facts (gemini-repl-memory-list category)))
+    (let ((facts (sage-memory-list category)))
       (message "%s: %d facts" category (length facts)))))
 
 ;;; Running all examples
@@ -240,7 +240,7 @@
   (sit-for 0.5)
   (memory-example-batch)
   (sit-for 0.5)
-  (message "Examples complete! Use M-x gemini-repl-memory-list to see all facts."))
+  (message "Examples complete! Use M-x sage-memory-list to see all facts."))
 
 (provide 'memory-usage)
 ;;; memory-usage.el ends here

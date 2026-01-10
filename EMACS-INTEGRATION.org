@@ -1,46 +1,46 @@
-# Emacs-Native Integration for Gemini REPL
+* Emacs-Native Integration for Sage
 
-This document describes the Emacs-native features added to gemini-repl-010.
+This document describes the Emacs-native features added to sage-010.
 
-## Files Created
+** Files Created
 
-### Core Integration: `gemini-repl-emacs.el`
-**Lines:** 504
-**Size:** 19KB
+*** Core Integration: `sage-emacs.el`
+*Lines:* 504
+*Size:* 19KB
 
 Provides deep integration with Emacs modes and workflows:
 
-#### Org Mode Integration
-- `gemini-repl-org-send-subtree` - Send org subtree as context
-- `gemini-repl-org-send-src-block` - Send org source block
-- `gemini-repl-org-insert-response` - Insert response as org AI block
-- `gemini-repl-org-process-ai-blocks` - Process all `#+begin_ai` blocks
+** Org Mode Integration
+- `sage-org-send-subtree` - Send org subtree as context
+- `sage-org-send-src-block` - Send org source block
+- `sage-org-insert-response` - Insert response as org AI block
+- `sage-org-process-ai-blocks` - Process all `#+begin_ai` blocks
 
-#### Buffer Integration
-- `gemini-repl-send-buffer` - Send entire buffer
-- `gemini-repl-send-region-improved` - Enhanced region sending with prompts
-- `gemini-repl-send-defun` - Send current function definition
-- `gemini-repl-insert-response` - Insert last AI response
-- `gemini-repl-ask-about-buffer` - Interactive buffer queries
-- `gemini-repl-ask-about-project` - Project-level queries
+** Buffer Integration
+- `sage-send-buffer` - Send entire buffer
+- `sage-send-region-improved` - Enhanced region sending with prompts
+- `sage-send-defun` - Send current function definition
+- `sage-insert-response` - Insert last AI response
+- `sage-ask-about-buffer` - Interactive buffer queries
+- `sage-ask-about-project` - Project-level queries
 
-#### Dired Integration
-- `gemini-repl-dired-summarize` - Summarize marked files
-- `gemini-repl-dired-describe-file` - Describe file at point
+** Dired Integration
+- `sage-dired-summarize` - Summarize marked files
+- `sage-dired-describe-file` - Describe file at point
 
-#### Prog Mode Integration
-- `gemini-repl-explain-error` - Explain error with context
-- `gemini-repl-suggest-fix` - Suggest fixes for code issues
-- `gemini-repl-explain-at-point` - Explain symbol/code at point
-- `gemini-repl-explain-compilation-error` - Explain compilation errors
+** Prog Mode Integration
+- `sage-explain-error` - Explain error with context
+- `sage-suggest-fix` - Suggest fixes for code issues
+- `sage-explain-at-point` - Explain symbol/code at point
+- `sage-explain-compilation-error` - Explain compilation errors
 
-#### Minor Mode
-- `gemini-repl-mode` - Minor mode with comprehensive keybindings
-- `global-gemini-repl-mode` - Global minor mode variant
+** Minor Mode
+- `sage-mode` - Minor mode with comprehensive keybindings
+- `global-sage-mode` - Global minor mode variant
 
-### Tests: `test/gemini-repl-emacs-test.el`
-**Lines:** 90
-**Size:** 3.1KB
+*** Tests: `test/sage-emacs-test.el`
+*Lines:* 90
+*Size:* 3.1KB
 
 Comprehensive test suite covering:
 - Language detection for syntax highlighting
@@ -52,11 +52,11 @@ Comprehensive test suite covering:
 - Customization defaults
 - Response capture
 
-### Examples and Documentation
+*** Examples and Documentation
 
-#### `examples/init-example.el`
-**Lines:** 195
-**Size:** 5.7KB
+** `examples/init-example.el`
+*Lines:* 195
+*Size:* 5.7KB
 
 Complete configuration example showing:
 - Basic setup with API keys
@@ -68,9 +68,9 @@ Complete configuration example showing:
 - Keybinding customization
 - Integration with other packages
 
-#### `examples/usage-guide.org`
-**Lines:** 428
-**Size:** 10.7KB
+** `examples/usage-guide.org`
+*Lines:* 428
+*Size:* 10.7KB
 
 Comprehensive usage guide covering:
 - Quick start
@@ -83,7 +83,7 @@ Comprehensive usage guide covering:
 - Troubleshooting
 - Example sessions
 
-### Documentation Updates: `README.org`
+*** Documentation Updates: `README.org`
 
 Added comprehensive section "Emacs-Native Integrations" including:
 - Feature tables for all integrations
@@ -96,11 +96,11 @@ Added comprehensive section "Emacs-Native Integrations" including:
 - Customization options
 - Complete keybinding reference
 
-## Keybindings
+** Keybindings
 
 All keybindings use the `C-c C-g` prefix:
 
-### Global Commands
+*** Global Commands
 | Key         | Command                          |
 |-------------|----------------------------------|
 | `C-c C-g r` | Open REPL                        |
@@ -112,13 +112,13 @@ All keybindings use the `C-c C-g` prefix:
 | `C-c C-g a` | Ask about buffer                 |
 | `C-c C-g p` | Ask about project                |
 
-### Prog Mode Commands
+*** Prog Mode Commands
 | Key         | Command                          |
 |-------------|----------------------------------|
 | `C-c C-g x` | Explain error                    |
 | `C-c C-g f` | Suggest fix                      |
 
-### Org Mode Commands
+*** Org Mode Commands
 | Key           | Command                        |
 |---------------|--------------------------------|
 | `C-c C-g o s` | Send org subtree               |
@@ -126,38 +126,38 @@ All keybindings use the `C-c C-g` prefix:
 | `C-c C-g o i` | Insert org AI block            |
 | `C-c C-g o p` | Process org AI blocks          |
 
-### Dired Commands
+*** Dired Commands
 | Key         | Command                          |
 |-------------|----------------------------------|
 | `C-c C-g s` | Summarize files                  |
 | `C-c C-g d` | Describe file                    |
 
-## Customization Options
+** Customization Options
 
-```elisp
+#+begin_src elisp
 ;; Org mode AI block type
-(setq gemini-repl-emacs-org-ai-block-type "ai")
+(setq sage-emacs-org-ai-block-type "ai")
 
 ;; Insert responses as comments in code buffers
-(setq gemini-repl-emacs-insert-as-comment nil)
+(setq sage-emacs-insert-as-comment nil)
 
 ;; Lines of context for error explanations
-(setq gemini-repl-emacs-context-lines 5)
+(setq sage-emacs-context-lines 5)
 
 ;; Auto-format responses based on mode
-(setq gemini-repl-emacs-auto-format-response t)
-```
+(setq sage-emacs-auto-format-response t)
+#+end_src
 
-## Features Summary
+** Features Summary
 
-### Org Mode Integration ✓
+*** Org Mode Integration ✓
 - [x] Send org subtree as context
 - [x] Send source blocks to AI
 - [x] Insert responses as org blocks
 - [x] Support for `#+begin_ai` blocks
 - [x] Batch processing of AI blocks
 
-### Buffer Integration ✓
+*** Buffer Integration ✓
 - [x] Send entire buffer
 - [x] Enhanced region sending with prompts
 - [x] Send function definitions
@@ -165,34 +165,34 @@ All keybindings use the `C-c C-g` prefix:
 - [x] Context-aware insertion (comments in code)
 - [x] Interactive buffer queries
 
-### Dired Integration ✓
+*** Dired Integration ✓
 - [x] Summarize marked files
 - [x] Describe file at point
 - [x] Read file contents for text files
 - [x] Calculate size statistics
 
-### Prog Mode Integration ✓
+*** Prog Mode Integration ✓
 - [x] Explain errors with context
 - [x] Suggest fixes
 - [x] Explain symbols at point
 - [x] Context extraction
 - [x] Mode-specific syntax highlighting
 
-### Compilation Mode Integration ✓
+*** Compilation Mode Integration ✓
 - [x] Explain compilation errors
 
-### Minor Mode ✓
+*** Minor Mode ✓
 - [x] Global and local minor mode
 - [x] Comprehensive keybindings
 - [x] Mode-specific bindings
 - [x] Hook integration
 
-## Usage Example
+** Usage Example
 
-```elisp
+#+begin_src elisp
 ;; Setup
-(require 'gemini-repl-emacs)
-(global-gemini-repl-mode 1)
+(require 'sage-emacs)
+(global-sage-mode 1)
 
 ;; In any buffer:
 ;; C-c C-g g - Send selected region
@@ -209,11 +209,11 @@ All keybindings use the `C-c C-g` prefix:
 ;; In prog-mode:
 ;; C-c C-g x - Explain error at point
 ;; C-c C-g f - Suggest fix
-```
+#+end_src
 
-## Implementation Details
+** Implementation Details
 
-### Language Detection
+*** Language Detection
 Automatic language detection for syntax highlighting in code snippets:
 - Emacs Lisp → `elisp`
 - Python → `python`
@@ -221,40 +221,40 @@ Automatic language detection for syntax highlighting in code snippets:
 - JavaScript/TypeScript → `javascript`/`typescript`
 - And more...
 
-### Response Capture
+*** Response Capture
 Automatically captures AI responses for later insertion with `C-c C-g i`.
 
-### Context Management
+*** Context Management
 Extracts configurable lines of context (default: 5) for error explanations.
 
-### Safety
-Inherits all safety features from base `gemini-repl`:
+*** Safety
+Inherits all safety features from base `sage`:
 - Path validation
 - Workspace restrictions
 - Permission system
 
-## Testing
+** Testing
 
 Run tests with:
-```bash
-emacs -batch -l ert -l test/gemini-repl-emacs-test.el -f ert-run-tests-batch-and-exit
-```
+#+begin_src bash
+emacs -batch -l ert -l test/sage-emacs-test.el -f ert-run-tests-batch-and-exit
+#+end_src
 
-## Integration Points
+** Integration Points
 
-### Hooks
+*** Hooks
 - `dired-mode-hook` - Setup Dired bindings
 - `compilation-mode-hook` - Setup compilation bindings
 
-### Advice
-- `gemini-repl--handle-response` - Capture responses for insertion
+*** Advice
+- `sage--handle-response` - Capture responses for insertion
 
-### Dependencies
-- `gemini-repl` (required)
+*** Dependencies
+- `sage` (required)
 - `org` (optional, for org integration)
 - `dired` (optional, for file management)
 
-## Future Enhancements
+** Future Enhancements
 
 Potential additions:
 - [ ] Integration with `company-mode` for AI-powered completion
@@ -264,9 +264,9 @@ Potential additions:
 - [ ] Code snippet extraction and refinement
 - [ ] Multi-file refactoring support
 
-## See Also
+** See Also
 
-- `gemini-repl.el` - Core REPL functionality
+- `sage.el` - Core REPL functionality
 - `examples/init-example.el` - Configuration examples
 - `examples/usage-guide.org` - Detailed usage patterns
 - `README.org` - Project documentation

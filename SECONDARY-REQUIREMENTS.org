@@ -1,0 +1,343 @@
+#+TITLE: Sage 009 - Secondary Requirements
+#+AUTHOR: AYGP-DR
+#+DATE: 2025-07-26
+
+* Overview
+
+This document captures additional requirements discovered through analyzing issues, feature requests, and bug reports from previous sage implementations (versions 001-008). These requirements supplement the primary requirements and address real-world usage patterns, security vulnerabilities, and performance concerns.
+
+* Security Requirements (Critical)
+
+** SR-001: Path Traversal Prevention [CRITICAL]
+*Source*: sage-005#21, sage-007#42
+
+The tool system MUST prevent path traversal attacks:
+- Validate all paths are within workspace
+- Reject paths containing =..= or absolute paths
+- Resolve symlinks and validate destination
+- Use =std::fs::canonicalize= for path normalization
+
+#+BEGIN_SRC rust
+// Example validation
+fn validate_path(path: &Path, workspace: &Path) -> Result<PathBuf> {
+    let canonical = path.canonicalize()?;
+    if !canonical.starts_with(workspace) {
+        bail!("Path escapes workspace");
+    }
+    Ok(canonical)
+}
+#+END_SRC
+
+** SR-002: API Key Security [HIGH]
+*Source*: sage#55, sage-006#29
+
+MUST prevent API key exposure:
+- Never log API keys at any log level
+- Mask keys in error messages (show only last 4 chars)
+- Scrub keys from stack traces
+- Implement secure key storage option
+
+** SR-003: Command Injection Prevention [HIGH]
+*Source*: sage-005#25, sage-008#18
+
+When implementing command execution:
+- Use strict whitelist of allowed commands
+- Never pass user input directly to shell
+- Use =std::process::Command= with explicit args
+- Sandbox execution environment
+
+* Performance Requirements
+
+** SR-004: Response Time Optimization [HIGH]
+*Source*: sage-007#15, sage-003#8
+
+Users reported 30+ second response times. Requirements:
+- First token must appear within 500ms
+- Implement streaming response display
+- Show progress indicators during API calls
+- Cache frequently used data
+
+** SR-005: Memory Management [MEDIUM]
+*Source*: sage-006#22, sage-008#31
+
+For long conversations:
+- Implement sliding window context (keep last N messages)
+- Add context summarization for pruned messages
+- Monitor memory usage and warn at thresholds
+- Support manual context pruning commands
+
+** SR-006: Startup Performance [MEDIUM]
+*Source*: sage-005#30
+
+Target startup times:
+- Cold start: <50ms
+- With session restore: <100ms
+- Lazy load optional features
+- Compile with optimization flags
+
+* Functionality Requirements
+
+** SR-007: Robust Signal Handling [HIGH]
+*Source*: sage#12, sage-001#5
+
+Multiple reports of unresponsive REPL:
+- Handle Ctrl+C gracefully (show prompt)
+- Handle Ctrl+D as clean exit
+- Implement timeout for API calls
+- Allow interrupt of long-running operations
+
+** SR-008: Tool Recognition [HIGH]
+*Source*: sage-005#26, sage-007#38
+
+AI often refuses to use available tools:
+- Implement clear tool descriptions
+- Add examples in system prompt
+- Show tool usage in help
+- Consider tool suggestion hints
+
+** SR-009: Session Management [HIGH]
+*Source*: sage-003#14, sage-008#25
+
+Users need persistent sessions:
+- Named sessions with easy switching
+- Auto-save every N messages
+- Session branching/merging
+- Export sessions to markdown
+- Session templates/presets
+
+** SR-010: Context Preservation [HIGH]
+*Source*: sage#32, sage-005#19
+
+Context lost between messages:
+- Maintain conversation history properly
+- Show context status in prompt
+- Implement context debugging (/context raw)
+- Support context injection
+
+* Tool System Enhancements
+
+** SR-011: Minimal Tool Set [HIGH]
+*Source*: Analysis of sage-007#41
+
+Research shows 4 tools cover 40-50% of use cases:
+1. =read_file= - Read file contents
+2. =write_file= - Write/create files
+3. =list_files= - Browse directories
+4. =search_files= - Search with patterns
+
+Adding these covers 80-85%:
+5. =run_command= - Execute whitelisted commands
+6. =edit_file= - Modify existing files
+
+** SR-012: Tool Usage Patterns [MEDIUM]
+*Source*: sage-008#44 (Claude Code analysis)
+
+Implement based on actual usage:
+- 53% - Command execution (bash)
+- 11% - File editing
+- 11% - File reading
+- 6% - File searching
+- 5% - Directory listing
+
+** SR-013: Conditional Tool Dispatch [MEDIUM]
+*Source*: sage-005#35
+
+Only invoke tools when necessary:
+- Analyze query for tool indicators
+- Implement cost-benefit analysis
+- Allow manual tool toggle
+- Show tool consideration in debug
+
+* User Interface Improvements
+
+** SR-014: Status Line [MEDIUM]
+*Source*: sage-006#17, sage-007#22
+
+Add persistent status line showing:
+- Current model
+- Token count
+- Session name
+- Tool status
+- Rate limit status
+
+** SR-015: Response Formatting [MEDIUM]
+*Source*: sage#44, sage-003#19
+
+Improve response display:
+- Syntax highlighting for code blocks
+- Markdown rendering
+- Table formatting
+- Line wrapping at terminal width
+- Copy-friendly output mode
+
+** SR-016: Progress Indicators [LOW]
+*Source*: sage-005#28
+
+Visual feedback during operations:
+- Spinner during API calls
+- Progress bar for file operations
+- Streaming response indicator
+- Time elapsed counter
+
+* Error Handling
+
+** SR-017: Graceful Degradation [HIGH]
+*Source*: sage-001#8, sage-007#33
+
+When services fail:
+- Continue without tools if tool system fails
+- Fallback models on rate limits
+- Offline mode with cached responses
+- Clear error messages with solutions
+
+** SR-018: Error Recovery [MEDIUM]
+*Source*: sage-006#20
+
+Help users recover from errors:
+- Suggest fixes for common errors
+- Retry with exponential backoff
+- Save conversation before crash
+- Implement panic handler
+
+* Configuration Enhancements
+
+** SR-019: Dynamic Configuration [MEDIUM]
+*Source*: sage-008#36
+
+Allow runtime configuration changes:
+- Change model without restart
+- Toggle features on/off
+- Adjust rate limits
+- Update prompts
+
+** SR-020: Configuration Profiles [LOW]
+*Source*: sage-003#24
+
+Support multiple configurations:
+- Work vs personal profiles
+- Model-specific settings
+- Project-based configs
+- Quick profile switching
+
+* Testing Requirements
+
+** SR-021: Integration Test Suite [HIGH]
+*Source*: Multiple test failures across versions
+
+Comprehensive test coverage:
+- Mock API responses
+- Tool execution tests
+- Error condition tests
+- Performance benchmarks
+- Security vulnerability tests
+
+** SR-022: Regression Tests [MEDIUM]
+*Source*: Bugs reappearing across versions
+
+Prevent regression:
+- Test for each fixed bug
+- Automated test runs
+- Cross-version compatibility
+- Behavior documentation
+
+* Platform-Specific Requirements
+
+** SR-023: Windows Compatibility [MEDIUM]
+*Source*: sage-005#32, sage-007#40
+
+Windows-specific issues:
+- Path separator handling
+- Console color support
+- Signal handling differences
+- Home directory detection
+
+** SR-024: Terminal Compatibility [LOW]
+*Source*: sage-006#26
+
+Support various terminals:
+- Detect terminal capabilities
+- Fallback for limited terminals
+- SSH session support
+- Screen/tmux compatibility
+
+* Operational Requirements
+
+** SR-025: Observability [MEDIUM]
+*Source*: sage-008#42
+
+Production monitoring:
+- Structured logging
+- Performance metrics
+- Error tracking
+- Usage analytics (opt-in)
+
+** SR-026: Debugging Support [MEDIUM]
+*Source*: Developer feedback
+
+Developer tools:
+- Debug mode with verbose output
+- Request/response logging
+- Performance profiling
+- State inspection commands
+
+* Migration Requirements
+
+** SR-027: Version Migration [LOW]
+*Source*: User requests
+
+Support migration from other versions:
+- Import sessions from Python/Ruby versions
+- Convert configuration formats
+- Tool compatibility layer
+- Migration guide
+
+* Priority Matrix
+
+| Requirement | Priority | Complexity | Impact |
+|-------------+----------+------------+--------|
+| Path Traversal Prevention | CRITICAL | Medium | Security |
+| API Key Security | CRITICAL | Low | Security |
+| Signal Handling | HIGH | Medium | Usability |
+| Tool Recognition | HIGH | High | Functionality |
+| Session Management | HIGH | Medium | Functionality |
+| Response Time | HIGH | High | Performance |
+| Error Recovery | MEDIUM | Medium | Reliability |
+| Status Line | MEDIUM | Low | UI/UX |
+| Windows Support | MEDIUM | Medium | Compatibility |
+| Profile Support | LOW | Low | Convenience |
+
+* Implementation Notes
+
+** Phase 1 (Security & Core)
+- Implement all CRITICAL security fixes
+- Basic tool system with security
+- Core REPL with signal handling
+- Session persistence
+
+** Phase 2 (Performance & UX)
+- Streaming responses
+- Memory management
+- Status line
+- Error recovery
+
+** Phase 3 (Advanced Features)
+- Advanced tools
+- Configuration profiles
+- Cross-platform testing
+- Migration tools
+
+* Lessons Learned
+
+From analyzing 8 versions and hundreds of issues:
+
+1. **Security First**: Path traversal and API key leaks are critical
+2. **Performance Matters**: Users notice >500ms delays
+3. **Tools Are Tricky**: AI needs clear guidance to use tools
+4. **Context Is King**: Losing context frustrates users
+5. **Errors Happen**: Graceful degradation is essential
+6. **Simple Wins**: 4-6 tools cover most use cases
+7. **Testing Pays**: Many issues could be caught by tests
+
+---
+
+This document will be updated as new issues are discovered or reported.

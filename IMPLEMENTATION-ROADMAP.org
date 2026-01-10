@@ -1,0 +1,364 @@
+#+TITLE: Sage 009 - Implementation Roadmap & Feature Clusters
+#+AUTHOR: AYGP-DR
+#+DATE: 2025-07-26
+
+* Overview
+
+This roadmap synthesizes learnings from analyzing all previous sage implementations to guide the Rust version development. Feature clusters and implementation sequences are based on actual patterns that emerged across 8 previous versions.
+
+* Feature Cluster Analysis
+
+** Cluster Dependencies
+
+#+BEGIN_SRC
+Foundation Cluster (Core)
+    ↓
+Context Management Cluster
+    ↓ ↙
+Tool System Cluster ← Security Boundaries
+    ↓
+Production Features Cluster
+    ↓
+Advanced/Experimental Cluster
+#+END_SRC
+
+* Implementation Phases
+
+** Phase 1: Foundation Layer (Weeks 1-2) [CRITICAL]
+
+*** Goals
+- Establish stable REPL infrastructure
+- Working API communication
+- Basic command system
+- Testing foundation
+
+*** Features
+
+**** F1.1: Core REPL Loop
+- Command-line interface using =rustyline=
+- Basic prompt handling and input processing
+- Signal handling (Ctrl+C graceful, Ctrl+D exit)
+- Terminal capability detection
+
+**** F1.2: API Client Infrastructure
+- HTTP client with =reqwest=
+- Gemini API integration with proper error handling
+- Retry logic with exponential backoff
+- API key management and validation
+
+**** F1.3: Command System
+- Command parser and dispatcher
+- Core commands: =/help=, =/exit=, =/clear=, =/version=
+- Command registry for extensibility
+- Help system with command documentation
+
+**** F1.4: Logging Foundation
+- Structured logging with =log= + =env_logger=
+- JSON log format
+- Log levels and filtering
+- API request/response logging (with key scrubbing)
+
+*** Success Criteria
+- [ ] REPL responds to basic input
+- [ ] Successful API calls to Gemini
+- [ ] Clean exit on Ctrl+D
+- [ ] All core commands working
+- [ ] Logs capture API interactions safely
+
+*** Dependencies
+None - this is the foundation layer
+
+** Phase 2: Context Management (Weeks 3-4) [HIGH]
+
+*** Goals
+- Multi-turn conversations
+- Session persistence
+- Token management
+- Context debugging
+
+*** Features
+
+**** F2.1: Conversation History
+- In-memory conversation state
+- Message role tracking (user/assistant)
+- Full context sent with each API request
+- Context validation and integrity
+
+**** F2.2: Session Persistence
+- Session save/load functionality
+- Named sessions support
+- Auto-save capability
+- Session metadata (timestamps, token counts)
+
+**** F2.3: Token Management
+- Accurate token counting per model
+- Cost estimation
+- Context window monitoring
+- Pruning warnings
+
+**** F2.4: Context Commands
+- =/context= - Show conversation history
+- =/save [filename]= - Save session
+- =/load <filename>= - Load session
+- =/reset= - Clear context
+- =/stats= - Token usage statistics
+
+*** Success Criteria
+- [ ] Multi-turn conversations work correctly
+- [ ] Sessions persist across restarts
+- [ ] Token counts are accurate
+- [ ] Context commands functional
+- [ ] No context leakage between sessions
+
+*** Dependencies
+- Phase 1 (Foundation Layer)
+
+** Phase 3: Tool System (Weeks 5-6) [HIGH]
+
+*** Goals
+- Secure file operations
+- Tool calling integration
+- Self-hosting capability
+- Security boundaries
+
+*** Features
+
+**** F3.1: Security Sandbox
+- Workspace directory restriction
+- Path validation and normalization
+- Symlink protection
+- File size limits
+
+**** F3.2: Core Tools (Minimal Viable Set)
+1. =read_file= - Read file contents with validation
+2. =write_file= - Write/create files in workspace
+3. =list_files= - Browse directory contents
+4. =search_files= - Search with regex patterns
+
+**** F3.3: Tool Integration
+- Function calling API integration
+- Tool parameter validation
+- Error handling and reporting
+- Tool usage logging
+
+**** F3.4: Tool Commands
+- =/tools= - List available tools
+- =/workspace= - Show workspace path
+- Tool enable/disable toggle
+
+*** Success Criteria
+- [ ] All security tests pass (path traversal, etc.)
+- [ ] Tools work via function calling
+- [ ] Self-hosting capability (read own code)
+- [ ] No security vulnerabilities
+- [ ] Tool usage tracked and logged
+
+*** Dependencies
+- Phase 1 (Foundation Layer)
+- Phase 2 (Context Management for multi-turn tool usage)
+
+** Phase 4: Production Features (Weeks 7-8) [MEDIUM]
+
+*** Goals
+- Performance optimization
+- Error resilience
+- User experience polish
+- Production readiness
+
+*** Features
+
+**** F4.1: Performance
+- Streaming response support
+- Async operations
+- Response caching
+- Startup optimization
+
+**** F4.2: Error Handling
+- Graceful degradation
+- Error recovery suggestions
+- Network resilience
+- Timeout handling
+
+**** F4.3: UI Enhancements
+- Progress indicators
+- Status line (optional)
+- Response formatting
+- Color themes
+
+**** F4.4: Configuration
+- Config file support
+- Environment variables
+- Profile switching
+- Runtime configuration
+
+*** Success Criteria
+- [ ] <50ms startup time
+- [ ] <500ms first token
+- [ ] Graceful error recovery
+- [ ] Production-ready logging
+- [ ] Comprehensive test coverage
+
+*** Dependencies
+- Phase 1-3 complete
+
+** Phase 5: Advanced Features (Weeks 9+) [LOW]
+
+*** Goals
+- Extended tool set
+- Advanced workflows
+- Experimental features
+- Platform expansion
+
+*** Features
+
+**** F5.1: Extended Tools
+5. =run_command= - Execute whitelisted commands
+6. =edit_file= - Modify existing files
+7. =search_replace= - Bulk text operations
+
+**** F5.2: Advanced Session Management
+- Session branching/merging
+- Session templates
+- Export to markdown
+- Session analytics
+
+**** F5.3: Experimental
+- Multi-model support
+- Plugin system
+- Web interface
+- Collaborative features
+
+*** Dependencies
+- Phase 1-4 complete and stable
+
+* Implementation Sequence Rationale
+
+** Why Foundation First?
+Analysis of failed implementations shows that skipping foundational work leads to:
+- Unstable REPL behavior
+- Poor error handling
+- Security vulnerabilities retrofitted badly
+- Technical debt that blocks progress
+
+** Why Context Before Tools?
+Tool usage patterns from previous versions show:
+- 80% of tool usage happens in multi-turn conversations
+- Single-turn tool usage is limited and less valuable
+- Context enables complex tool workflows
+- Session persistence is critical for user satisfaction
+
+** Why Security With Tools?
+Security vulnerabilities in sage-005 and others show:
+- Retrofitting security is much harder
+- Path traversal attacks are trivial to exploit
+- Users need sandboxing from day one
+- Security testing must be comprehensive
+
+** Why Production Features Last?
+Performance and polish features should come after stability:
+- Core functionality must be rock-solid first
+- User experience improvements build on stable foundation
+- Optimization is meaningless without correctness
+- Production features require complete system testing
+
+* Risk Mitigation
+
+** High-Risk Areas
+1. **Signal Handling**: Multiple versions failed here
+2. **Tool Security**: Critical vulnerability if done wrong
+3. **Context Management**: Easy to lose user data
+4. **API Changes**: Google APIs evolve rapidly
+
+** Mitigation Strategies
+1. **Comprehensive Testing**: Unit + Integration + TTY tests
+2. **Security-First Design**: Sandbox from day one
+3. **Data Persistence**: Auto-save and backup
+4. **API Abstraction**: Clean separation layers
+
+* Success Metrics
+
+** Phase Completion Criteria
+
+*** Phase 1: Foundation
+- All basic REPL operations work
+- API integration stable
+- Clean test suite
+- No crashes on edge cases
+
+*** Phase 2: Context
+- Multi-turn conversations perfect
+- Session save/load reliable
+- Token counting accurate
+- Context commands complete
+
+*** Phase 3: Tools
+- Security audit passes
+- Self-hosting works
+- Tool calling reliable
+- No privilege escalation
+
+*** Phase 4: Production
+- Performance targets met
+- Error handling comprehensive
+- User experience polished
+- Ready for real users
+
+* Timeline Estimates
+
+| Phase | Duration | Features | Risk |
+|-------+----------+----------+------|
+| 1 | 2 weeks | 4 feature sets | Low |
+| 2 | 2 weeks | 4 feature sets | Medium |
+| 3 | 2 weeks | 4 feature sets | High |
+| 4 | 2 weeks | 4 feature sets | Medium |
+| 5 | Open-ended | Extensions | Low |
+
+Total MVP: **8 weeks** for production-ready system
+
+* Architecture Decisions
+
+** Core Principles
+1. **Security by Design**: Sandbox everything from start
+2. **Async by Default**: Use Tokio throughout
+3. **Error Transparency**: Clear error messages and recovery
+4. **Test-Driven**: Write tests before features
+5. **Configuration-Driven**: Minimize hard-coded behavior
+
+** Technology Choices
+- **REPL**: =rustyline= for readline functionality
+- **HTTP**: =reqwest= with async support
+- **Serialization**: =serde= + =serde_json=
+- **CLI**: =clap= with derive macros
+- **Logging**: =log= + =env_logger=
+- **Testing**: Built-in test framework + property tests
+
+** Design Patterns
+- **Command Pattern**: For extensible command system
+- **Strategy Pattern**: For multiple tool implementations
+- **Observer Pattern**: For logging and monitoring
+- **Builder Pattern**: For configuration management
+
+* Lessons from Previous Versions
+
+** What Worked Well
+1. **Incremental Development**: Each version built on previous learnings
+2. **Language-Specific Strengths**: Leveraging unique language features
+3. **Educational Focus**: Clear documentation and examples
+4. **Security Consciousness**: Later versions prioritized security
+
+** What Didn't Work
+1. **Over-Engineering**: Complex build systems hindered progress
+2. **Incomplete Error Handling**: Led to poor user experience
+3. **Security Afterthoughts**: Vulnerabilities in deployed systems
+4. **Missing Tests**: Same bugs appeared across versions
+
+** Key Insights
+1. **Start Simple**: MVP first, then evolve
+2. **Security First**: Design boundaries early
+3. **Test Everything**: Especially edge cases and security
+4. **User Experience Matters**: Performance and reliability are features
+5. **Documentation Enables**: Good docs accelerate development
+
+---
+
+This roadmap provides a clear path from empty repository to production-ready Rust implementation, incorporating all lessons learned from 8 previous versions.

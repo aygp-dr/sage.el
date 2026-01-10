@@ -1,0 +1,428 @@
+#+TITLE: Sage 009 - Comprehensive Requirements
+#+AUTHOR: AYGP-DR
+#+DATE: 2025-07-26
+
+* Executive Summary
+
+The Sage 009 is a Rust implementation of an interactive command-line interface for Google's Gemini AI API. This document outlines comprehensive requirements gathered from analyzing previous implementations (001-008) and defines the feature set for the Rust version.
+
+* Functional Requirements
+
+** Core REPL Functionality
+
+*** FR-001: Interactive Command Loop
+- MUST provide an interactive read-eval-print loop
+- MUST support both single queries and continuous conversation
+- MUST handle Ctrl-C gracefully (prompt for confirmation)
+- MUST handle Ctrl-D as exit
+- SHOULD support command history with arrow keys
+- SHOULD support tab completion for commands
+
+*** FR-002: Slash Commands
+Required commands:
+- =/help= - Display all available commands with descriptions
+- =/exit= or =/quit= - Exit the REPL gracefully
+- =/clear= - Clear the terminal screen
+- =/context= - Display current conversation context
+- =/stats= - Show session statistics (tokens, cost, requests)
+- =/save [filename]= - Save conversation to file
+- =/load <filename>= - Load conversation from file
+- =/tools= - List available tools
+- =/model [model-name]= - Show or change the active model
+- =/workspace= - Display workspace directory path
+- =/debug= - Toggle debug mode
+- =/reset= - Clear conversation context
+- =/version= - Show version information
+
+*** FR-003: Conversation Management
+- MUST maintain conversation context across messages
+- MUST support context window management (pruning old messages)
+- MUST track token usage per message and cumulatively
+- SHOULD estimate costs based on token usage
+- SHOULD support saving/loading conversation state
+- MAY support branching conversations
+
+** API Integration
+
+*** FR-004: Gemini API Client
+- MUST support all Gemini models (flash, pro, etc.)
+- MUST implement proper error handling and retries
+- MUST support streaming responses
+- MUST handle rate limiting with exponential backoff
+- SHOULD support API key from multiple sources:
+  - Environment variable (GEMINI_API_KEY)
+  - .env file
+  - Configuration file
+  - Command-line argument
+- SHOULD validate API key on startup
+
+*** FR-005: Model Selection
+- MUST support model switching during session
+- MUST display current model in prompt or status
+- SHOULD validate model names
+- SHOULD show available models
+
+** Tool System
+
+*** FR-006: Tool Calling Framework
+- MUST support function/tool calling from Gemini
+- MUST implement a sandboxed execution environment
+- MUST validate all tool inputs
+- MUST log all tool executions
+- SHOULD support custom tool registration
+
+*** FR-007: Built-in Tools
+Required tools:
+- =read_file(path)= - Read file contents with size limits
+- =write_file(path, content)= - Write content to file
+- =list_files(pattern)= - List files matching glob pattern
+- =search_files(pattern, file_pattern)= - Search content in files
+- =execute_command(command, args)= - Run sandboxed commands
+
+Tool constraints:
+- MUST restrict file access to workspace directory
+- MUST prevent directory traversal attacks
+- MUST limit file sizes (configurable)
+- MUST sanitize file paths
+- MUST have configurable command whitelist
+
+** User Interface
+
+*** FR-008: Terminal Interface
+- MUST support colored output (with disable option)
+- MUST show visual indicators:
+  - 🟢 High confidence/success
+  - 🟡 Medium confidence/warning
+  - 🔴 Low confidence/error
+  - 🔧 Tool execution
+  - ⏳ Loading/thinking
+- SHOULD support different prompt styles
+- SHOULD display metadata compactly
+- MAY support ASCII art banner
+
+*** FR-009: Progress Feedback
+- MUST show loading indicators for API calls
+- SHOULD display streaming response progressively
+- SHOULD show rate limit warnings
+- MAY show typing indicators
+
+** Session Management
+
+*** FR-010: Session Persistence
+- MUST support named sessions
+- MUST auto-save session state periodically
+- MUST support session resume
+- SHOULD list available sessions
+- SHOULD support session export/import
+- MAY support session branching/merging
+
+*** FR-011: History Management
+- MUST maintain command history
+- MUST persist history across sessions
+- SHOULD support history search (Ctrl-R style)
+- SHOULD limit history size (configurable)
+- MAY support history export
+
+** Logging and Monitoring
+
+*** FR-012: Structured Logging
+- MUST support multiple log levels (error, warn, info, debug, trace)
+- MUST support multiple outputs:
+  - File logging (JSON format)
+  - Console logging (configurable)
+  - FIFO for real-time monitoring
+- MUST include request/response details
+- MUST log tool executions
+- SHOULD support log rotation
+- SHOULD include performance metrics
+
+*** FR-013: Metrics and Statistics
+- MUST track per-session:
+  - Total tokens (input/output)
+  - Number of requests
+  - Session duration
+  - Estimated costs
+  - Tool usage counts
+- SHOULD provide session summaries
+- MAY export metrics in standard formats
+
+* Non-Functional Requirements
+
+** Performance
+
+*** NFR-001: Startup Time
+- MUST start in less than 100ms
+- SHOULD start in less than 50ms
+- Target: 30ms typical startup
+
+*** NFR-002: Response Time
+- MUST process commands in less than 50ms (excluding API)
+- SHOULD provide first token in less than 500ms
+- MUST handle streaming without buffering delays
+
+*** NFR-003: Memory Usage
+- MUST use less than 50MB base memory
+- SHOULD implement efficient context pruning
+- MUST handle large conversations (10k+ tokens)
+
+** Reliability
+
+*** NFR-004: Error Handling
+- MUST gracefully handle all API errors
+- MUST provide clear error messages
+- MUST not crash on invalid input
+- SHOULD provide error recovery suggestions
+
+*** NFR-005: Data Integrity
+- MUST not lose conversation state on errors
+- MUST validate all file operations
+- SHOULD provide atomic session saves
+- SHOULD support backup/restore
+
+** Security
+
+*** NFR-006: API Key Security
+- MUST never log API keys
+- MUST not include API keys in error messages
+- SHOULD support secure key storage
+- MAY support key rotation
+
+*** NFR-007: Sandboxing
+- MUST isolate file operations
+- MUST prevent command injection
+- MUST validate all user inputs
+- SHOULD support security policies
+
+** Usability
+
+*** NFR-008: Installation
+- MUST provide single binary distribution
+- MUST work without additional dependencies
+- SHOULD support major platforms (Linux, macOS, Windows)
+- SHOULD provide installation scripts
+
+*** NFR-009: Documentation
+- MUST include comprehensive help system
+- MUST provide usage examples
+- SHOULD include troubleshooting guide
+- SHOULD provide API documentation
+
+** Compatibility
+
+*** NFR-010: Platform Support
+- MUST support Linux (x86_64, aarch64)
+- MUST support macOS (Intel, Apple Silicon)
+- SHOULD support Windows 10+
+- SHOULD support FreeBSD
+- MAY support other Unix-like systems
+
+*** NFR-011: Terminal Compatibility
+- MUST work in standard terminals
+- MUST support UTF-8
+- SHOULD support terminal colors
+- SHOULD detect terminal capabilities
+
+* Technical Requirements
+
+** Architecture
+
+*** TR-001: Module Structure
+- MUST use modular architecture
+- MUST separate concerns (API, UI, Tools, Storage)
+- SHOULD use dependency injection
+- SHOULD support plugin architecture
+
+*** TR-002: Async Runtime
+- MUST use Tokio for async operations
+- MUST handle concurrent requests properly
+- SHOULD optimize for throughput
+- MAY support custom executors
+
+** Dependencies
+
+*** TR-003: Core Dependencies
+Required crates:
+- =tokio= - Async runtime
+- =reqwest= - HTTP client
+- =serde/serde_json= - Serialization
+- =clap= - CLI parsing
+- =colored= - Terminal colors
+- =dirs= - User directories
+- =env_logger/log= - Logging
+- =anyhow/thiserror= - Error handling
+
+*** TR-004: Optional Dependencies
+- =ratatui= - TUI interface
+- =syntect= - Syntax highlighting
+- =indicatif= - Progress bars
+- =notify= - File watching
+
+** Testing
+
+*** TR-005: Test Coverage
+- MUST have unit tests for core logic
+- MUST have integration tests for API
+- SHOULD have end-to-end tests
+- SHOULD maintain >80% code coverage
+
+*** TR-006: Test Infrastructure
+- MUST support mocked API responses
+- MUST test error conditions
+- SHOULD test performance
+- MAY include property-based tests
+
+* Implementation Priorities
+
+** Phase 1: Core Functionality (MVP)
+1. Basic REPL loop
+2. Gemini API integration
+3. Essential slash commands (/help, /exit, /clear)
+4. Simple conversation management
+5. Basic error handling
+
+** Phase 2: Enhanced Features
+1. Tool system implementation
+2. Session persistence
+3. Advanced commands
+4. Structured logging
+5. Configuration system
+
+** Phase 3: Advanced Capabilities
+1. Full tool suite
+2. Advanced UI features
+3. Performance optimizations
+4. Plugin system
+5. Cross-platform testing
+
+** Phase 4: Polish and Extensions
+1. Documentation completion
+2. Distribution packages
+3. Performance benchmarks
+4. Security audit
+5. Community features
+
+* Success Criteria
+
+** Functional Success
+- [ ] All core commands working
+- [ ] Stable API integration
+- [ ] Tool system operational
+- [ ] Session management functional
+- [ ] No data loss scenarios
+
+** Performance Success
+- [ ] Startup under 50ms
+- [ ] Responsive UI (no lag)
+- [ ] Efficient memory usage
+- [ ] Smooth streaming
+
+** Quality Success
+- [ ] >80% test coverage
+- [ ] No critical bugs
+- [ ] Clear documentation
+- [ ] Positive user feedback
+
+* Risk Assessment
+
+** Technical Risks
+- API changes from Google
+- Rate limiting challenges
+- Cross-platform compatibility
+- Performance bottlenecks
+
+** Mitigation Strategies
+- Abstract API layer
+- Implement robust retry logic
+- Extensive platform testing
+- Performance profiling
+
+* Appendix A: Feature Comparison
+
+| Feature | 001 | 003 | 005 | 006 | 007 | 008 | 009 |
+|---------+-----+-----+-----+-----+-----+-----+-----|
+| Language | ClojureScript | ClojureScript | Python | Clojure | Python | Ruby | Rust |
+| Slash Commands | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Tool System | ✗ | ✗ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Session Persistence | ✗ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Streaming | ✗ | ✗ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Formal Specs | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ | ? |
+| Colored Output | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Config Files | ✗ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Plugins | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✓ |
+
+* Appendix B: Command Reference
+
+| Command | Description | Example | Since |
+|---------+-------------+---------+-------|
+| /help | Show help | /help | 001 |
+| /exit | Exit REPL | /exit | 001 |
+| /clear | Clear screen | /clear | 001 |
+| /stats | Show statistics | /stats | 001 |
+| /context | Show context | /context | 003 |
+| /save | Save session | /save chat.json | 005 |
+| /load | Load session | /load chat.json | 005 |
+| /tools | List tools | /tools | 005 |
+| /model | Change model | /model gemini-pro | 006 |
+| /debug | Debug mode | /debug | 003 |
+| /workspace | Show workspace | /workspace | 008 |
+| /version | Show version | /version | 009 |
+
+* Appendix C: Configuration Schema
+
+#+BEGIN_SRC toml
+# ~/.gemini_repl/config.toml
+
+[api]
+key = "env:GEMINI_API_KEY"  # or direct key (not recommended)
+model = "gemini-2.0-flash-exp"
+base_url = "https://generativelanguage.googleapis.com"
+timeout = 30
+max_retries = 3
+retry_delay = 1.0
+
+[repl]
+prompt = "> "
+history_file = "~/.gemini_repl/history"
+history_size = 1000
+color_enabled = true
+vi_mode = false
+welcome_banner = true
+
+[logging]
+level = "info"  # error, warn, info, debug, trace
+file = "~/.gemini_repl/gemini.log"
+format = "json"  # json, pretty
+max_size = "10MB"
+max_files = 5
+
+[tools]
+enabled = true
+sandbox_dir = "~/gemini_repl_workspace"
+max_file_size = "1MB"
+allowed_extensions = [".txt", ".md", ".json", ".rs", ".toml"]
+allowed_commands = ["ls", "cat", "echo", "date"]
+
+[session]
+auto_save = true
+auto_save_interval = 300  # seconds
+default_dir = "~/.gemini_repl/sessions"
+compression = true
+
+[ui]
+theme = "default"  # default, minimal, fancy
+show_tokens = true
+show_cost = true
+show_time = true
+spinner_style = "dots"
+max_width = 80
+
+[security]
+validate_ssl = true
+mask_api_key = true
+audit_tools = true
+sandbox_commands = true
+#+END_SRC
+
+---
+
+End of Requirements Document

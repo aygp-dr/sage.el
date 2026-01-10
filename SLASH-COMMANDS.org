@@ -1,10 +1,10 @@
-# Gemini REPL Slash Commands Reference
+* Sage Slash Commands Reference
 
-## Quick Reference
+** Quick Reference
 
 Type any command at the REPL prompt to execute it locally without sending to the AI.
 
-### SESSION MANAGEMENT
+*** SESSION MANAGEMENT
 
 | Command | Arguments | Description |
 |---------|-----------|-------------|
@@ -15,7 +15,7 @@ Type any command at the REPL prompt to execute it locally without sending to the
 | `/export` | `[format] [file]` | Export conversation (json/markdown) |
 | `/reset` | - | Clear conversation and reset all statistics |
 
-### MEMORY SYSTEM
+*** MEMORY SYSTEM
 
 | Command | Arguments | Description |
 |---------|-----------|-------------|
@@ -23,7 +23,7 @@ Type any command at the REPL prompt to execute it locally without sending to the
 | `/remember` | `<key> <value>` | Store a fact in memory |
 | `/forget` | `<key>` | Remove a fact from memory |
 
-### INFORMATION
+*** INFORMATION
 
 | Command | Arguments | Description |
 |---------|-----------|-------------|
@@ -33,7 +33,7 @@ Type any command at the REPL prompt to execute it locally without sending to the
 | `/stats` | - | Display session statistics |
 | `/tokens` | - | Show token usage details |
 
-### EMACS INTEGRATION
+*** EMACS INTEGRATION
 
 | Command | Arguments | Description |
 |---------|-----------|-------------|
@@ -42,14 +42,14 @@ Type any command at the REPL prompt to execute it locally without sending to the
 | `/org` | - | Send current org-mode subtree to AI |
 | `/yank` | - | Insert last AI response into current buffer |
 
-## Examples
+** Examples
 
-```elisp
+#+begin_src elisp
 ;; Save current conversation
 > /save important-discussion
 
 ;; Remember project context
-> /remember project gemini-repl-010
+> /remember project sage-010
 > /remember language elisp
 
 ;; Check statistics
@@ -80,9 +80,9 @@ Region sent to AI
 ;; Yank last response to other buffer
 > /yank
 Last response yanked
-```
+#+end_src
 
-## Notes
+** Notes
 
 - Commands starting with `/` are processed locally and never sent to the AI
 - Unknown commands will display an error and suggest using `/help`
@@ -91,24 +91,24 @@ Last response yanked
 - Export formats: `json` (default) or `markdown`
 - Emacs commands work with the most recently used buffer
 
-## Session Workflow
+** Session Workflow
 
-1. Start REPL: `M-x gemini-repl`
+1. Start REPL: `M-x sage`
 2. Have conversation with AI
 3. Save session: `/save project-discussion`
 4. Later, load session: `/load project-discussion`
 5. Export for sharing: `/export markdown discussion.md`
 
-## Memory Workflow
+** Memory Workflow
 
 1. Remember important facts: `/remember api-key sk-xxxxx`
 2. List facts: `/memory`
 3. Forget when done: `/forget api-key`
 
-## Emacs Integration Workflow
+** Emacs Integration Workflow
 
 1. Select code in source buffer
-2. Switch to REPL: `C-x b *gemini-repl*`
+2. Switch to REPL: `C-x b *sage*`
 3. Send region: `/region`
 4. Get AI response
 5. Insert response back: `/yank`

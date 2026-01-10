@@ -1,4 +1,4 @@
-#+TITLE: gemini-repl-memory API Reference
+#+TITLE: sage-memory API Reference
 #+AUTHOR: Quick Reference Guide
 #+DATE: 2024-12-23
 
@@ -6,24 +6,24 @@
 
 #+begin_src emacs-lisp
 ;; Load the package
-(require 'gemini-repl-memory)
+(require 'sage-memory)
 
 ;; Add a fact
-(gemini-repl-memory-add "name" "Alice" 'general)
+(sage-memory-add "name" "Alice" 'general)
 
 ;; Get a fact
-(gemini-repl-memory-get "name")
+(sage-memory-get "name")
 
 ;; List all facts
-(gemini-repl-memory-list)
+(sage-memory-list)
 #+end_src
 
 * API Functions
 
-** gemini-repl-memory-add
+** sage-memory-add
 
 #+begin_src emacs-lisp
-(gemini-repl-memory-add KEY VALUE &optional CATEGORY)
+(sage-memory-add KEY VALUE &optional CATEGORY)
 #+end_src
 
 Add or update a fact.
@@ -37,18 +37,18 @@ Add or update a fact.
 
 *Examples:*
 #+begin_src emacs-lisp
-(gemini-repl-memory-add "editor" "Emacs" 'preference)
-(gemini-repl-memory-add "name" "Bob")  ; Uses 'general
+(sage-memory-add "editor" "Emacs" 'preference)
+(sage-memory-add "name" "Bob")  ; Uses 'general
 #+end_src
 
 *Interactive:* Yes
 
 ---
 
-** gemini-repl-memory-get
+** sage-memory-get
 
 #+begin_src emacs-lisp
-(gemini-repl-memory-get KEY)
+(sage-memory-get KEY)
 #+end_src
 
 Retrieve a fact by key.
@@ -60,10 +60,10 @@ Retrieve a fact by key.
 
 *Examples:*
 #+begin_src emacs-lisp
-(gemini-repl-memory-get "editor")
+(sage-memory-get "editor")
 ;; => (:key "editor" :value "Emacs" :category preference :timestamp "2024-12-23T...")
 
-(plist-get (gemini-repl-memory-get "editor") :value)
+(plist-get (sage-memory-get "editor") :value)
 ;; => "Emacs"
 #+end_src
 
@@ -71,10 +71,10 @@ Retrieve a fact by key.
 
 ---
 
-** gemini-repl-memory-remove
+** sage-memory-remove
 
 #+begin_src emacs-lisp
-(gemini-repl-memory-remove KEY)
+(sage-memory-remove KEY)
 #+end_src
 
 Remove a fact.
@@ -86,7 +86,7 @@ Remove a fact.
 
 *Examples:*
 #+begin_src emacs-lisp
-(gemini-repl-memory-remove "old-fact")
+(sage-memory-remove "old-fact")
 ;; => t (if existed)
 #+end_src
 
@@ -94,10 +94,10 @@ Remove a fact.
 
 ---
 
-** gemini-repl-memory-list
+** sage-memory-list
 
 #+begin_src emacs-lisp
-(gemini-repl-memory-list &optional CATEGORY)
+(sage-memory-list &optional CATEGORY)
 #+end_src
 
 List all facts or filter by category.
@@ -110,27 +110,27 @@ List all facts or filter by category.
 *Examples:*
 #+begin_src emacs-lisp
 ;; All facts
-(gemini-repl-memory-list)
+(sage-memory-list)
 ;; => ((:key "editor" ...) (:key "name" ...))
 
 ;; Only preferences
-(gemini-repl-memory-list 'preference)
+(sage-memory-list 'preference)
 
 ;; Count facts by category
-(length (gemini-repl-memory-list 'project))
+(length (sage-memory-list 'project))
 ;; => 3
 #+end_src
 
 *Interactive:* Yes (displays in buffer)
-- =M-x gemini-repl-memory-list= - Show all facts
-- =C-u M-x gemini-repl-memory-list= - Select category
+- =M-x sage-memory-list= - Show all facts
+- =C-u M-x sage-memory-list= - Select category
 
 ---
 
-** gemini-repl-memory-clear
+** sage-memory-clear
 
 #+begin_src emacs-lisp
-(gemini-repl-memory-clear)
+(sage-memory-clear)
 #+end_src
 
 Clear all facts from memory (with confirmation).
@@ -141,7 +141,7 @@ Clear all facts from memory (with confirmation).
 
 *Examples:*
 #+begin_src emacs-lisp
-(gemini-repl-memory-clear)
+(sage-memory-clear)
 ;; Prompts: "Clear all facts? This cannot be undone."
 #+end_src
 
@@ -149,10 +149,10 @@ Clear all facts from memory (with confirmation).
 
 ---
 
-** gemini-repl-memory-to-context
+** sage-memory-to-context
 
 #+begin_src emacs-lisp
-(gemini-repl-memory-to-context)
+(sage-memory-to-context)
 #+end_src
 
 Generate system prompt context from all facts.
@@ -163,7 +163,7 @@ Generate system prompt context from all facts.
 
 *Examples:*
 #+begin_src emacs-lisp
-(gemini-repl-memory-to-context)
+(sage-memory-to-context)
 ;; => "# Stored Facts\n\nThe following facts have been learned...\n\n## General\n\n- name: Alice\n..."
 #+end_src
 
@@ -171,10 +171,10 @@ Generate system prompt context from all facts.
 
 ---
 
-** gemini-repl-memory-save
+** sage-memory-save
 
 #+begin_src emacs-lisp
-(gemini-repl-memory-save)
+(sage-memory-save)
 #+end_src
 
 Manually save facts to disk.
@@ -183,28 +183,28 @@ Manually save facts to disk.
 
 *Returns:* Void
 
-*Side effects:* Writes to =gemini-repl-memory-file=
+*Side effects:* Writes to =sage-memory-file=
 
 *Examples:*
 #+begin_src emacs-lisp
 ;; Disable auto-save
-(setq gemini-repl-memory-auto-save nil)
+(setq sage-memory-auto-save nil)
 
 ;; Make changes
-(gemini-repl-memory-add "key" "value")
+(sage-memory-add "key" "value")
 
 ;; Save manually
-(gemini-repl-memory-save)
+(sage-memory-save)
 #+end_src
 
 *Interactive:* Yes
 
 ---
 
-** gemini-repl-memory-load
+** sage-memory-load
 
 #+begin_src emacs-lisp
-(gemini-repl-memory-load)
+(sage-memory-load)
 #+end_src
 
 Manually load facts from disk.
@@ -213,12 +213,12 @@ Manually load facts from disk.
 
 *Returns:* Void
 
-*Side effects:* Reads from =gemini-repl-memory-file=, updates =gemini-repl-memory--facts=
+*Side effects:* Reads from =sage-memory-file=, updates =sage-memory--facts=
 
 *Examples:*
 #+begin_src emacs-lisp
 ;; Reload from disk (discards unsaved changes)
-(gemini-repl-memory-load)
+(sage-memory-load)
 #+end_src
 
 *Interactive:* Yes
@@ -242,7 +242,7 @@ Manually load facts from disk.
 
 *Access:*
 #+begin_src emacs-lisp
-(let ((fact (gemini-repl-memory-get "editor")))
+(let ((fact (sage-memory-get "editor")))
   (plist-get fact :key)       ; => "editor"
   (plist-get fact :value)     ; => "Emacs"
   (plist-get fact :category)  ; => preference
@@ -259,29 +259,29 @@ Valid category symbols:
 
 * Configuration Variables
 
-** gemini-repl-memory-file
+** sage-memory-file
 
 #+begin_src emacs-lisp
-(defcustom gemini-repl-memory-file
-  (expand-file-name "gemini-repl/memory/facts.json" user-emacs-directory)
+(defcustom sage-memory-file
+  (expand-file-name "sage/memory/facts.json" user-emacs-directory)
   ...)
 #+end_src
 
 *Type:* file path (string)
 
-*Default:* =~/.emacs.d/gemini-repl/memory/facts.json=
+*Default:* =~/.emacs.d/sage/memory/facts.json=
 
 *Example:*
 #+begin_src emacs-lisp
-(setq gemini-repl-memory-file "/path/to/my-facts.json")
+(setq sage-memory-file "/path/to/my-facts.json")
 #+end_src
 
 ---
 
-** gemini-repl-memory-auto-load
+** sage-memory-auto-load
 
 #+begin_src emacs-lisp
-(defcustom gemini-repl-memory-auto-load t ...)
+(defcustom sage-memory-auto-load t ...)
 #+end_src
 
 *Type:* boolean
@@ -293,18 +293,18 @@ When non-nil, automatically load facts from disk on first access.
 *Example:*
 #+begin_src emacs-lisp
 ;; Disable auto-load
-(setq gemini-repl-memory-auto-load nil)
+(setq sage-memory-auto-load nil)
 
 ;; Load manually when needed
-(gemini-repl-memory-load)
+(sage-memory-load)
 #+end_src
 
 ---
 
-** gemini-repl-memory-auto-save
+** sage-memory-auto-save
 
 #+begin_src emacs-lisp
-(defcustom gemini-repl-memory-auto-save t ...)
+(defcustom sage-memory-auto-save t ...)
 #+end_src
 
 *Type:* boolean
@@ -316,45 +316,45 @@ When non-nil, automatically save facts after modifications (add, remove, clear).
 *Example:*
 #+begin_src emacs-lisp
 ;; Disable auto-save for batch operations
-(let ((gemini-repl-memory-auto-save nil))
-  (gemini-repl-memory-add "key1" "val1")
-  (gemini-repl-memory-add "key2" "val2")
-  (gemini-repl-memory-add "key3" "val3")
+(let ((sage-memory-auto-save nil))
+  (sage-memory-add "key1" "val1")
+  (sage-memory-add "key2" "val2")
+  (sage-memory-add "key3" "val3")
   ;; Save once at the end
-  (gemini-repl-memory-save))
+  (sage-memory-save))
 #+end_src
 
 ---
 
-** gemini-repl-use-memory
+** sage-use-memory
 
 #+begin_src emacs-lisp
-(defcustom gemini-repl-use-memory t ...)
+(defcustom sage-use-memory t ...)
 #+end_src
 
 *Type:* boolean
 
 *Default:* =t=
 
-*Location:* Defined in =gemini-repl.el=
+*Location:* Defined in =sage.el=
 
 When non-nil, include memory context in conversations.
 
 *Example:*
 #+begin_src emacs-lisp
 ;; Disable memory for this session
-(setq gemini-repl-use-memory nil)
+(setq sage-use-memory nil)
 
 ;; Start REPL without memory context
-(gemini-repl)
+(sage)
 #+end_src
 
 * Internal Variables
 
-** gemini-repl-memory--facts
+** sage-memory--facts
 
 #+begin_src emacs-lisp
-(defvar gemini-repl-memory--facts nil)
+(defvar sage-memory--facts nil)
 #+end_src
 
 Alist of =(KEY . FACT-PLIST)= pairs.
@@ -363,20 +363,20 @@ Alist of =(KEY . FACT-PLIST)= pairs.
 
 ---
 
-** gemini-repl-memory--loaded
+** sage-memory--loaded
 
 #+begin_src emacs-lisp
-(defvar gemini-repl-memory--loaded nil)
+(defvar sage-memory--loaded nil)
 #+end_src
 
 Boolean flag indicating whether facts have been loaded from disk.
 
 ---
 
-** gemini-repl-memory-categories
+** sage-memory-categories
 
 #+begin_src emacs-lisp
-(defvar gemini-repl-memory-categories
+(defvar sage-memory-categories
   '(general preference project technical))
 #+end_src
 
@@ -387,7 +387,7 @@ List of valid category symbols.
 ** Check if fact exists
 
 #+begin_src emacs-lisp
-(when (gemini-repl-memory-get "key")
+(when (sage-memory-get "key")
   (message "Fact exists"))
 #+end_src
 
@@ -395,13 +395,13 @@ List of valid category symbols.
 
 #+begin_src emacs-lisp
 ;; Always works - add replaces existing facts
-(gemini-repl-memory-add "key" "new-value" 'general)
+(sage-memory-add "key" "new-value" 'general)
 #+end_src
 
 ** Iterate over all facts
 
 #+begin_src emacs-lisp
-(dolist (fact (gemini-repl-memory-list))
+(dolist (fact (sage-memory-list))
   (message "%s: %s"
            (plist-get fact :key)
            (plist-get fact :value)))
@@ -410,7 +410,7 @@ List of valid category symbols.
 ** Iterate over category
 
 #+begin_src emacs-lisp
-(dolist (fact (gemini-repl-memory-list 'preference))
+(dolist (fact (sage-memory-list 'preference))
   (message "Preference: %s = %s"
            (plist-get fact :key)
            (plist-get fact :value)))
@@ -421,17 +421,17 @@ List of valid category symbols.
 #+begin_src emacs-lisp
 (cl-find-if (lambda (fact)
               (string= (plist-get fact :value) "Emacs"))
-            (gemini-repl-memory-list))
+            (sage-memory-list))
 #+end_src
 
 ** Count facts
 
 #+begin_src emacs-lisp
 ;; Total
-(length (gemini-repl-memory-list))
+(length (sage-memory-list))
 
 ;; By category
-(length (gemini-repl-memory-list 'technical))
+(length (sage-memory-list 'technical))
 #+end_src
 
 ** Batch add with error handling
@@ -440,7 +440,7 @@ List of valid category symbols.
 (dolist (fact-spec '(("key1" "val1" general)
                      ("key2" "val2" preference)))
   (condition-case err
-      (apply #'gemini-repl-memory-add fact-spec)
+      (apply #'sage-memory-add fact-spec)
     (error (message "Failed to add fact: %s" err))))
 #+end_src
 
@@ -455,7 +455,7 @@ List of valid category symbols.
                          (value . ,(plist-get fact :value))
                          (category . ,(symbol-name (plist-get fact :category)))
                          (timestamp . ,(plist-get fact :timestamp)))))
-                   gemini-repl-memory--facts))))
+                   sage-memory--facts))))
 #+end_src
 
 ** Search facts
@@ -465,7 +465,7 @@ List of valid category symbols.
 (cl-remove-if-not
  (lambda (fact)
    (string-match-p "emacs" (plist-get fact :value)))
- (gemini-repl-memory-list))
+ (sage-memory-list))
 #+end_src
 
 * Error Handling
@@ -473,21 +473,21 @@ List of valid category symbols.
 ** Invalid category
 
 #+begin_src emacs-lisp
-(gemini-repl-memory-add "key" "value" 'invalid-category)
+(sage-memory-add "key" "value" 'invalid-category)
 ;; Error: Invalid category: invalid-category. Must be one of: (general preference project technical)
 #+end_src
 
 ** Missing file
 
-If =gemini-repl-memory-file= doesn't exist:
-- =gemini-repl-memory-load= creates empty facts list
+If =sage-memory-file= doesn't exist:
+- =sage-memory-load= creates empty facts list
 - No error raised
 
 ** Corrupted JSON
 
 #+begin_src emacs-lisp
 ;; If JSON file is corrupted, load catches error
-(gemini-repl-memory-load)
+(sage-memory-load)
 ;; Message: "Error loading facts: ..."
 ;; Facts are reset to nil
 #+end_src
@@ -506,7 +506,7 @@ If =gemini-repl-memory-file= doesn't exist:
 #+begin_src emacs-lisp
 (defun my-custom-context ()
   "Generate custom context from project facts only."
-  (let ((facts (gemini-repl-memory-list 'project)))
+  (let ((facts (sage-memory-list 'project)))
     (concat "# Project Context\n\n"
             (mapconcat
              (lambda (fact)
@@ -521,14 +521,14 @@ If =gemini-repl-memory-file= doesn't exist:
 #+begin_src emacs-lisp
 (defun my-selective-memory ()
   "Only inject memory for work projects."
-  (when-let ((project (gemini-repl-memory-get "current-project")))
+  (when-let ((project (sage-memory-get "current-project")))
     (when (string-match-p "work" (plist-get project :value))
-      (gemini-repl-memory-to-context))))
+      (sage-memory-to-context))))
 #+end_src
 
 * See Also
 
 - =MEMORY.org= - Complete user guide
 - =examples/memory-usage.el= - Usage examples
-- =test/gemini-repl-memory-test.el= - Test suite
+- =test/sage-memory-test.el= - Test suite
 - =INTEGRATION-SUMMARY.org= - Integration details

@@ -1,0 +1,202 @@
+#+TITLE: Sage Issues Analysis
+#+AUTHOR: AYGP-DR
+#+DATE: 2025-07-26
+
+* Summary of Issues Across All Sage Repositories
+
+This document summarizes the analysis of 200+ issues across all sage repositories (base, 001-009).
+
+* Issue Distribution
+
+| Repository | Total Issues | Open | Closed | Key Themes |
+|------------+--------------+------+--------+------------|
+| sage (base) | 63 | 49 | 14 | Core functionality, UI, tooling |
+| sage-001 | 15 | 8 | 7 | Formal methods, context, metadata |
+| sage-002 | 0 | 0 | 0 | No issues filed |
+| sage-003 | 19 | 17 | 2 | Signal handling, tool calling, composition |
+| sage-004 | 0 | 0 | 0 | No issues filed |
+| sage-005 | 35 | 18 | 17 | Security, tools, observer pattern |
+| sage-006 | 26 | 25 | 1 | CLI design, release management |
+| sage-007 | 30 | 28 | 2 | Design patterns, experiments |
+| sage-008 | 0 | 0 | 0 | No issues filed |
+| sage-009 | 0 | 0 | 0 | Just created |
+
+* Critical Issues to Address
+
+** 1. Security Vulnerabilities [CRITICAL]
+
+*** Path Traversal (sage-005#21) - FIXED
+- Tools allowed access to any file on system
+- No path validation or sandboxing
+- Solution: Strict path validation, sandbox to workspace
+
+*** API Key Exposure (sage#55)
+- API keys logged in debug mode
+- Keys visible in error messages
+- Solution: Scrub keys from all outputs
+
+*** Code Execution (sage-005#25) - FIXED
+- Unsafe Python execution in tools
+- Solution: Removed execute_python tool
+
+** 2. Core Functionality Issues [HIGH]
+
+*** Signal Handling (sage#12, sage-001#5, sage-003#19)
+- REPL becomes unresponsive to Ctrl+C
+- No clean exit on Ctrl+D
+- Hangs when stdin not connected properly
+
+*** Context Loss (sage#47, sage-005#19)
+- Each prompt sent in isolation
+- No conversation history maintained
+- Context not preserved between messages
+
+*** Tool Recognition (sage-005#26, #35)
+- AI refuses to use available tools
+- Claims "no file system access"
+- Inconsistent tool dispatch
+
+** 3. Performance Issues [MEDIUM]
+
+*** Slow Response Times (sage-007#15)
+- 30+ second delays reported
+- No streaming responses
+- No progress indicators
+
+*** Memory Usage (sage-006#22)
+- Long conversations consume excessive memory
+- No context pruning
+- No summarization
+
+*** Startup Performance (sage-005#30)
+- Slow cold starts
+- Heavy dependencies
+
+* Key Feature Requests
+
+** 1. Session Management [HIGH]
+- Named sessions (sage-006#24)
+- Session resume (sage-005#15)
+- Session branching/merging
+- Export to markdown
+
+** 2. Tool System Enhancements [HIGH]
+- Minimal tool set (4-6 tools cover 80% use cases)
+- Better tool descriptions
+- Tool usage examples
+- Conditional dispatch
+
+** 3. UI/UX Improvements [MEDIUM]
+- Status line (sage#41)
+- Progress indicators
+- Response formatting
+- Syntax highlighting
+- ASCII art banner
+
+** 4. Developer Experience [MEDIUM]
+- Live reload (sage#29)
+- Debug mode
+- Performance monitoring
+- Log analysis tools
+
+* Patterns and Insights
+
+** Tool Usage Statistics (from sage-008#44)
+Based on Claude Code usage analysis:
+- 53% - Command execution (bash)
+- 11% - File editing
+- 11% - File reading
+- 6% - File searching
+- 5% - Directory listing
+
+** Minimal Tool Set (from sage-007#41)
+4 tools cover 40-50% of use cases:
+1. read_file
+2. write_file
+3. list_files
+4. search_files
+
+Adding 2 more covers 80-85%:
+5. run_command
+6. edit_file
+
+** Common User Complaints
+1. "REPL won't respond to Ctrl+C"
+2. "AI won't use the tools"
+3. "Lost my conversation context"
+4. "Takes forever to respond"
+5. "Can't resume my session"
+
+* Experimental Features
+
+** Observer Pattern (sage-005, -006, -007)
+- Named observer sessions
+- Builder/observer commands
+- Experiment tracking
+- Self-reflection capabilities
+
+** Self-Hosting (multiple repos)
+- REPL can modify its own code
+- Tool calling for self-improvement
+- Memetic lineage tracking
+
+** Formal Methods (sage-001)
+- TLA+ specifications
+- Alloy models
+- Formal verification
+
+* Implementation Priorities for Rust Version
+
+** Phase 1: Security & Core [CRITICAL]
+1. Implement secure path validation
+2. API key protection
+3. Robust signal handling
+4. Basic context management
+5. Minimal tool set (4 tools)
+
+** Phase 2: Performance & UX [HIGH]
+1. Streaming responses
+2. Session persistence
+3. Progress indicators
+4. Memory management
+5. Error recovery
+
+** Phase 3: Advanced Features [MEDIUM]
+1. Full tool suite (6 tools)
+2. Status line
+3. Configuration profiles
+4. Cross-platform support
+5. Debug tooling
+
+** Phase 4: Experimental [LOW]
+1. Observer pattern
+2. Self-hosting capabilities
+3. Formal verification
+4. Advanced UI themes
+
+* Lessons Learned
+
+1. **Security is Critical**: Multiple versions had severe vulnerabilities
+2. **Simple Tools Win**: 4-6 tools handle most use cases
+3. **Context is Essential**: Users hate losing conversation history
+4. **Performance Matters**: >500ms delays frustrate users
+5. **Signal Handling is Hard**: Multiple versions got it wrong
+6. **Tool Dispatch is Tricky**: AI needs clear guidance
+7. **Testing Prevents Regression**: Same bugs appeared across versions
+
+* Recommendations for sage-009
+
+1. Start with security-first design
+2. Implement only the minimal tool set initially
+3. Focus on core REPL reliability
+4. Add comprehensive tests from day one
+5. Document tool usage clearly
+6. Implement proper signal handling
+7. Keep dependencies minimal
+8. Design for performance
+9. Plan for session management early
+10. Learn from all previous versions
+
+---
+
+This analysis is based on reviewing 200+ issues across 9 repositories.

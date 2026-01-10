@@ -5,15 +5,15 @@
 * Files Created
 
 ** Core Memory Module
-- =gemini-repl-memory.el= (12K)
+- =sage-memory.el= (12K)
   - Full implementation of persistent memory/facts system
-  - JSON-based storage in =~/.emacs.d/gemini-repl/memory/facts.json=
+  - JSON-based storage in =~/.emacs.d/sage/memory/facts.json=
   - Four categories: general, preference, project, technical
   - Public API functions for add, get, remove, list, clear
   - Context generation for LLM integration
 
 ** Test Suite
-- =test/gemini-repl-memory-test.el= (9.1K)
+- =test/sage-memory-test.el= (9.1K)
   - Comprehensive ERT test suite
   - Tests for all core functionality
   - Tests for categories, persistence, JSON format
@@ -33,91 +33,91 @@
   - Demonstrates all major features
   - Ready-to-run interactive functions
 
-* Integration with gemini-repl.el
+* Integration with sage.el
 
 ** Changes Made
 
 1. *Added require statement* (line 42):
    #+begin_src emacs-lisp
-   (require 'gemini-repl-memory)
+   (require 'sage-memory)
    #+end_src
 
 2. *Added configuration variable* (line 107-110):
    #+begin_src emacs-lisp
-   (defcustom gemini-repl-use-memory t
+   (defcustom sage-use-memory t
      "When non-nil, include memory/facts in conversation context."
      :type 'boolean
-     :group 'gemini-repl)
+     :group 'sage)
    #+end_src
 
-3. *Modified =gemini-repl--process-input=* (line 850-859):
+3. *Modified =sage--process-input=* (line 850-859):
    - Automatically injects memory context at start of new conversations
    - Only triggers when conversation is empty or nil
-   - Respects =gemini-repl-use-memory= configuration
+   - Respects =sage-use-memory= configuration
 
 * Public API
 
 ** Core Functions
 
-*** gemini-repl-memory-add (key value &optional category)
+*** sage-memory-add (key value &optional category)
 Add or update a fact. Category defaults to 'general'.
 
 #+begin_src emacs-lisp
-(gemini-repl-memory-add "editor" "Emacs" 'preference)
+(sage-memory-add "editor" "Emacs" 'preference)
 #+end_src
 
-*** gemini-repl-memory-get (key)
+*** sage-memory-get (key)
 Retrieve a fact by key. Returns plist or nil.
 
 #+begin_src emacs-lisp
-(gemini-repl-memory-get "editor")
+(sage-memory-get "editor")
 ;; => (:key "editor" :value "Emacs" :category preference :timestamp "...")
 #+end_src
 
-*** gemini-repl-memory-remove (key)
+*** sage-memory-remove (key)
 Remove a fact. Returns t if removed, nil if not found.
 
 #+begin_src emacs-lisp
-(gemini-repl-memory-remove "old-fact")
+(sage-memory-remove "old-fact")
 #+end_src
 
-*** gemini-repl-memory-list (&optional category)
+*** sage-memory-list (&optional category)
 List all facts or filter by category.
 
 #+begin_src emacs-lisp
-(gemini-repl-memory-list)           ;; All facts
-(gemini-repl-memory-list 'project)  ;; Only project facts
+(sage-memory-list)           ;; All facts
+(sage-memory-list 'project)  ;; Only project facts
 #+end_src
 
-*** gemini-repl-memory-clear ()
+*** sage-memory-clear ()
 Clear all facts (prompts for confirmation).
 
 #+begin_src emacs-lisp
-(gemini-repl-memory-clear)
+(sage-memory-clear)
 #+end_src
 
-*** gemini-repl-memory-to-context ()
+*** sage-memory-to-context ()
 Generate formatted context string for LLM.
 
 #+begin_src emacs-lisp
-(gemini-repl-memory-to-context)
+(sage-memory-to-context)
 ;; => "# Stored Facts\n\nThe following facts..."
 #+end_src
 
 ** Persistence Functions
 
-*** gemini-repl-memory-save ()
+*** sage-memory-save ()
 Manually save facts to disk.
 
 #+begin_src emacs-lisp
-(gemini-repl-memory-save)
+(sage-memory-save)
 #+end_src
 
-*** gemini-repl-memory-load ()
+*** sage-memory-load ()
 Manually load facts from disk.
 
 #+begin_src emacs-lisp
-(gemini-repl-memory-load)
+(sage-memory-load)
 #+end_src
 
 * Data Structure
@@ -157,17 +157,17 @@ Each fact is a plist:
 
 #+begin_src emacs-lisp
 ;; Storage location
-(setq gemini-repl-memory-file
-      (expand-file-name "gemini-repl/memory/facts.json" user-emacs-directory))
+(setq sage-memory-file
+      (expand-file-name "sage/memory/facts.json" user-emacs-directory))
 
 ;; Auto-load facts on first access (default: t)
-(setq gemini-repl-memory-auto-load t)
+(setq sage-memory-auto-load t)
 
 ;; Auto-save after modifications (default: t)
-(setq gemini-repl-memory-auto-save t)
+(setq sage-memory-auto-save t)
 
 ;; Include memory in conversations (default: t)
-(setq gemini-repl-use-memory t)
+(setq sage-use-memory t)
 #+end_src
 
 * Usage Workflow
@@ -176,37 +176,37 @@ Each fact is a plist:
 
 #+begin_src emacs-lisp
 ;; Add facts about yourself
-(gemini-repl-memory-add "name" "Alice" 'general)
-(gemini-repl-memory-add "editor" "Emacs" 'preference)
-(gemini-repl-memory-add "os" "FreeBSD" 'technical)
-(gemini-repl-memory-add "project" "gemini-repl" 'project)
+(sage-memory-add "name" "Alice" 'general)
+(sage-memory-add "editor" "Emacs" 'preference)
+(sage-memory-add "os" "FreeBSD" 'technical)
+(sage-memory-add "project" "sage" 'project)
 #+end_src
 
 ** Start Conversation
 
 #+begin_src emacs-lisp
 ;; Start REPL - memory context automatically included
-(gemini-repl)
+(sage)
 #+end_src
 
 ** Review Facts
 
 #+begin_src emacs-lisp
 ;; List all facts in a buffer
-M-x gemini-repl-memory-list
+M-x sage-memory-list
 
 ;; List specific category
-C-u M-x gemini-repl-memory-list
+C-u M-x sage-memory-list
 #+end_src
 
 ** Update Facts
 
 #+begin_src emacs-lisp
 ;; Update existing fact
-(gemini-repl-memory-add "project" "new-project" 'project)
+(sage-memory-add "project" "new-project" 'project)
 
 ;; Remove outdated fact
-(gemini-repl-memory-remove "old-key")
+(sage-memory-remove "old-key")
 #+end_src
 
 * Integration Points
@@ -214,7 +214,7 @@ C-u M-x gemini-repl-memory-list
 ** Automatic Context Injection
 
 Memory context is automatically injected when:
-1. =gemini-repl-use-memory= is t (default)
+1. =sage-use-memory= is t (default)
 2. Starting a new conversation (conversation list is empty)
 3. There are stored facts available
 
@@ -236,7 +236,7 @@ The following facts have been learned about the user and their environment:
 
 ## Project
 
-- current-project: gemini-repl
+- current-project: sage
 
 ## Technical
 
@@ -250,10 +250,10 @@ The following facts have been learned about the user and their environment:
 
 #+begin_src emacs-lisp
 ;; Load test file
-(load-file "test/gemini-repl-memory-test.el")
+(load-file "test/sage-memory-test.el")
 
 ;; Run all memory tests
-M-x ert RET gemini-repl-memory RET
+M-x ert RET sage-memory RET
 #+end_src
 
 ** Test Coverage
@@ -333,9 +333,9 @@ The memory system is fully implemented with:
 
 - ✓ Core data structure (key, value, category, timestamp)
 - ✓ Four categories (general, preference, project, technical)
-- ✓ JSON persistence in =~/.emacs.d/gemini-repl/memory/facts.json=
+- ✓ JSON persistence in =~/.emacs.d/sage/memory/facts.json=
 - ✓ All required functions (add, get, remove, list, clear, to-context)
-- ✓ Integration with gemini-repl conversation context
+- ✓ Integration with sage conversation context
 - ✓ Comprehensive test suite
 - ✓ Complete documentation
 - ✓ Usage examples

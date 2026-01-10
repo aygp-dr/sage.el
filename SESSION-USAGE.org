@@ -1,0 +1,350 @@
+* Sage Session Persistence
+
+** Overview
+
+The `sage-session.el` module provides comprehensive session persistence functionality for the Sage, allowing you to save, load, and manage conversation sessions.
+
+** Features
+
+*** 1. Session Data Structure
+
+Each session includes:
+- *Name*: Unique session identifier
+- *Model*: The AI model used
+- *Provider*: AI provider (gemini, ollama, openai)
+- *Messages*: Full conversation history with timestamps
+- *Statistics*: Message count, token estimates
+- *Metadata*: Creation and update timestamps, workspace directory
+
+*** 2. Session Management
+
+** Create a New Session
+
+#+begin_src elisp
+(sage-session-new "my-session" "gemini-2.0-flash-exp" 'gemini "/path/to/workspace")
+#+end_src
+
+Or interactively:
+#+end_src
+M-x sage-session-new RET my-session RET
+#+end_src
+
+** Add Messages to Session
+
+#+begin_src elisp
+(sage-session-add-message "user" "What is the weather?")
+(sage-session-add-message "assistant" "I don't have access to weather data.")
+#+end_src
+
+** Save Session
+
+#+begin_src elisp
+(sage-session-save)  ; Saves current session
+#+end_src
+
+Or interactively:
+#+end_src
+M-x sage-session-save RET
+#+end_src
+
+Sessions are saved to `~/.emacs.d/sage/sessions/<name>.json`
+
+** Load Session
+
+#+begin_src elisp
+(sage-session-load "my-session")
+#+end_src
+
+Or interactively with completion:
+#+end_src
+M-x sage-session-load RET my-session RET
+#+end_src
+
+** List Sessions
+
+#+begin_src elisp
+(sage-session-list)  ; Returns list of session names
+#+end_src
+
+Or interactively:
+#+end_src
+M-x sage-session-list RET
+#+end_src
+
+** Delete Session
+
+#+begin_src elisp
+(sage-session-delete "my-session")
+#+end_src
+
+Or interactively:
+#+end_src
+M-x sage-session-delete RET my-session RET
+#+end_src
+
+** Rename Session
+
+#+begin_src elisp
+(sage-session-rename "old-name" "new-name")
+#+end_src
+
+Or interactively:
+#+end_src
+M-x sage-session-rename RET old-name RET new-name RET
+#+end_src
+
+*** 3. Export Functionality
+
+** Export to JSON
+
+#+begin_src elisp
+(sage-session-export-json "/path/to/export.json")
+#+end_src
+
+Or interactively:
+#+end_src
+M-x sage-session-export-json RET /path/to/export.json RET
+#+end_src
+
+** Export to Markdown
+
+#+begin_src elisp
+(sage-session-export-markdown "/path/to/export.md")
+#+end_src
+
+Or interactively:
+#+end_src
+M-x sage-session-export-markdown RET /path/to/export.md RET
+#+end_src
+
+The Markdown export includes:
+- Session metadata (model, provider, timestamps, statistics)
+- Full conversation with timestamps for each message
+- Formatted for easy reading and sharing
+
+*** 4. Session Statistics
+
+#+begin_src elisp
+(sage-session-stats)  ; Display statistics for current session
+#+end_src
+
+Or interactively:
+#+end_src
+M-x sage-session-stats RET
+#+end_src
+
+Statistics include:
+- Session name and model
+- Total messages (broken down by user/assistant)
+- Estimated token count
+- Session duration
+
+*** 5. Auto-save Functionality
+
+Sessions can be automatically saved at regular intervals:
+
+#+begin_src elisp
+;; Enable auto-save (default: enabled)
+(setq sage-session-auto-save t)
+
+;; Set auto-save interval (default: 300 seconds / 5 minutes)
+(setq sage-session-auto-save-interval 300)
+
+;; Stop auto-save
+(sage-session-stop-auto-save)
+#+end_src
+
+Auto-save starts automatically when you create or load a session.
+
+** Configuration
+
+*** Session Directory
+
+Customize where sessions are stored:
+
+#+begin_src elisp
+(setq sage-session-directory
+      (expand-file-name "my-gemini-sessions" user-emacs-directory))
+#+end_src
+
+*** Auto-save Settings
+
+#+begin_src elisp
+;; Disable auto-save
+(setq sage-session-auto-save nil)
+
+;; Auto-save every 10 minutes
+(setq sage-session-auto-save-interval 600)
+#+end_src
+
+** Session File Format
+
+Sessions are saved as JSON files with the following structure:
+
+#+end_srcjson
+{
+  "name": "my-session",
+  "model": "gemini-2.0-flash-exp",
+  "provider": "gemini",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hello!",
+      "timestamp": "2024-12-23T17:00:00-0800"
+    },
+    {
+      "role": "assistant",
+      "content": "Hi! How can I help?",
+      "timestamp": "2024-12-23T17:00:05-0800"
+    }
+  ],
+  "created_at": "2024-12-23T17:00:00-0800",
+  "updated_at": "2024-12-23T17:00:05-0800",
+  "message_count": 2,
+  "total_tokens": 24,
+  "workspace": "/home/user/projects/myproject"
+}
+#+end_src
+
+** Integration with Sage
+
+The session module integrates seamlessly with the main Sage:
+
+#+begin_src elisp
+;; In your init.el or .emacs
+(require 'sage)  ; This automatically loads sage-session
+
+;; Start REPL
+(sage)
+
+;; Create a named session for this conversation
+(sage-session-new "project-chat")
+
+;; Your conversations are now being tracked in the session
+;; Messages are automatically added as you chat
+
+;; Save when done
+(sage-session-save)
+
+;; Resume later
+(sage)
+(sage-session-load "project-chat")
+#+end_src
+
+** Helper Functions
+
+*** Get Current Session
+
+#+begin_src elisp
+(sage-session-current)  ; Returns current session or nil
+#+end_src
+
+*** Get Session Messages
+
+#+begin_src elisp
+(sage-session-get-messages)  ; Returns messages from current session
+#+end_src
+
+*** Set Session Messages
+
+#+begin_src elisp
+(sage-session-set-messages messages)  ; Updates current session messages
+#+end_src
+
+** Example Workflow
+
+#+begin_src elisp
+;; 1. Start a new project conversation
+(sage)
+(sage-session-new "rust-learning")
+
+;; 2. Chat with the AI (messages automatically tracked)
+;; ... conversation happens ...
+
+;; 3. Save the session
+(sage-session-save)
+
+;; 4. Later, resume the conversation
+(sage)
+(sage-session-load "rust-learning")
+
+;; 5. Export for sharing or documentation
+(sage-session-export-markdown "~/Documents/rust-learning-session.md")
+
+;; 6. Check statistics
+(sage-session-stats)
+;; => Session: rust-learning | Model: gemini-2.0-flash-exp | Messages: 24 | Tokens: ~1200
+#+end_src
+
+** Advanced Usage
+
+*** Custom Session Processing
+
+#+begin_src elisp
+;; Load a session and process its messages
+(let* ((session (sage-session-load "my-session"))
+       (messages (sage-session-messages session)))
+  (dolist (msg messages)
+    (when (string= (alist-get 'role msg) "user")
+      (message "User said: %s" (alist-get 'content msg)))))
+#+end_src
+
+*** Bulk Export
+
+#+begin_src elisp
+;; Export all sessions to markdown
+(dolist (session-name (sage-session-list-names))
+  (let ((session (sage-session-load session-name)))
+    (sage-session-export-markdown
+     (format "~/exports/%s.md" session-name))))
+#+end_src
+
+*** Session Cleanup
+
+#+begin_src elisp
+;; Delete old sessions (example: sessions not updated in 30 days)
+(dolist (session-name (sage-session-list-names))
+  (let* ((session (sage-session-load session-name))
+         (updated (sage-session-updated-at session))
+         (updated-time (parse-iso8601-time-string updated))
+         (age-days (/ (float-time (time-since updated-time)) 86400)))
+    (when (> age-days 30)
+      (message "Deleting old session: %s (%.0f days old)" session-name age-days)
+      (sage-session-delete session-name))))
+#+end_src
+
+** Troubleshooting
+
+*** Sessions not saving
+
+Check that the session directory exists and is writable:
+
+#+begin_src elisp
+(file-writable-p sage-session-directory)
+#+end_src
+
+*** Auto-save not working
+
+Verify auto-save is enabled and check the timer:
+
+#+begin_src elisp
+sage-session-auto-save              ; Should be t
+sage-session--auto-save-timer       ; Should be a timer object
+#+end_src
+
+*** Loading old session fails
+
+Ensure the session file is valid JSON:
+
+#+begin_src elisp
+(let ((file (expand-file-name "session-name.json" sage-session-directory)))
+  (with-temp-buffer
+    (insert-file-contents file)
+    (json-read)))
+#+end_src
+
+** See Also
+
+- `sage.el` - Main REPL module
+- `sage-memory.el` - Fact memory system
+- `sage-tools.el` - Tool/function calling system

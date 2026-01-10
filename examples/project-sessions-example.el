@@ -1,13 +1,13 @@
-;;; project-sessions-example.el --- Example usage of gemini-repl-project -*- lexical-binding: t; -*-
+;;; project-sessions-example.el --- Example usage of sage-project -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 
-;; This file demonstrates how to use gemini-repl-project for
+;; This file demonstrates how to use sage-project for
 ;; per-directory conversation history management.
 
 ;;; Code:
 
-(require 'gemini-repl-project)
+(require 'sage-project)
 
 ;;; Example 1: Basic Usage
 
@@ -16,23 +16,23 @@
   (interactive)
 
   ;; Load conversation for current project
-  ;; This happens automatically if gemini-repl-project-auto-load is t
-  (gemini-repl-project-load)
+  ;; This happens automatically if sage-project-auto-load is t
+  (sage-project-load)
 
   ;; Append a user message
-  (gemini-repl-project-append
+  (sage-project-append
    '(:role "user" :content "How do I optimize this code?"))
 
   ;; Append an assistant response
-  (gemini-repl-project-append
+  (sage-project-append
    '(:role "assistant" :content "Here are some optimization tips..."))
 
   ;; Or use the shorthand list form
-  (gemini-repl-project-append '("user" "What about memory usage?"))
-  (gemini-repl-project-append '("assistant" "For memory optimization..."))
+  (sage-project-append '("user" "What about memory usage?"))
+  (sage-project-append '("assistant" "For memory optimization..."))
 
   ;; View statistics
-  (gemini-repl-project-stats))
+  (sage-project-stats))
 
 ;;; Example 2: Working with Multiple Projects
 
@@ -42,22 +42,22 @@
 
   ;; Project A
   (let ((default-directory "/home/user/project-a/"))
-    (gemini-repl-project-load)
+    (sage-project-load)
     (message "Loaded project A: %d messages"
-             (length gemini-repl-project--current-conversation))
+             (length sage-project--current-conversation))
 
     ;; Work on project A...
-    (gemini-repl-project-append '("user" "Fix authentication bug"))
+    (sage-project-append '("user" "Fix authentication bug"))
     )
 
   ;; Switch to Project B
   (let ((default-directory "/home/user/project-b/"))
-    (gemini-repl-project-load)
+    (sage-project-load)
     (message "Loaded project B: %d messages"
-             (length gemini-repl-project--current-conversation))
+             (length sage-project--current-conversation))
 
     ;; Work on project B...
-    (gemini-repl-project-append '("user" "Add new API endpoint"))
+    (sage-project-append '("user" "Add new API endpoint"))
     )
 
   ;; Each project has its own isolated conversation
@@ -70,20 +70,20 @@
   (interactive)
 
   ;; Before major refactor, archive current conversation
-  (gemini-repl-project-archive "before-refactor")
+  (sage-project-archive "before-refactor")
 
   ;; Start fresh for the refactor work
-  (gemini-repl-project-clear)
+  (sage-project-clear)
 
   ;; Work on refactor...
-  (gemini-repl-project-append '("user" "Help me refactor this module"))
+  (sage-project-append '("user" "Help me refactor this module"))
 
   ;; Later, list all archives
-  (let ((archives (gemini-repl-project-list-archives)))
+  (let ((archives (sage-project-list-archives)))
     (message "Available archives: %s" (string-join archives ", ")))
 
   ;; Load an old archive
-  (gemini-repl-project-load-archive "before-refactor.jsonl"))
+  (sage-project-load-archive "before-refactor.jsonl"))
 
 ;;; Example 4: Custom Metadata
 
@@ -92,17 +92,17 @@
   (interactive)
 
   ;; Set custom metadata fields
-  (gemini-repl-project-metadata :git_branch "feature/new-auth")
-  (gemini-repl-project-metadata :task_id "PROJ-123")
-  (gemini-repl-project-metadata :developer "alice")
+  (sage-project-metadata :git_branch "feature/new-auth")
+  (sage-project-metadata :task_id "PROJ-123")
+  (sage-project-metadata :developer "alice")
 
   ;; Get metadata
-  (let ((branch (gemini-repl-project-metadata :git_branch))
-        (task (gemini-repl-project-metadata :task_id)))
+  (let ((branch (sage-project-metadata :git_branch))
+        (task (sage-project-metadata :task_id)))
     (message "Working on %s for task %s" branch task))
 
   ;; Get all metadata
-  (let ((meta (gemini-repl-project-metadata)))
+  (let ((meta (sage-project-metadata)))
     (message "Project metadata: %S" meta)))
 
 ;;; Example 5: Export Workflows
@@ -112,12 +112,12 @@
   (interactive)
 
   ;; Export to JSON for backup
-  (gemini-repl-project-export
+  (sage-project-export
    (expand-file-name "conversation-backup.json" default-directory)
    'json)
 
   ;; Export to Markdown for documentation
-  (gemini-repl-project-export
+  (sage-project-export
    (expand-file-name "conversation-notes.md" default-directory)
    'markdown)
 
@@ -133,19 +133,19 @@
   (defun my-save-git-context ()
     "Save current git commit to metadata."
     (when-let ((rev (vc-git-working-revision default-directory)))
-      (gemini-repl-project-metadata :git_commit rev)
-      (gemini-repl-project-metadata :git_branch (vc-git--symbolic-ref default-directory))))
+      (sage-project-metadata :git_commit rev)
+      (sage-project-metadata :git_branch (vc-git--symbolic-ref default-directory))))
 
   ;; Auto-archive conversations weekly
   (defun my-weekly-archive ()
     "Archive conversation with week-based naming."
-    (when (and gemini-repl-project--current-conversation
-               (> (length gemini-repl-project--current-conversation) 10))
-      (gemini-repl-project-archive
+    (when (and sage-project--current-conversation
+               (> (length sage-project--current-conversation) 10))
+      (sage-project-archive
        (format-time-string "week-%Y-w%U"))))
 
   ;; Add to hooks
-  (add-hook 'gemini-repl-mode-hook #'my-save-git-context)
+  (add-hook 'sage-mode-hook #'my-save-git-context)
 
   ;; Run weekly archive on Mondays
   (run-at-time "00:00 Mon" (* 7 24 60 60) #'my-weekly-archive))
@@ -156,7 +156,7 @@
   "Search current conversation for PATTERN."
   (interactive "sSearch pattern: ")
 
-  (let ((msgs (gemini-repl-project--get-conversation))
+  (let ((msgs (sage-project--get-conversation))
         (matches nil))
 
     (dolist (msg msgs)
@@ -185,7 +185,7 @@
   "Implement smart archiving based on message count and age."
   (interactive)
 
-  (when-let* ((meta (gemini-repl-project-metadata))
+  (when-let* ((meta (sage-project-metadata))
               (created (plist-get meta :created_at))
               (msg-count (plist-get meta :message_count)))
 
@@ -201,9 +201,9 @@
                 (> age-days 7))
         (message "Auto-archiving conversation (age: %.1f days, messages: %d)"
                  age-days msg-count)
-        (gemini-repl-project-archive
+        (sage-project-archive
          (format-time-string "auto-%Y%m%d-%H%M%S"))
-        (gemini-repl-project-clear)))))
+        (sage-project-clear)))))
 
 ;;; Example 9: Per-Branch Conversations
 
@@ -215,22 +215,22 @@
   (when-let ((branch (vc-git--symbolic-ref default-directory)))
 
     ;; Store branch in metadata
-    (gemini-repl-project-metadata :git_branch branch)
+    (sage-project-metadata :git_branch branch)
 
     ;; Archive conversation when switching branches
     (defun my-archive-on-branch-switch ()
       "Archive conversation when git branch changes."
       (let ((current-branch (vc-git--symbolic-ref default-directory))
-            (stored-branch (gemini-repl-project-metadata :git_branch)))
+            (stored-branch (sage-project-metadata :git_branch)))
 
         (when (and stored-branch
                    (not (string= current-branch stored-branch)))
           (message "Branch changed: %s -> %s, archiving..."
                    stored-branch current-branch)
-          (gemini-repl-project-archive
+          (sage-project-archive
            (format "branch-%s" stored-branch))
-          (gemini-repl-project-clear)
-          (gemini-repl-project-metadata :git_branch current-branch))))
+          (sage-project-clear)
+          (sage-project-metadata :git_branch current-branch))))
 
     ;; Check on file save
     (add-hook 'after-save-hook #'my-archive-on-branch-switch nil t)))
@@ -241,9 +241,9 @@
   "Export conversation to org-mode with rich formatting."
   (interactive)
 
-  (let ((msgs (gemini-repl-project--get-conversation))
-        (proj-dir (gemini-repl-project-dir))
-        (meta (gemini-repl-project-metadata)))
+  (let ((msgs (sage-project--get-conversation))
+        (proj-dir (sage-project-dir))
+        (meta (sage-project-metadata)))
 
     (with-current-buffer (get-buffer-create "*Gemini Org Export*")
       (erase-buffer)
@@ -293,11 +293,11 @@
   "Run all examples (for testing)."
   (interactive)
 
-  (message "Running gemini-repl-project examples...")
+  (message "Running sage-project examples...")
 
   ;; Create test directory
-  (let ((test-dir "/tmp/gemini-repl-test")
-        (gemini-repl-project-directory "/tmp/gemini-repl-test-storage"))
+  (let ((test-dir "/tmp/sage-test")
+        (sage-project-directory "/tmp/sage-test-storage"))
 
     (make-directory test-dir t)
 
@@ -322,8 +322,8 @@
       ;; Cleanup
       (when (file-directory-p test-dir)
         (delete-directory test-dir t))
-      (when (file-directory-p gemini-repl-project-directory)
-        (delete-directory gemini-repl-project-directory t))
+      (when (file-directory-p sage-project-directory)
+        (delete-directory sage-project-directory t))
 
       (message "Examples completed!"))))
 

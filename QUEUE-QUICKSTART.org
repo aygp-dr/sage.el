@@ -1,0 +1,419 @@
+* Sage Queue System - Quick Start Guide
+
+The `sage-queue` provides file-based inter-agent communication for Emacs.
+
+** Installation
+
+#+begin_src elisp
+;; Add to your init.el
+(add-to-list 'load-path "/home/jwalsh/ghq/github.com/aygp-dr/sage-010")
+(require 'sage-queue)
+#+end_src
+
+** Directory Structure
+
+The queue system uses three directories under `~/.emacs.d/sage/queues/`:
+
+#+end_src
+~/.emacs.d/sage/queues/
+├── input/    # Incoming requests (JSON files)
+├── output/   # Responses from processing
+└── archive/  # Processed and completed requests
+#+end_src
+
+These directories are created automatically on first use.
+
+** Basic Usage
+
+*** 1. Submit a Request
+
+#+begin_src elisp
+;; Interactive
+M-x sage-queue-submit
+Type: ping
+Content: Hello
+
+;; Programmatic
+(sage-queue-submit 'ping "Hello from Emacs")
+;; => "20241223-170945-a1b2c3d4" (request ID)
+#+end_src
+
+*** 2. Enable Watch Mode
+
+Watch mode automatically processes incoming requests:
+
+#+begin_src elisp
+;; Enable
+M-x sage-queue-watch-mode
+;; or
+(sage-queue-watch-mode 1)
+
+;; Disable
+(sage-queue-watch-mode -1)
+#+end_src
+
+*** 3. Check Status
+
+#+begin_src elisp
+M-x sage-queue-status
+#+end_src
+
+Shows:
+- Current queue counts (pending, ready, archived)
+- Session statistics
+- Watch mode status
+
+*** 4. Poll Manually
+
+Without watch mode, poll manually:
+
+#+begin_src elisp
+(let ((request (sage-queue-poll)))
+  (when request
+    (message "Found: %s" (alist-get 'content request))))
+#+end_src
+
+*** 5. Custom Handlers
+
+Register handlers for specific request types:
+
+#+begin_src elisp
+(sage-queue-register-handler
+ 'my-task
+ (lambda (request)
+   (let ((content (alist-get 'content request)))
+     ;; Process the request
+     (cons 'success (format "Processed: %s" content)))))
+
+;; Submit request
+(sage-queue-submit 'my-task "Do something")
+#+end_src
+
+** Request/Response Format
+
+*** Request (JSON)
+
+#+end_srcjson
+{
+  "id": "20241223-170945-a1b2c3d4",
+  "type": "prompt",
+  "content": "What is 2+2?",
+  "context": {
+    "priority": "high",
+    "tags": ["math", "simple"]
+  },
+  "created_at": "2024-12-23T17:09:45+0000"
+}
+#+end_src
+
+*** Response (JSON)
+
+#+end_srcjson
+{
+  "request_id": "20241223-170945-a1b2c3d4",
+  "status": "success",
+  "content": "4",
+  "metadata": {},
+  "processed_at": "2024-12-23T17:09:47+0000"
+}
+#+end_src
+
+** Built-in Request Types
+
+*** 1. Ping
+
+Simple echo for testing:
+
+#+begin_src elisp
+(sage-queue-submit 'ping "test")
+;; Response: "pong: 2024-12-23T17:09:45+0000"
+#+end_src
+
+*** 2. Prompt
+
+Execute AI prompt using `sage`:
+
+#+begin_src elisp
+(sage-queue-submit 'prompt "Explain recursion")
+;; Response: AI-generated explanation
+#+end_src
+
+*** 3. Command
+
+Generic command type (requires custom handler):
+
+#+begin_src elisp
+(sage-queue-submit 'command "restart-service")
+#+end_src
+
+** Common Workflows
+
+*** Multi-Agent Communication
+
+#+begin_src elisp
+;; Agent A submits work
+(sage-queue-submit
+ 'analyze-code
+ (buffer-string)
+ '((file . "mycode.el")))
+
+;; Agent B processes (with watch mode enabled)
+(sage-queue-register-handler
+ 'analyze-code
+ (lambda (request)
+   (let* ((code (alist-get 'content request))
+          (file (alist-get 'file (alist-get 'context request))))
+     (cons 'success (format "Analyzed %s" file)))))
+#+end_src
+
+*** Async Task Processing
+
+#+begin_src elisp
+;; Submit long-running task
+(sage-queue-submit 'heavy-task "large dataset")
+
+;; Handler processes asynchronously (won't block Emacs)
+(sage-queue-register-handler
+ 'heavy-task
+ (lambda (request)
+   (sleep-for 5) ; Simulate long processing
+   (cons 'success "Task complete")))
+#+end_src
+
+*** Pipeline Processing
+
+#+begin_src elisp
+;; Stage 1
+(sage-queue-register-handler
+ 'step1
+ (lambda (request)
+   ;; Process and queue next step
+   (sage-queue-submit 'step2 "processed-data")
+   (cons 'success "Step 1 done")))
+
+;; Stage 2
+(sage-queue-register-handler
+ 'step2
+ (lambda (request)
+   (cons 'success "Pipeline complete")))
+
+;; Start pipeline
+(sage-queue-submit 'step1 "raw-data")
+#+end_src
+
+** Examples
+
+*** Run Demo
+
+#+begin_src elisp
+;; Load demos
+(load-file "examples/queue-demo.el")
+
+;; Interactive menu
+M-x queue-demo-menu
+
+;; Or run specific demos
+(queue-demo-basic)
+(queue-demo-custom-handler)
+(queue-demo-watch-mode)
+#+end_src
+
+*** Multi-Agent Workflow
+
+#+begin_src elisp
+;; Load multi-agent example
+(load-file "examples/multi-agent-workflow.el")
+
+;; Setup agents
+M-x multi-agent-workflow-setup
+
+;; Review current file
+M-x multi-agent-workflow-review-current-buffer
+
+;; Run demo
+M-x multi-agent-workflow-demo
+#+end_src
+
+** Configuration
+
+*** Customize Directory
+
+#+begin_src elisp
+(setq sage-queue-directory
+      (expand-file-name "~/my-queues"))
+#+end_src
+
+*** Polling Interval
+
+When file-notify is unavailable:
+
+#+begin_src elisp
+(setq sage-queue-poll-interval 2.0) ; seconds
+#+end_src
+
+*** Auto-Processing
+
+#+begin_src elisp
+;; Enable/disable automatic processing in watch mode
+(setq sage-queue-auto-process t)
+#+end_src
+
+*** Archive Retention
+
+#+begin_src elisp
+;; Days to keep archived requests
+(setq sage-queue-retention-days 7)
+
+;; Manually clean old archives
+(sage-queue-cleanup-archives)
+#+end_src
+
+** Monitoring
+
+*** View Status
+
+#+begin_src elisp
+M-x sage-queue-status
+#+end_src
+
+*** Check Directories
+
+#+begin_src elisp
+;; List pending requests
+(directory-files sage-queue--input-dir nil "\\.json$")
+
+;; List responses
+(directory-files sage-queue--output-dir nil "\\.json$")
+
+;; List archives
+(directory-files sage-queue--archive-dir nil "\\.json$")
+#+end_src
+
+*** Statistics
+
+Session statistics tracked automatically:
+- Submitted requests
+- Processed requests
+- Errors
+- Archived requests
+
+** Troubleshooting
+
+*** File-notify Not Available
+
+The system automatically falls back to polling. To check:
+
+#+begin_src elisp
+(featurep 'filenotify) ; Should return t if available
+#+end_src
+
+*** Requests Not Processing
+
+1. Ensure watch mode is enabled: `M-x sage-queue-status`
+2. Check handlers are registered
+3. Look for errors in `*Messages*` buffer
+4. Try manual poll: `(sage-queue-poll)`
+
+*** Permission Issues
+
+#+begin_src elisp
+;; Check directory permissions
+(file-writable-p sage-queue-directory)
+#+end_src
+
+** Integration with External Tools
+
+*** From Shell
+
+#+begin_src bash
+* Submit request
+cat > ~/.emacs.d/sage/queues/input/my-request.json << EOF
+{
+  "id": "shell-$(date +%s)",
+  "type": "prompt",
+  "content": "What is the time?",
+  "created_at": "$(date -Iseconds)"
+}
+EOF
+
+* Read response (wait for Emacs to process)
+sleep 2
+cat ~/.emacs.d/sage/queues/output/shell-*.json
+#+end_src
+
+*** From Python
+
+#+end_srcpython
+import json
+from pathlib import Path
+from datetime import datetime
+
+queue_dir = Path.home() / ".emacs.d/sage/queues"
+
+* Submit request
+request = {
+    "id": f"python-{datetime.now().timestamp()}",
+    "type": "prompt",
+    "content": "Explain Python decorators",
+    "created_at": datetime.now().isoformat()
+}
+
+input_file = queue_dir / "input" / f"{request['id']}.json"
+input_file.write_text(json.dumps(request))
+
+* Wait and read response
+import time
+time.sleep(2)
+
+output_file = queue_dir / "output" / f"{request['id']}.json"
+if output_file.exists():
+    response = json.loads(output_file.read_text())
+    print(response['content'])
+#+end_src
+
+** Testing
+
+Run the test suite:
+
+#+begin_src elisp
+;; Load tests
+(load-file "test/sage-queue-test.el")
+
+;; Run all tests
+M-x ert RET t RET
+
+;; Run specific test
+M-x ert RET sage-queue-test-submit-request RET
+#+end_src
+
+** Full Documentation
+
+See [QUEUE.org](QUEUE.org) for complete documentation including:
+- Advanced features
+- Performance benchmarks
+- Security considerations
+- API reference
+- Detailed examples
+
+** Quick Reference
+
+| Function | Description |
+|----------|-------------|
+| `sage-queue-submit` | Submit a request |
+| `sage-queue-poll` | Poll for pending request |
+| `sage-queue-respond` | Write response |
+| `sage-queue-archive` | Archive completed request |
+| `sage-queue-status` | Show queue status |
+| `sage-queue-watch-mode` | Enable/disable auto-processing |
+| `sage-queue-register-handler` | Register custom handler |
+| `sage-queue-cleanup-archives` | Remove old archives |
+| `sage-queue-send-to-agent` | Send to specific agent |
+| `sage-queue-broadcast` | Broadcast to all agents |
+
+** Next Steps
+
+1. *Enable watch mode* for automatic processing
+2. *Register custom handlers* for your use cases
+3. *Try examples* in `examples/queue-demo.el`
+4. *Read full docs* in `QUEUE.org`
+5. *Explore multi-agent workflows* in `examples/multi-agent-workflow.el`

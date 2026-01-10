@@ -4,11 +4,11 @@
 
 * Overview
 
-Added comprehensive rate limiting functionality to gemini-repl-010 to prevent exceeding API provider limits.
+Added comprehensive rate limiting functionality to sage-010 to prevent exceeding API provider limits.
 
 * Files Created
 
-** Core Module: gemini-repl-ratelimit.el (267 lines)
+** Core Module: sage-ratelimit.el (267 lines)
 
 Main rate limiting implementation with:
 - Per-model request tracking using ring buffers
@@ -18,7 +18,7 @@ Main rate limiting implementation with:
 - Reset and status checking functions
 - Modeline integration support
 
-** Tests: test/gemini-repl-ratelimit-test.el (201 lines)
+** Tests: test/sage-ratelimit-test.el (201 lines)
 
 Comprehensive test suite covering:
 - Limit configuration for different models
@@ -64,15 +64,15 @@ Added compilation and testing targets:
 
 * Integration Points
 
-** gemini-repl.el
+** sage.el
 
 Modified to integrate rate limiting:
 
-1. *Line 52*: Added =(require 'gemini-repl-ratelimit)=
+1. *Line 52*: Added =(require 'sage-ratelimit)=
 
-2. *Lines 312-341*: Wrapped =gemini-repl--request= function with rate limiting:
+2. *Lines 312-341*: Wrapped =sage--request= function with rate limiting:
    #+begin_src elisp
-   (gemini-repl-ratelimit-wrap-request
+   (sage-ratelimit-wrap-request
     model
     (lambda () ...))
    #+end_src
@@ -86,7 +86,7 @@ Modified to integrate rate limiting:
 
 4. *Lines 777-781*: Added command handlers:
    #+begin_src elisp
-   ("ratelimit" (gemini-repl-ratelimit-status (gemini-repl--get-model)))
+   ("ratelimit" (sage-ratelimit-status (sage--get-model)))
    ("ratelimit-reset" ...)
    #+end_src
 
@@ -157,7 +157,7 @@ Uses Emacs built-in =ring.el= for efficient tracking:
 
 Multiple ways to check status:
 - =/ratelimit= REPL command
-- =M-x gemini-repl-ratelimit-status=
+- =M-x sage-ratelimit-status=
 - Optional modeline display
 - Countdown timer when waiting
 
@@ -188,16 +188,16 @@ gemini-2.0-flash-exp: 4/9 requests used (44% limit, safety margin: 90%). Ready
 
 #+begin_src elisp
 ;; Check before making request
-(when (gemini-repl-ratelimit-check "gemini-2.0-flash-exp")
+(when (sage-ratelimit-check "gemini-2.0-flash-exp")
   (make-api-request))
 
 ;; Wrap request with automatic rate limiting
-(gemini-repl-ratelimit-wrap-request
+(sage-ratelimit-wrap-request
  "gemini-2.0-flash-exp"
  (lambda () (make-api-request)))
 
 ;; Get current status
-(gemini-repl-ratelimit-status "gemini-2.0-flash-exp")
+(sage-ratelimit-status "gemini-2.0-flash-exp")
 #+end_src
 
 * Configuration
@@ -206,27 +206,27 @@ gemini-2.0-flash-exp: 4/9 requests used (44% limit, safety margin: 90%). Ready
 
 #+begin_src elisp
 ;; Set custom limit
-(gemini-repl-ratelimit-configure-limit "my-model" 20)
+(sage-ratelimit-configure-limit "my-model" 20)
 
 ;; Set unlimited
-(gemini-repl-ratelimit-configure-limit "local-model" nil)
+(sage-ratelimit-configure-limit "local-model" nil)
 #+end_src
 
 ** Safety Margin
 
 #+begin_src elisp
 ;; More aggressive (use 95% of limit)
-(setq gemini-repl-ratelimit-safety-margin 0.95)
+(setq sage-ratelimit-safety-margin 0.95)
 
 ;; More conservative (use 80% of limit)
-(setq gemini-repl-ratelimit-safety-margin 0.80)
+(setq sage-ratelimit-safety-margin 0.80)
 #+end_src
 
 ** Countdown Display
 
 #+begin_src elisp
 ;; Disable countdown
-(setq gemini-repl-ratelimit-show-countdown nil)
+(setq sage-ratelimit-show-countdown nil)
 #+end_src
 
 * Implementation Notes
@@ -292,7 +292,7 @@ Potential improvements identified:
 Run tests with:
 
 #+begin_src bash
-cd /home/jwalsh/ghq/github.com/aygp-dr/gemini-repl-010
+cd /home/jwalsh/ghq/github.com/aygp-dr/sage-010
 gmake test-ratelimit
 #+end_src
 
@@ -300,11 +300,11 @@ Expected output: All tests pass
 
 * Summary
 
-Successfully added comprehensive rate limiting to gemini-repl-010:
+Successfully added comprehensive rate limiting to sage-010:
 
 - *1,044 lines* of code, tests, and documentation
 - *4 new files* created
-- *2 existing files* updated (gemini-repl.el, README.org)
+- *2 existing files* updated (sage.el, README.org)
 - *10 example programs* demonstrating usage
 - *Comprehensive test coverage*
 - *Full documentation*

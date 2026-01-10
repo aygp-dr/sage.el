@@ -1,17 +1,17 @@
-#+TITLE: Gemini REPL Queue System
+#+TITLE: Sage Queue System
 #+AUTHOR: Jason Walsh
 #+EMAIL: j@wal.sh
 
 * Overview
 
-The =gemini-repl-queue= system provides file-based inter-agent communication for Emacs. It enables multiple AI agents, processes, or Emacs instances to communicate asynchronously through JSON files in a watched directory structure.
+The =sage-queue= system provides file-based inter-agent communication for Emacs. It enables multiple AI agents, processes, or Emacs instances to communicate asynchronously through JSON files in a watched directory structure.
 
 * Architecture
 
 ** Directory Structure
 
 #+begin_src
-~/.emacs.d/gemini-repl/queues/
+~/.emacs.d/sage/queues/
 ├── input/    # Incoming requests (JSON files)
 ├── output/   # Responses from processing
 └── archive/  # Processed and completed requests
@@ -65,24 +65,24 @@ JSON structure for responses:
 
 #+begin_src elisp
 ;; Add to your init.el
-(add-to-list 'load-path "~/.emacs.d/site-lisp/gemini-repl-010")
-(require 'gemini-repl-queue)
+(add-to-list 'load-path "~/.emacs.d/site-lisp/sage-010")
+(require 'sage-queue)
 
 ;; Optional: customize queue directory
-(setq gemini-repl-queue-directory
+(setq sage-queue-directory
       (expand-file-name "~/my-queues"))
 #+end_src
 
 ** With use-package
 
 #+begin_src elisp
-(use-package gemini-repl-queue
-  :load-path "~/.emacs.d/site-lisp/gemini-repl-010"
+(use-package sage-queue
+  :load-path "~/.emacs.d/site-lisp/sage-010"
   :config
-  (setq gemini-repl-queue-auto-process t)
-  (setq gemini-repl-queue-retention-days 7)
+  (setq sage-queue-auto-process t)
+  (setq sage-queue-retention-days 7)
   ;; Enable watch mode on startup
-  (gemini-repl-queue-watch-mode 1))
+  (sage-queue-watch-mode 1))
 #+end_src
 
 * Usage
@@ -92,7 +92,7 @@ JSON structure for responses:
 *** Interactive
 
 #+begin_src elisp
-M-x gemini-repl-queue-submit
+M-x sage-queue-submit
 Type: prompt
 Content: What is the weather today?
 #+end_src
@@ -101,10 +101,10 @@ Content: What is the weather today?
 
 #+begin_src elisp
 ;; Simple ping
-(gemini-repl-queue-submit 'ping "Hello")
+(sage-queue-submit 'ping "Hello")
 
 ;; With context
-(gemini-repl-queue-submit
+(sage-queue-submit
  'prompt
  "Analyze this code"
  '((file . "/path/to/code.el")
@@ -115,7 +115,7 @@ Content: What is the weather today?
 
 #+begin_src elisp
 ;; Manual poll
-(let ((request (gemini-repl-queue-poll)))
+(let ((request (sage-queue-poll)))
   (when request
     (message "Found: %s" (alist-get 'content request))))
 #+end_src
@@ -124,20 +124,20 @@ Content: What is the weather today?
 
 #+begin_src elisp
 ;; Success response
-(gemini-repl-queue-respond "request-id" 'success "Here's the result")
+(sage-queue-respond "request-id" 'success "Here's the result")
 
 ;; Error response
-(gemini-repl-queue-respond "request-id" 'error "Failed to process")
+(sage-queue-respond "request-id" 'error "Failed to process")
 #+end_src
 
 ** Archiving
 
 #+begin_src elisp
 ;; Archive completed request
-(gemini-repl-queue-archive "request-id")
+(sage-queue-archive "request-id")
 
 ;; Clean old archives (>7 days)
-(gemini-repl-queue-cleanup-archives)
+(sage-queue-cleanup-archives)
 #+end_src
 
 ** Watch Mode
@@ -146,10 +146,10 @@ Enable automatic processing:
 
 #+begin_src elisp
 ;; Enable
-(gemini-repl-queue-watch-mode 1)
+(sage-queue-watch-mode 1)
 
 ;; Disable
-(gemini-repl-queue-watch-mode -1)
+(sage-queue-watch-mode -1)
 #+end_src
 
 Watch mode will:
@@ -162,7 +162,7 @@ Watch mode will:
 Register handlers for specific request types:
 
 #+begin_src elisp
-(gemini-repl-queue-register-handler
+(sage-queue-register-handler
  'my-custom-type
  (lambda (request)
    (let ((content (alist-get 'content request))
@@ -185,7 +185,7 @@ Type: =ping=
 Simple echo handler for testing:
 
 #+begin_src elisp
-(gemini-repl-queue-submit 'ping "test")
+(sage-queue-submit 'ping "test")
 ;; Response: "pong: 2024-12-23T15:30:45+0000"
 #+end_src
 
@@ -193,10 +193,10 @@ Simple echo handler for testing:
 
 Type: =prompt=
 
-Executes prompts through =gemini-repl-exec=:
+Executes prompts through =sage-exec=:
 
 #+begin_src elisp
-(gemini-repl-queue-submit 'prompt "What is 2+2?")
+(sage-queue-submit 'prompt "What is 2+2?")
 ;; Response: AI-generated answer
 #+end_src
 
@@ -208,29 +208,29 @@ Executes prompts through =gemini-repl-exec=:
 
 #+begin_src elisp
 ;; Send to specific agent
-(gemini-repl-queue-send-to-agent "agent-b" "Process this data")
+(sage-queue-send-to-agent "agent-b" "Process this data")
 #+end_src
 
 *** Broadcasting
 
 #+begin_src elisp
 ;; Send to all agents
-(gemini-repl-queue-broadcast "System maintenance starting")
+(sage-queue-broadcast "System maintenance starting")
 #+end_src
 
 ** Multi-Step Workflows
 
 #+begin_src elisp
 ;; Step 1 handler chains to Step 2
-(gemini-repl-queue-register-handler
+(sage-queue-register-handler
  'step1
  (lambda (request)
    (let ((result (process-step-1 request)))
      ;; Queue next step
-     (gemini-repl-queue-submit 'step2 result)
+     (sage-queue-submit 'step2 result)
      (cons 'success "Step 1 done"))))
 
-(gemini-repl-queue-register-handler
+(sage-queue-register-handler
  'step2
  (lambda (request)
    (cons 'success "Workflow complete")))
@@ -241,7 +241,7 @@ Executes prompts through =gemini-repl-exec=:
 Check queue status:
 
 #+begin_src elisp
-M-x gemini-repl-queue-status
+M-x sage-queue-status
 #+end_src
 
 Shows:
@@ -256,20 +256,20 @@ Shows:
 
 #+begin_src elisp
 ;; Queue directory location
-(setq gemini-repl-queue-directory
-      (expand-file-name "gemini-repl/queues" user-emacs-directory))
+(setq sage-queue-directory
+      (expand-file-name "sage/queues" user-emacs-directory))
 
 ;; Polling interval (when file-notify unavailable)
-(setq gemini-repl-queue-poll-interval 2.0)
+(setq sage-queue-poll-interval 2.0)
 
 ;; Auto-process in watch mode
-(setq gemini-repl-queue-auto-process t)
+(setq sage-queue-auto-process t)
 
 ;; Max retries for failed requests
-(setq gemini-repl-queue-max-retries 3)
+(setq sage-queue-max-retries 3)
 
 ;; Archive retention
-(setq gemini-repl-queue-retention-days 7)
+(setq sage-queue-retention-days 7)
 #+end_src
 
 ** File Watching
@@ -281,7 +281,7 @@ The system uses:
 To force polling:
 
 #+begin_src elisp
-(setq gemini-repl-queue-poll-interval 1.0)
+(setq sage-queue-poll-interval 1.0)
 #+end_src
 
 * Use Cases
@@ -292,13 +292,13 @@ Multiple Emacs instances or AI agents working on the same project:
 
 #+begin_src elisp
 ;; Agent 1: Code analysis
-(gemini-repl-queue-submit 'analyze "file.el")
+(sage-queue-submit 'analyze "file.el")
 
 ;; Agent 2: Testing
-(gemini-repl-queue-submit 'test "file.el")
+(sage-queue-submit 'test "file.el")
 
 ;; Agent 3: Documentation
-(gemini-repl-queue-submit 'document "file.el")
+(sage-queue-submit 'document "file.el")
 #+end_src
 
 ** 2. Asynchronous Task Processing
@@ -306,7 +306,7 @@ Multiple Emacs instances or AI agents working on the same project:
 Long-running tasks that shouldn't block Emacs:
 
 #+begin_src elisp
-(gemini-repl-queue-register-handler
+(sage-queue-register-handler
  'heavy-analysis
  (lambda (request)
    ;; Process data without blocking
@@ -329,13 +329,13 @@ Multiple AI agents specializing in different tasks:
 
 #+begin_src elisp
 ;; Code review agent
-(gemini-repl-queue-register-handler 'review #'review-handler)
+(sage-queue-register-handler 'review #'review-handler)
 
 ;; Documentation agent
-(gemini-repl-queue-register-handler 'docs #'docs-handler)
+(sage-queue-register-handler 'docs #'docs-handler)
 
 ;; Testing agent
-(gemini-repl-queue-register-handler 'test #'test-handler)
+(sage-queue-register-handler 'test #'test-handler)
 #+end_src
 
 ** 5. Request/Response Logging
@@ -374,13 +374,13 @@ Run the test suite:
 
 #+begin_src elisp
 ;; Load tests
-(load-file "test/gemini-repl-queue-test.el")
+(load-file "test/sage-queue-test.el")
 
 ;; Run all tests
 M-x ert RET t RET
 
 ;; Run specific test
-M-x ert RET gemini-repl-queue-test-submit-request RET
+M-x ert RET sage-queue-test-submit-request RET
 #+end_src
 
 ** Test Coverage
@@ -400,7 +400,7 @@ M-x ert RET gemini-repl-queue-test-submit-request RET
 
 ** File System Access
 
-- Queue operates in =~/.emacs.d/gemini-repl/queues/= by default
+- Queue operates in =~/.emacs.d/sage/queues/= by default
 - No automatic execution of arbitrary code
 - Handlers must be explicitly registered
 
@@ -431,24 +431,24 @@ M-x ert RET gemini-repl-queue-test-submit-request RET
 (featurep 'filenotify)
 
 ;; Fall back to polling
-(setq gemini-repl-queue-poll-interval 1.0)
+(setq sage-queue-poll-interval 1.0)
 #+end_src
 
 ** Requests Not Processing
 
-1. Check watch mode is enabled: =M-x gemini-repl-queue-status=
+1. Check watch mode is enabled: =M-x sage-queue-status=
 2. Verify handlers are registered
 3. Check =*Messages*= buffer for errors
-4. Manually poll: =(gemini-repl-queue-poll)=
+4. Manually poll: =(sage-queue-poll)=
 
 ** Permission Issues
 
 #+begin_src elisp
 ;; Ensure directory is writable
-(file-writable-p gemini-repl-queue-directory)
+(file-writable-p sage-queue-directory)
 
 ;; Check file permissions
-(file-attributes (expand-file-name "input" gemini-repl-queue-directory))
+(file-attributes (expand-file-name "input" sage-queue-directory))
 #+end_src
 
 ** Old Archives Accumulating
@@ -456,7 +456,7 @@ M-x ert RET gemini-repl-queue-test-submit-request RET
 #+begin_src elisp
 ;; Set up periodic cleanup
 (run-with-timer 0 (* 24 60 60) ; daily
-  #'gemini-repl-queue-cleanup-archives)
+  #'sage-queue-cleanup-archives)
 #+end_src
 
 * Performance
@@ -483,7 +483,7 @@ M-x ert RET gemini-repl-queue-test-submit-request RET
 
 ** Functions
 
-*** gemini-repl-queue-submit (type content &optional context)
+*** sage-queue-submit (type content &optional context)
 
 Submit a request to the queue.
 
@@ -494,13 +494,13 @@ Submit a request to the queue.
 
 *Returns:* Request ID (string)
 
-*** gemini-repl-queue-poll ()
+*** sage-queue-poll ()
 
 Poll for the oldest pending request.
 
 *Returns:* Request alist or nil
 
-*** gemini-repl-queue-respond (request-id status content &optional metadata)
+*** sage-queue-respond (request-id status content &optional metadata)
 
 Write a response for a request.
 
@@ -512,27 +512,27 @@ Write a response for a request.
 
 *Returns:* Request ID (string)
 
-*** gemini-repl-queue-archive (request-id)
+*** sage-queue-archive (request-id)
 
 Archive a completed request.
 
 *Arguments:*
 - =request-id= - Request ID (string)
 
-*** gemini-repl-queue-status ()
+*** sage-queue-status ()
 
 Display queue status and statistics.
 
 Interactive command.
 
-*** gemini-repl-queue-watch-mode (&optional arg)
+*** sage-queue-watch-mode (&optional arg)
 
 Minor mode for automatic request processing.
 
 *Arguments:*
 - =arg= - 1 to enable, -1 to disable, toggle if nil
 
-*** gemini-repl-queue-register-handler (type handler-fn)
+*** sage-queue-register-handler (type handler-fn)
 
 Register a handler for a request type.
 
@@ -540,14 +540,14 @@ Register a handler for a request type.
 - =type= - Request type (symbol)
 - =handler-fn= - Function accepting request alist, returning =(status . content)=
 
-*** gemini-repl-queue-cleanup-archives (&optional days)
+*** sage-queue-cleanup-archives (&optional days)
 
 Remove archived requests older than days.
 
 *Arguments:*
-- =days= - Number of days (default: =gemini-repl-queue-retention-days=)
+- =days= - Number of days (default: =sage-queue-retention-days=)
 
-*** gemini-repl-queue-send-to-agent (agent-id message)
+*** sage-queue-send-to-agent (agent-id message)
 
 Send a message to a specific agent.
 
@@ -555,7 +555,7 @@ Send a message to a specific agent.
 - =agent-id= - Target agent ID (string)
 - =message= - Message content (string)
 
-*** gemini-repl-queue-broadcast (message)
+*** sage-queue-broadcast (message)
 
 Broadcast a message to all agents.
 
@@ -564,7 +564,7 @@ Broadcast a message to all agents.
 
 * Comparison with Other Systems
 
-| Feature              | gemini-repl-queue | RabbitMQ | Redis | DBus |
+| Feature              | sage-queue | RabbitMQ | Redis | DBus |
 |----------------------+-------------------+----------+-------+------|
 | Setup complexity     | Low               | High     | Med   | Med  |
 | Dependencies         | None              | Server   | Server| OS   |
@@ -613,6 +613,6 @@ GPL-3.0 (compatible with Emacs)
 
 * See Also
 
-- [[file:README.org][gemini-repl.el]] - Main REPL package
+- [[file:README.org][sage.el]] - Main REPL package
 - [[file:examples/queue-demo.el][Queue demos]] - Usage examples
-- [[file:test/gemini-repl-queue-test.el][Tests]] - Test suite
+- [[file:test/sage-queue-test.el][Tests]] - Test suite

@@ -1,10 +1,10 @@
-#+TITLE: Renaming Plan: gemini-repl -> sage
+#+TITLE: Renaming Plan: sage -> sage
 #+AUTHOR: Claude Code
 #+DATE: 2026-01-10
 
 * Executive Summary
 
-Rename the package from =gemini-repl= to =sage= (or alternative chosen name).
+Rename the package from =sage= to =sage= (or alternative chosen name).
 
 ** Rationale
 - Current name implies Gemini-only, but supports Gemini, OpenAI, and Ollama
@@ -35,27 +35,27 @@ Rename the package from =gemini-repl= to =sage= (or alternative chosen name).
 
 | Current | New |
 |---------|-----|
-| gemini-repl.el | sage.el |
-| gemini-repl-context.el | sage-context.el |
-| gemini-repl-emacs.el | sage-emacs.el |
-| gemini-repl-memory.el | sage-memory.el |
-| gemini-repl-project.el | sage-project.el |
-| gemini-repl-queue.el | sage-queue.el |
-| gemini-repl-ratelimit.el | sage-ratelimit.el |
-| gemini-repl-session.el | sage-session.el |
-| gemini-repl-tools.el | sage-tools.el |
+| sage.el | sage.el |
+| sage-context.el | sage-context.el |
+| sage-emacs.el | sage-emacs.el |
+| sage-memory.el | sage-memory.el |
+| sage-project.el | sage-project.el |
+| sage-queue.el | sage-queue.el |
+| sage-ratelimit.el | sage-ratelimit.el |
+| sage-session.el | sage-session.el |
+| sage-tools.el | sage-tools.el |
 
 ** Test Files (10 files)
 
 | Current | New |
 |---------|-----|
-| test/gemini-repl-test.el | test/sage-test.el |
-| test/gemini-repl-context-test.el | test/sage-context-test.el |
-| test/gemini-repl-emacs-test.el | test/sage-emacs-test.el |
-| test/gemini-repl-memory-test.el | test/sage-memory-test.el |
-| test/gemini-repl-project-test.el | test/sage-project-test.el |
-| test/gemini-repl-queue-test.el | test/sage-queue-test.el |
-| test/gemini-repl-ratelimit-test.el | test/sage-ratelimit-test.el |
+| test/sage-test.el | test/sage-test.el |
+| test/sage-context-test.el | test/sage-context-test.el |
+| test/sage-emacs-test.el | test/sage-emacs-test.el |
+| test/sage-memory-test.el | test/sage-memory-test.el |
+| test/sage-project-test.el | test/sage-project-test.el |
+| test/sage-queue-test.el | test/sage-queue-test.el |
+| test/sage-ratelimit-test.el | test/sage-ratelimit-test.el |
 | test-memory.el | (delete - duplicate) |
 | test-session.el | (delete - duplicate) |
 | test-tools.el | (delete - duplicate) |
@@ -81,15 +81,15 @@ Rename the package from =gemini-repl= to =sage= (or alternative chosen name).
 
 | Module | Occurrences | Key Symbols |
 |--------|-------------|-------------|
-| gemini-repl.el | 292 | gemini-repl, gemini-repl-provider, gemini-repl-mode |
-| gemini-repl-project.el | 162 | gemini-repl-project-*, --current-conversation |
-| gemini-repl-session.el | 148 | gemini-repl-session-*, --current |
-| gemini-repl-emacs.el | 141 | gemini-repl-emacs-*, org functions |
-| gemini-repl-queue.el | 139 | gemini-repl-queue-*, --input-dir |
-| gemini-repl-context.el | 139 | gemini-repl-context-*, token functions |
-| gemini-repl-tools.el | 122 | gemini-repl-tools-*, register-tool |
-| gemini-repl-memory.el | 93 | gemini-repl-memory-*, --facts |
-| gemini-repl-ratelimit.el | 72 | gemini-repl-ratelimit-*, --limits |
+| sage.el | 292 | sage, sage-provider, sage-mode |
+| sage-project.el | 162 | sage-project-*, --current-conversation |
+| sage-session.el | 148 | sage-session-*, --current |
+| sage-emacs.el | 141 | sage-emacs-*, org functions |
+| sage-queue.el | 139 | sage-queue-*, --input-dir |
+| sage-context.el | 139 | sage-context-*, token functions |
+| sage-tools.el | 122 | sage-tools-*, register-tool |
+| sage-memory.el | 93 | sage-memory-*, --facts |
+| sage-ratelimit.el | 72 | sage-ratelimit-*, --limits |
 
 *Total: ~1,308 symbol occurrences in core modules*
 
@@ -98,44 +98,44 @@ Rename the package from =gemini-repl= to =sage= (or alternative chosen name).
 *** Core Functions
 | Current | New |
 |---------|-----|
-| gemini-repl | sage |
-| gemini-repl-exec | sage-exec |
-| gemini-repl-send-region | sage-send-region |
-| gemini-repl-register-tool | sage-register-tool |
-| gemini-repl-mode | sage-mode |
-| global-gemini-repl-mode | global-sage-mode |
+| sage | sage |
+| sage-exec | sage-exec |
+| sage-send-region | sage-send-region |
+| sage-register-tool | sage-register-tool |
+| sage-mode | sage-mode |
+| global-sage-mode | global-sage-mode |
 
 *** Variables
 | Current | New |
 |---------|-----|
-| gemini-repl-provider | sage-provider |
-| gemini-repl-model | sage-model |
-| gemini-repl-api-key | sage-gemini-api-key |
-| gemini-repl-openai-api-key | sage-openai-api-key |
-| gemini-repl-ollama-host | sage-ollama-host |
-| gemini-repl-workspace | sage-workspace |
-| gemini-repl-yolo-mode | sage-yolo-mode |
-| gemini-repl-max-tool-iterations | sage-max-tool-iterations |
+| sage-provider | sage-provider |
+| sage-model | sage-model |
+| sage-api-key | sage-gemini-api-key |
+| sage-openai-api-key | sage-openai-api-key |
+| sage-ollama-host | sage-ollama-host |
+| sage-workspace | sage-workspace |
+| sage-yolo-mode | sage-yolo-mode |
+| sage-max-tool-iterations | sage-max-tool-iterations |
 
 *** Buffer Names
 | Current | New |
 |---------|-----|
-| *gemini-repl* | *sage* |
-| *Gemini REPL Memory* | *Sage Memory* |
-| *Gemini REPL Sessions* | *Sage Sessions* |
+| *sage* | *sage* |
+| *Sage Memory* | *Sage Memory* |
+| *Sage Sessions* | *Sage Sessions* |
 
 *** Customization Groups
 | Current | New |
 |---------|-----|
-| gemini-repl | sage |
-| gemini-repl-tools | sage-tools |
-| gemini-repl-session | sage-session |
-| gemini-repl-memory | sage-memory |
-| gemini-repl-context | sage-context |
-| gemini-repl-queue | sage-queue |
-| gemini-repl-ratelimit | sage-ratelimit |
-| gemini-repl-emacs | sage-emacs |
-| gemini-repl-project | sage-project |
+| sage | sage |
+| sage-tools | sage-tools |
+| sage-session | sage-session |
+| sage-memory | sage-memory |
+| sage-context | sage-context |
+| sage-queue | sage-queue |
+| sage-ratelimit | sage-ratelimit |
+| sage-emacs | sage-emacs |
+| sage-project | sage-project |
 
 * Storage Paths
 
@@ -143,16 +143,16 @@ Rename the package from =gemini-repl= to =sage= (or alternative chosen name).
 
 | Current | New |
 |---------|-----|
-| ~/.emacs.d/gemini-repl/ | ~/.emacs.d/sage/ |
-| ~/.emacs.d/gemini-repl/sessions/ | ~/.emacs.d/sage/sessions/ |
-| ~/.emacs.d/gemini-repl/projects/ | ~/.emacs.d/sage/projects/ |
-| ~/.emacs.d/gemini-repl/memory/ | ~/.emacs.d/sage/memory/ |
-| ~/.emacs.d/gemini-repl/queues/ | ~/.emacs.d/sage/queues/ |
+| ~/.emacs.d/sage/ | ~/.emacs.d/sage/ |
+| ~/.emacs.d/sage/sessions/ | ~/.emacs.d/sage/sessions/ |
+| ~/.emacs.d/sage/projects/ | ~/.emacs.d/sage/projects/ |
+| ~/.emacs.d/sage/memory/ | ~/.emacs.d/sage/memory/ |
+| ~/.emacs.d/sage/queues/ | ~/.emacs.d/sage/queues/ |
 
 ** History File
 | Current | New |
 |---------|-----|
-| ~/.emacs.d/gemini-repl-history | ~/.emacs.d/sage-history |
+| ~/.emacs.d/sage-history | ~/.emacs.d/sage-history |
 
 * Documentation Updates
 
@@ -197,8 +197,8 @@ Rename the package from =gemini-repl= to =sage= (or alternative chosen name).
 3. [ ] Verify all tests pass before changes
 
 ** Phase 2: Core Module Renames (Automated)
-1. [ ] Rename files: gemini-repl*.el -> sage*.el
-2. [ ] Global replace in .el files: =gemini-repl= -> =sage=
+1. [ ] Rename files: sage*.el -> sage*.el
+2. [ ] Global replace in .el files: =sage= -> =sage=
 3. [ ] Update require/provide statements
 4. [ ] Update defgroup definitions
 5. [ ] Verify byte-compilation
@@ -229,7 +229,7 @@ Rename the package from =gemini-repl= to =sage= (or alternative chosen name).
 ** Phase 7: Repository Rename
 1. [ ] Create new repo: aygp-dr/sage.el (or sage-emacs)
 2. [ ] Update git remote
-3. [ ] Archive gemini-repl-010
+3. [ ] Archive sage-010
 
 ** Phase 8: Verification
 1. [ ] Full test suite passes
@@ -243,7 +243,7 @@ Rename the package from =gemini-repl= to =sage= (or alternative chosen name).
 #!/bin/bash
 # rename-to-sage.sh - Automate the renaming process
 
-OLD="gemini-repl"
+OLD="sage"
 NEW="sage"
 
 # Phase 2: Rename core files
@@ -266,7 +266,7 @@ done
 # Phase 5: Documentation updates
 for f in *.org *.md .claude/CLAUDE.md; do
     sed -i '' "s/${OLD}/${NEW}/g" "$f"
-    sed -i '' "s/Gemini REPL/Sage/g" "$f"
+    sed -i '' "s/Sage/Sage/g" "$f"
 done
 
 # Phase 6: Config updates
@@ -280,9 +280,9 @@ Provide aliases for transition period:
 
 #+begin_src elisp
 ;; In sage.el - backward compatibility aliases
-(define-obsolete-function-alias 'gemini-repl 'sage "1.0")
-(define-obsolete-function-alias 'gemini-repl-exec 'sage-exec "1.0")
-(define-obsolete-variable-alias 'gemini-repl-provider 'sage-provider "1.0")
+(define-obsolete-function-alias 'sage 'sage "1.0")
+(define-obsolete-function-alias 'sage-exec 'sage-exec "1.0")
+(define-obsolete-variable-alias 'sage-provider 'sage-provider "1.0")
 ;; ... etc
 #+end_src
 
@@ -329,43 +329,43 @@ Create MIGRATION.org with:
 
 | Count | Symbol |
 |-------|--------|
-| 89 | gemini-repl |
-| 30 | gemini-repl-conversation |
-| 26 | gemini-repl-tools |
-| 24 | gemini-repl-project--current-conversation |
-| 23 | gemini-repl-tools--register |
-| 22 | gemini-repl-session--current |
-| 22 | gemini-repl-buffer-name |
-| 20 | gemini-repl-project--current-metadata |
-| 19 | gemini-repl-memory--facts |
-| 18 | gemini-repl-send-input |
-| 17 | gemini-repl-memory |
-| 16 | gemini-repl-tools--get-workspace |
-| 16 | gemini-repl--insert |
-| 16 | gemini-repl--get-workspace |
-| 15 | gemini-repl-project-dir |
-| 14 | gemini-repl-provider |
-| 13 | gemini-repl-context |
-| 12 | gemini-repl-emacs |
-| 12 | gemini-repl--get-model |
-| 11 | gemini-repl-session |
-| 11 | gemini-repl-register-tool |
-| 11 | gemini-repl-mode |
-| 10 | gemini-repl-token-count |
-| 10 | gemini-repl-queue--input-dir |
-| 10 | gemini-repl-queue |
-| 10 | gemini-repl-project |
-| 9 | gemini-repl-session-name |
-| 9 | gemini-repl-current-session |
-| 8 | gemini-repl-session-messages |
-| 8 | gemini-repl-session-message-count |
-| 8 | gemini-repl-ratelimit--limits |
-| 8 | gemini-repl-ratelimit |
-| 8 | gemini-repl-queue--ensure-directories |
-| 8 | gemini-repl-project--conversation-file |
-| 8 | gemini-repl-last-response |
-| 8 | gemini-repl--request |
-| 7 | gemini-repl-sessions |
-| 7 | gemini-repl-session--auto-save-timer |
-| 7 | gemini-repl-queue--watch-descriptor |
-| 7 | gemini-repl-queue--stats |
+| 89 | sage |
+| 30 | sage-conversation |
+| 26 | sage-tools |
+| 24 | sage-project--current-conversation |
+| 23 | sage-tools--register |
+| 22 | sage-session--current |
+| 22 | sage-buffer-name |
+| 20 | sage-project--current-metadata |
+| 19 | sage-memory--facts |
+| 18 | sage-send-input |
+| 17 | sage-memory |
+| 16 | sage-tools--get-workspace |
+| 16 | sage--insert |
+| 16 | sage--get-workspace |
+| 15 | sage-project-dir |
+| 14 | sage-provider |
+| 13 | sage-context |
+| 12 | sage-emacs |
+| 12 | sage--get-model |
+| 11 | sage-session |
+| 11 | sage-register-tool |
+| 11 | sage-mode |
+| 10 | sage-token-count |
+| 10 | sage-queue--input-dir |
+| 10 | sage-queue |
+| 10 | sage-project |
+| 9 | sage-session-name |
+| 9 | sage-current-session |
+| 8 | sage-session-messages |
+| 8 | sage-session-message-count |
+| 8 | sage-ratelimit--limits |
+| 8 | sage-ratelimit |
+| 8 | sage-queue--ensure-directories |
+| 8 | sage-project--conversation-file |
+| 8 | sage-last-response |
+| 8 | sage--request |
+| 7 | sage-sessions |
+| 7 | sage-session--auto-save-timer |
+| 7 | sage-queue--watch-descriptor |
+| 7 | sage-queue--stats |

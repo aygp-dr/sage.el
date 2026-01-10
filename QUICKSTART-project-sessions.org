@@ -7,19 +7,19 @@
 ** Step 1: Load the Module
 
 #+begin_src elisp
-(require 'gemini-repl-project)
+(require 'sage-project)
 #+end_src
 
 ** Step 2: Configure (Optional)
 
 #+begin_src elisp
 ;; Enable auto-load and auto-save (recommended)
-(setq gemini-repl-project-auto-load t)
-(setq gemini-repl-project-auto-save t)
+(setq sage-project-auto-load t)
+(setq sage-project-auto-save t)
 
-;; Set storage directory (optional, defaults to ~/.emacs.d/gemini-repl/projects)
-(setq gemini-repl-project-directory
-      (expand-file-name "gemini-repl/projects" user-emacs-directory))
+;; Set storage directory (optional, defaults to ~/.emacs.d/sage/projects)
+(setq sage-project-directory
+      (expand-file-name "sage/projects" user-emacs-directory))
 #+end_src
 
 ** Step 3: Start Using
@@ -27,7 +27,7 @@
 Open a file in your project and start the REPL:
 
 #+begin_src elisp
-M-x gemini-repl
+M-x sage
 #+end_src
 
 Your conversation will automatically be saved per-project!
@@ -38,25 +38,25 @@ Your conversation will automatically be saved per-project!
 
 | Command                              | Description                    |
 |--------------------------------------+--------------------------------|
-| =M-x gemini-repl-project-load=       | Load project conversation      |
-| =M-x gemini-repl-project-stats=      | Show conversation stats        |
-| =M-x gemini-repl-project-clear=      | Clear (and archive) conversation |
-| =M-x gemini-repl-project-list-archives= | List archived conversations |
+| =M-x sage-project-load=       | Load project conversation      |
+| =M-x sage-project-stats=      | Show conversation stats        |
+| =M-x sage-project-clear=      | Clear (and archive) conversation |
+| =M-x sage-project-list-archives= | List archived conversations |
 
 ** Programmatic Usage
 
 #+begin_src elisp
 ;; Append a message
-(gemini-repl-project-append '("user" "How do I fix this bug?"))
+(sage-project-append '("user" "How do I fix this bug?"))
 
 ;; Archive current conversation
-(gemini-repl-project-archive "before-major-refactor")
+(sage-project-archive "before-major-refactor")
 
 ;; Export to Markdown
-(gemini-repl-project-export "conversation.md" 'markdown)
+(sage-project-export "conversation.md" 'markdown)
 
 ;; Set custom metadata
-(gemini-repl-project-metadata :task_id "PROJ-123")
+(sage-project-metadata :task_id "PROJ-123")
 #+end_src
 
 * File Locations
@@ -64,7 +64,7 @@ Your conversation will automatically be saved per-project!
 Your conversations are stored at:
 
 #+begin_example
-~/.emacs.d/gemini-repl/projects/-home-user-myproject/
+~/.emacs.d/sage/projects/-home-user-myproject/
 ├── conversation.jsonl   # Current conversation
 ├── metadata.json        # Project info
 └── history/            # Old conversations
@@ -89,37 +89,37 @@ Each project has its own isolated conversation history.
 
 #+begin_src elisp
 ;; Manual archive with custom name
-(gemini-repl-project-archive "sprint-42-completion")
+(sage-project-archive "sprint-42-completion")
 
 ;; Auto-archive happens when you exceed max-messages (default: 1000)
 ;; Configure with:
-(setq gemini-repl-project-max-messages 500)
+(setq sage-project-max-messages 500)
 #+end_src
 
 * Export and Share
 
 #+begin_src elisp
 ;; Export to JSON
-(gemini-repl-project-export "conversation.json" 'json)
+(sage-project-export "conversation.json" 'json)
 
 ;; Export to Markdown for documentation
-(gemini-repl-project-export "conversation.md" 'markdown)
+(sage-project-export "conversation.md" 'markdown)
 #+end_src
 
 * Track Custom Metadata
 
 #+begin_src elisp
 ;; Store git branch
-(gemini-repl-project-metadata :git_branch "feature/new-api")
+(sage-project-metadata :git_branch "feature/new-api")
 
 ;; Store task/issue ID
-(gemini-repl-project-metadata :task_id "PROJ-123")
+(sage-project-metadata :task_id "PROJ-123")
 
 ;; Any custom field
-(gemini-repl-project-metadata :sprint "Sprint-42")
+(sage-project-metadata :sprint "Sprint-42")
 
 ;; Retrieve metadata
-(gemini-repl-project-metadata :git_branch)  ; Returns "feature/new-api"
+(sage-project-metadata :git_branch)  ; Returns "feature/new-api"
 #+end_src
 
 * Troubleshooting
@@ -128,27 +128,27 @@ Each project has its own isolated conversation history.
 
 #+begin_src elisp
 ;; Check project directory detection
-(gemini-repl-project-dir)
+(sage-project-dir)
 
 ;; Manually set project directory
-(gemini-repl-project-set-dir "/path/to/project")
+(sage-project-set-dir "/path/to/project")
 #+end_src
 
 ** Want to Start Fresh?
 
 #+begin_src elisp
 ;; Clear conversation (archives it first)
-(gemini-repl-project-clear)
+(sage-project-clear)
 #+end_src
 
 ** Need to Find Old Conversations?
 
 #+begin_src elisp
 ;; List all archives
-(gemini-repl-project-list-archives)
+(sage-project-list-archives)
 
 ;; Load an archive
-(gemini-repl-project-load-archive "20241223-140530.jsonl")
+(sage-project-load-archive "20241223-140530.jsonl")
 #+end_src
 
 * Advanced: Integration with Hooks
@@ -158,11 +158,11 @@ Each project has its own isolated conversation history.
 (defun my-save-git-context ()
   "Save git commit and branch to metadata."
   (when-let ((rev (vc-git-working-revision default-directory)))
-    (gemini-repl-project-metadata :git_commit rev)
+    (sage-project-metadata :git_commit rev)
     (when-let ((branch (vc-git--symbolic-ref default-directory)))
-      (gemini-repl-project-metadata :git_branch branch))))
+      (sage-project-metadata :git_branch branch))))
 
-(add-hook 'gemini-repl-mode-hook #'my-save-git-context)
+(add-hook 'sage-mode-hook #'my-save-git-context)
 #+end_src
 
 * Example: Daily Workflow
@@ -170,22 +170,22 @@ Each project has its own isolated conversation history.
 #+begin_src elisp
 ;; Morning: Start work on project
 (cd "~/my-project")
-(gemini-repl)  ; Loads yesterday's conversation automatically
+(sage)  ; Loads yesterday's conversation automatically
 
 ;; Throughout the day: Chat with AI
 ;; All messages are automatically saved
 
 ;; Before major refactor: Archive current state
-(gemini-repl-project-archive "before-refactor")
+(sage-project-archive "before-refactor")
 
 ;; End of day: View stats
-(gemini-repl-project-stats)
+(sage-project-stats)
 ;; => Project: /home/user/my-project
 ;; => Messages: 42 (user: 21, assistant: 21)
 ;; => Size: 15234 bytes
 
 ;; End of week: Export for documentation
-(gemini-repl-project-export "weekly-notes.md" 'markdown)
+(sage-project-export "weekly-notes.md" 'markdown)
 #+end_src
 
 * See Also

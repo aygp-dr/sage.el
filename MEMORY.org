@@ -1,14 +1,14 @@
-#+TITLE: Gemini REPL Memory System
+#+TITLE: Sage Memory System
 #+AUTHOR: Jason Walsh
 #+DATE: 2024-12-23
 
 * Overview
 
-The =gemini-repl-memory= package provides a persistent memory/facts system for the gemini-repl. It allows the AI to remember facts about you, your preferences, projects, and technical details across sessions.
+The =sage-memory= package provides a persistent memory/facts system for the sage. It allows the AI to remember facts about you, your preferences, projects, and technical details across sessions.
 
 * Features
 
-- *Persistent Storage*: Facts are stored in JSON format at =~/.emacs.d/gemini-repl/memory/facts.json=
+- *Persistent Storage*: Facts are stored in JSON format at =~/.emacs.d/sage/memory/facts.json=
 - *Categorization*: Organize facts into general, preference, project, or technical categories
 - *Automatic Timestamping*: Each fact includes when it was created/updated
 - *Context Generation*: Automatically inject facts into conversation context
@@ -16,10 +16,10 @@ The =gemini-repl-memory= package provides a persistent memory/facts system for t
 
 * Installation
 
-The memory system is automatically available when you use =gemini-repl=. Just ensure =gemini-repl-memory.el= is in your load path.
+The memory system is automatically available when you use =sage=. Just ensure =sage-memory.el= is in your load path.
 
 #+begin_src emacs-lisp
-(require 'gemini-repl-memory)
+(require 'sage-memory)
 #+end_src
 
 * Usage
@@ -28,7 +28,7 @@ The memory system is automatically available when you use =gemini-repl=. Just en
 
 *** Interactively
 #+begin_src emacs-lisp
-M-x gemini-repl-memory-add
+M-x sage-memory-add
 #+end_src
 
 You'll be prompted for:
@@ -39,59 +39,59 @@ You'll be prompted for:
 *** Programmatically
 #+begin_src emacs-lisp
 ;; Add a preference
-(gemini-repl-memory-add "editor" "Emacs" 'preference)
+(sage-memory-add "editor" "Emacs" 'preference)
 
 ;; Add a project fact
-(gemini-repl-memory-add "current-project" "gemini-repl" 'project)
+(sage-memory-add "current-project" "sage" 'project)
 
 ;; Add technical knowledge
-(gemini-repl-memory-add "language" "Emacs Lisp" 'technical)
+(sage-memory-add "language" "Emacs Lisp" 'technical)
 
 ;; Add general information (default category)
-(gemini-repl-memory-add "name" "Alice")
+(sage-memory-add "name" "Alice")
 #+end_src
 
 ** Retrieving Facts
 
 #+begin_src emacs-lisp
 ;; Get a fact
-(gemini-repl-memory-get "editor")
+(sage-memory-get "editor")
 ;; => (:key "editor" :value "Emacs" :category preference :timestamp "2024-12-23T...")
 
 ;; Interactively view a fact
-M-x gemini-repl-memory-get
+M-x sage-memory-get
 #+end_src
 
 ** Listing Facts
 
 #+begin_src emacs-lisp
 ;; List all facts
-(gemini-repl-memory-list)
+(sage-memory-list)
 
 ;; List facts by category
-(gemini-repl-memory-list 'preference)
-(gemini-repl-memory-list 'project)
+(sage-memory-list 'preference)
+(sage-memory-list 'project)
 
 ;; Interactively
-M-x gemini-repl-memory-list        ;; All facts
-C-u M-x gemini-repl-memory-list    ;; Select category
+M-x sage-memory-list        ;; All facts
+C-u M-x sage-memory-list    ;; Select category
 #+end_src
 
 ** Removing Facts
 
 #+begin_src emacs-lisp
 ;; Remove a fact
-(gemini-repl-memory-remove "editor")
+(sage-memory-remove "editor")
 
 ;; Interactively (with completion)
-M-x gemini-repl-memory-remove
+M-x sage-memory-remove
 #+end_src
 
 ** Clearing All Facts
 
 #+begin_src emacs-lisp
 ;; Clear all facts (prompts for confirmation)
-M-x gemini-repl-memory-clear
+M-x sage-memory-clear
 #+end_src
 
 ** Generating Context
@@ -100,7 +100,7 @@ The memory system automatically generates context for the AI when starting a new
 
 #+begin_src emacs-lisp
 ;; Generate context string from all facts
-(gemini-repl-memory-to-context)
+(sage-memory-to-context)
 #+end_src
 
 This returns a formatted string like:
@@ -117,7 +117,7 @@ The following facts have been learned about the user and their environment:
 
 ## Project
 
-- current-project: gemini-repl
+- current-project: sage
 - language: Emacs Lisp
 
 ## Technical
@@ -132,21 +132,21 @@ The following facts have been learned about the user and their environment:
 
 #+begin_src emacs-lisp
 ;; Automatically load facts from disk on first access (default: t)
-(setq gemini-repl-memory-auto-load t)
+(setq sage-memory-auto-load t)
 #+end_src
 
 ** Auto-saving
 
 #+begin_src emacs-lisp
 ;; Automatically save facts after modifications (default: t)
-(setq gemini-repl-memory-auto-save t)
+(setq sage-memory-auto-save t)
 #+end_src
 
 ** Storage Location
 
 #+begin_src emacs-lisp
 ;; Change where facts are stored
-(setq gemini-repl-memory-file
+(setq sage-memory-file
       (expand-file-name "my-facts.json" user-emacs-directory))
 #+end_src
 
@@ -154,10 +154,10 @@ The following facts have been learned about the user and their environment:
 
 #+begin_src emacs-lisp
 ;; Include memory context in conversations (default: t)
-(setq gemini-repl-use-memory t)
+(setq sage-use-memory t)
 
 ;; Disable memory context
-(setq gemini-repl-use-memory nil)
+(setq sage-use-memory nil)
 #+end_src
 
 * Categories
@@ -200,16 +200,16 @@ Facts are persisted as JSON:
   },
   {
     "key": "current-project",
-    "value": "gemini-repl",
+    "value": "sage",
     "category": "project",
     "timestamp": "2024-12-23T14:31:00-0800"
   }
 ]
 #+end_src
 
-* Integration with gemini-repl
+* Integration with sage
 
-When =gemini-repl-use-memory= is enabled (default), the memory context is automatically injected at the start of new conversations. This allows the AI to have context about:
+When =sage-use-memory= is enabled (default), the memory context is automatically injected at the start of new conversations. This allows the AI to have context about:
 
 - Your preferences
 - Current projects
@@ -220,26 +220,26 @@ When =gemini-repl-use-memory= is enabled (default), the memory context is automa
 
 #+begin_src emacs-lisp
 ;; Initial setup - teach the AI about yourself
-(gemini-repl-memory-add "name" "Alice" 'general)
-(gemini-repl-memory-add "editor" "Emacs" 'preference)
-(gemini-repl-memory-add "os" "FreeBSD" 'technical)
-(gemini-repl-memory-add "current-project" "gemini-repl" 'project)
-(gemini-repl-memory-add "build-tool" "gmake" 'technical)
+(sage-memory-add "name" "Alice" 'general)
+(sage-memory-add "editor" "Emacs" 'preference)
+(sage-memory-add "os" "FreeBSD" 'technical)
+(sage-memory-add "current-project" "sage" 'project)
+(sage-memory-add "build-tool" "gmake" 'technical)
 
 ;; Start a conversation - AI will know these facts
-M-x gemini-repl
+M-x sage
 
 ;; List all facts to review
-M-x gemini-repl-memory-list
+M-x sage-memory-list
 
 ;; Update a fact
-(gemini-repl-memory-add "current-project" "new-project" 'project)
+(sage-memory-add "current-project" "new-project" 'project)
 
 ;; Remove outdated fact
-(gemini-repl-memory-remove "old-fact")
+(sage-memory-remove "old-fact")
 
 ;; Save manually if auto-save is disabled
-M-x gemini-repl-memory-save
+M-x sage-memory-save
 #+end_src
 
 * Testing
@@ -248,7 +248,7 @@ Run the test suite:
 
 #+begin_src emacs-lisp
 ;; Load tests
-(load-file "test/gemini-repl-memory-test.el")
+(load-file "test/sage-memory-test.el")
 
 ;; Run all tests
 M-x ert RET t RET
@@ -261,11 +261,11 @@ M-x ert RET test-memory-add-fact RET
 
 ** Custom Categories
 
-While the system validates categories against =gemini-repl-memory-categories=, you can extend this:
+While the system validates categories against =sage-memory-categories=, you can extend this:
 
 #+begin_src emacs-lisp
 ;; Add custom categories (modify before use)
-(add-to-list 'gemini-repl-memory-categories 'personal)
+(add-to-list 'sage-memory-categories 'personal)
 #+end_src
 
 ** Batch Operations
@@ -275,17 +275,17 @@ While the system validates categories against =gemini-repl-memory-categories=, y
 (dolist (fact '(("lang-rust" "Rust" technical)
                 ("lang-elisp" "Emacs Lisp" technical)
                 ("lang-python" "Python" technical)))
-  (apply #'gemini-repl-memory-add fact))
+  (apply #'sage-memory-add fact))
 
 ;; Export facts to variable
-(defvar my-facts (gemini-repl-memory-list))
+(defvar my-facts (sage-memory-list))
 #+end_src
 
 ** Conditional Context
 
 #+begin_src emacs-lisp
 ;; Generate context only for specific categories
-(let ((project-facts (gemini-repl-memory-list 'project)))
+(let ((project-facts (sage-memory-list 'project)))
   (when project-facts
     ;; Use project-facts for context
     ...))
@@ -297,10 +297,10 @@ While the system validates categories against =gemini-repl-memory-categories=, y
 
 #+begin_src emacs-lisp
 ;; Manually load facts
-(gemini-repl-memory-load)
+(sage-memory-load)
 
 ;; Check file exists
-(file-exists-p gemini-repl-memory-file)
+(file-exists-p sage-memory-file)
 #+end_src
 
 ** Invalid JSON
@@ -309,13 +309,13 @@ If the facts file becomes corrupted:
 
 #+begin_src emacs-lisp
 ;; Backup old file
-;; mv ~/.emacs.d/gemini-repl/memory/facts.json{,.bak}
+;; mv ~/.emacs.d/sage/memory/facts.json{,.bak}
 
 ;; Clear and start fresh
-(setq gemini-repl-memory--facts nil
-      gemini-repl-memory--loaded nil)
+(setq sage-memory--facts nil
+      sage-memory--loaded nil)
 #+end_src
 
 * License
 
-Same license as gemini-repl (see main package).
+Same license as sage (see main package).

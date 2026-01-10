@@ -1,5 +1,5 @@
-#+TITLE: Gemini REPL Tools - Quick Reference
-#+AUTHOR: gemini-repl-tools.el
+#+TITLE: Sage Tools - Quick Reference
+#+AUTHOR: sage-tools.el
 #+DATE: 2024
 
 * File Operations
@@ -64,10 +64,10 @@ Parameters marked (optional) can be omitted.
 
 ** Safe Tools (Auto-allowed)
 All tools marked "Yes" in Safe column are automatically allowed unless
-~gemini-repl-confirm-safe-tools~ is set to ~t~.
+~sage-confirm-safe-tools~ is set to ~t~.
 
 ** Unsafe Tools (Require Confirmation)
-Tools marked "No" require user confirmation unless ~gemini-repl-yolo-mode~
+Tools marked "No" require user confirmation unless ~sage-yolo-mode~
 is set to ~t~.
 
 * Dependencies
@@ -87,17 +87,17 @@ is set to ~t~.
 
 #+BEGIN_SRC emacs-lisp
 ;; Set workspace directory
-(setq gemini-repl-workspace "/path/to/project")
+(setq sage-workspace "/path/to/project")
 
 ;; Skip all confirmations (use with caution!)
-(setq gemini-repl-yolo-mode t)
+(setq sage-yolo-mode t)
 
 ;; Confirm even safe tools
-(setq gemini-repl-confirm-safe-tools t)
+(setq sage-confirm-safe-tools t)
 
 ;; Load comprehensive tools
-(require 'gemini-repl-tools)
-(gemini-repl--init-default-tools)
+(require 'sage-tools)
+(sage--init-default-tools)
 #+END_SRC
 
 * Usage Examples
@@ -113,22 +113,22 @@ is set to ~t~.
 > Find all TODO comments
 [AI calls: code_search with pattern="TODO"]
 
-> What does the function `gemini-repl--execute-tool` do?
-[AI calls: describe_function with function="gemini-repl--execute-tool"]
+> What does the function `sage--execute-tool` do?
+[AI calls: describe_function with function="sage--execute-tool"]
 #+END_EXAMPLE
 
 ** Programmatic
 #+BEGIN_SRC emacs-lisp
 ;; Read a file
-(gemini-repl--tool-read-file '((path . "README.md")))
+(sage--tool-read-file '((path . "README.md")))
 
 ;; Search code
-(gemini-repl--tool-code-search
- '((pattern . "defun gemini-repl")
+(sage--tool-code-search
+ '((pattern . "defun sage")
    (file_type . "el")))
 
 ;; Get capabilities
-(gemini-repl--tool-get-capabilities '())
+(sage--tool-get-capabilities '())
 #+END_SRC
 
 * Slash Commands (REPL)

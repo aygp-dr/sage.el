@@ -1,17 +1,17 @@
-# gemini-repl.el - Claude Code Instructions
+# sage.el - Claude Code Instructions
 
 ## Project Overview
 
-Elisp implementation of Gemini REPL (version 010), providing an AI coding assistant for Emacs with multi-provider support and tool calling.
+Elisp implementation of Sage (version 010), providing an AI coding assistant for Emacs with multi-provider support and tool calling.
 
-This is the Emacs/Elisp counterpart to gemini-repl-009 (Rust).
+This is the Emacs/Elisp counterpart to sage-009 (Rust).
 
 ## Code Style
 
 - Use `lexical-binding: t` in all Elisp files
 - Follow Emacs Lisp conventions (no CamelCase, use-hyphens)
-- Prefix all public functions with `gemini-repl-`
-- Prefix all private functions with `gemini-repl--`
+- Prefix all public functions with `sage-`
+- Prefix all private functions with `sage--`
 - Use `cl-lib` for Common Lisp-style utilities
 - Document all public functions with docstrings
 
@@ -30,19 +30,19 @@ cask exec ert-runner
 
 ## Key Files
 
-- `gemini-repl.el` - Main package file
+- `sage.el` - Main package file
 - `README.org` - Documentation
 - `Cask` - Package dependencies
 
 ## Architecture
 
 ```
-gemini-repl.el
+sage.el
 ├── Customization (defcustom)
-├── Provider API (gemini-repl--format-*, --parse-*)
-├── HTTP Client (gemini-repl--request)
-├── Tools (gemini-repl-register-tool, built-ins)
-└── REPL Interface (gemini-repl-mode)
+├── Provider API (sage--format-*, --parse-*)
+├── HTTP Client (sage--request)
+├── Tools (sage-register-tool, built-ins)
+└── REPL Interface (sage-mode)
 ```
 
 ## Feature Priorities

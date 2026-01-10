@@ -1,4 +1,4 @@
-;;; gemini-repl-tools.el --- Tool definitions for gemini-repl -*- lexical-binding: t; -*-
+;;; sage-tools.el --- Tool definitions for sage -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2024 Jason Walsh
 ;; Author: Jason Walsh <j@wal.sh>
@@ -10,7 +10,7 @@
 
 ;;; Commentary:
 
-;; Comprehensive tool definitions for gemini-repl.
+;; Comprehensive tool definitions for sage.
 ;; Includes file operations, git integration, search, and Emacs-specific tools.
 
 ;;; Code:
@@ -20,10 +20,10 @@
 (require 'project nil t)
 (require 'projectile nil t)
 
-;; Declare functions from gemini-repl.el
-(declare-function gemini-repl--get-workspace "gemini-repl" ())
-(declare-function gemini-repl--safe-path-p "gemini-repl" (path))
-(declare-function gemini-repl-register-tool "gemini-repl" (name description parameters execute-fn))
+;; Declare functions from sage.el
+(declare-function sage--get-workspace "sage" ())
+(declare-function sage--safe-path-p "sage" (path))
+(declare-function sage-register-tool "sage" (name description parameters execute-fn))
 
 ;; Declare magit functions
 (declare-function magit-git-insert "magit-git" (&rest args))
@@ -33,13 +33,13 @@
 
 ;;; Tool Registry Variables
 
-(defvar gemini-repl-tools)
-(defvar gemini-repl-workspace)
-(defvar gemini-repl-yolo-mode)
-(defvar gemini-repl-confirm-safe-tools)
+(defvar sage-tools)
+(defvar sage-workspace)
+(defvar sage-yolo-mode)
+(defvar sage-confirm-safe-tools)
 
 ;; Update safe tools list when this module loads
-(defvar gemini-repl-safe-tools
+(defvar sage-safe-tools
   '("read_file" "list_files" "git_status" "git_diff" "git_log"
     "git_branch" "git_blame" "code_search" "glob_files" "search_preview"
     "describe_function" "describe_variable" "find_definition"
@@ -47,31 +47,31 @@
   "Tools that are safe (read-only) and don't require confirmation.")
 
 ;;; Helper Functions
-;; Provide fallback implementations if gemini-repl.el not loaded
+;; Provide fallback implementations if sage.el not loaded
 
-(defun gemini-repl-tools--get-workspace ()
+(defun sage-tools--get-workspace ()
   "Get current workspace directory."
-  (if (fboundp 'gemini-repl--get-workspace)
-      (gemini-repl--get-workspace)
-    (or (bound-and-true-p gemini-repl-workspace) default-directory)))
+  (if (fboundp 'sage--get-workspace)
+      (sage--get-workspace)
+    (or (bound-and-true-p sage-workspace) default-directory)))
 
-(defun gemini-repl-tools--safe-path-p (path)
+(defun sage-tools--safe-path-p (path)
   "Check if PATH is safe (within workspace, no traversal)."
-  (if (fboundp 'gemini-repl--safe-path-p)
-      (gemini-repl--safe-path-p path)
-    (let ((workspace (gemini-repl-tools--get-workspace))
-          (expanded (expand-file-name path (gemini-repl-tools--get-workspace))))
+  (if (fboundp 'sage--safe-path-p)
+      (sage--safe-path-p path)
+    (let ((workspace (sage-tools--get-workspace))
+          (expanded (expand-file-name path (sage-tools--get-workspace))))
       (and (not (string-match-p "\\.\\." path))
            (string-prefix-p (expand-file-name workspace) expanded)
            (not (string-match-p "\\(\\.env\\|\\.git/\\|\\.ssh\\|\\.gnupg\\)" path))))))
 
 ;;; FILE TOOLS
 
-(defun gemini-repl--tool-read-file (args)
+(defun sage--tool-read-file (args)
   "Read contents of a file."
   (let ((path (alist-get 'path args)))
-    (if (gemini-repl-tools--safe-path-p path)
-        (let ((full-path (expand-file-name path (gemini-repl-tools--get-workspace))))
+    (if (sage-tools--safe-path-p path)
+        (let ((full-path (expand-file-name path (sage-tools--get-workspace))))
           (if (file-exists-p full-path)
               (with-temp-buffer
                 (insert-file-contents full-path)
@@ -79,23 +79,23 @@
             (format "File not found: %s" path)))
       (format "Unsafe path: %s" path))))
 
-(defun gemini-repl--tool-write-file (args)
+(defun sage--tool-write-file (args)
   "Write content to a file."
   (let ((path (alist-get 'path args))
         (content (alist-get 'content args)))
-    (if (gemini-repl-tools--safe-path-p path)
-        (let ((full-path (expand-file-name path (gemini-repl-tools--get-workspace))))
+    (if (sage-tools--safe-path-p path)
+        (let ((full-path (expand-file-name path (sage-tools--get-workspace))))
           (with-temp-file full-path
             (insert content))
           (format "Wrote %d bytes to %s" (length content) path))
       (format "Unsafe path: %s" path))))
 
-(defun gemini-repl--tool-list-files (args)
+(defun sage--tool-list-files (args)
   "List files in a directory."
   (let ((path (or (alist-get 'path args) "."))
         (pattern (or (alist-get 'pattern args) "*")))
-    (if (gemini-repl-tools--safe-path-p path)
-        (let ((full-path (expand-file-name path (gemini-repl-tools--get-workspace))))
+    (if (sage-tools--safe-path-p path)
+        (let ((full-path (expand-file-name path (sage-tools--get-workspace))))
           (if (file-directory-p full-path)
               (mapconcat #'identity
                          (directory-files full-path nil pattern)
@@ -103,14 +103,14 @@
             (format "Not a directory: %s" path)))
       (format "Unsafe path: %s" path))))
 
-(defun gemini-repl--tool-edit-file (args)
+(defun sage--tool-edit-file (args)
   "Edit file using diff-mode patterns.
 Applies unified diff patches to files."
   (let ((path (alist-get 'path args))
         (old-text (alist-get 'old_text args))
         (new-text (alist-get 'new_text args)))
-    (if (gemini-repl-tools--safe-path-p path)
-        (let ((full-path (expand-file-name path (gemini-repl-tools--get-workspace))))
+    (if (sage-tools--safe-path-p path)
+        (let ((full-path (expand-file-name path (sage-tools--get-workspace))))
           (if (file-exists-p full-path)
               (with-temp-buffer
                 (insert-file-contents full-path)
@@ -126,25 +126,25 @@ Applies unified diff patches to files."
 
 ;;; GIT TOOLS
 
-(defun gemini-repl--use-magit-p ()
+(defun sage--use-magit-p ()
   "Check if magit is available and should be used."
   (and (featurep 'magit) (fboundp 'magit-status)))
 
-(defun gemini-repl--tool-git-status (_args)
+(defun sage--tool-git-status (_args)
   "Get git status."
-  (let ((default-directory (gemini-repl-tools--get-workspace)))
-    (if (gemini-repl--use-magit-p)
+  (let ((default-directory (sage-tools--get-workspace)))
+    (if (sage--use-magit-p)
         (with-temp-buffer
           (magit-git-insert "status" "--porcelain")
           (buffer-string))
       (shell-command-to-string "git status --porcelain"))))
 
-(defun gemini-repl--tool-git-diff (args)
+(defun sage--tool-git-diff (args)
   "Get git diff."
-  (let ((default-directory (gemini-repl-tools--get-workspace))
+  (let ((default-directory (sage-tools--get-workspace))
         (staged (alist-get 'staged args))
         (path (alist-get 'path args)))
-    (if (gemini-repl--use-magit-p)
+    (if (sage--use-magit-p)
         (with-temp-buffer
           (if staged
               (magit-git-insert "diff" "--staged" path)
@@ -155,35 +155,35 @@ Applies unified diff patches to files."
                (if staged "--staged" "")
                (or path ""))))))
 
-(defun gemini-repl--tool-git-log (args)
+(defun sage--tool-git-log (args)
   "Get git log."
-  (let ((default-directory (gemini-repl-tools--get-workspace))
+  (let ((default-directory (sage-tools--get-workspace))
         (count (or (alist-get 'count args) 10))
         (path (alist-get 'path args)))
-    (if (gemini-repl--use-magit-p)
+    (if (sage--use-magit-p)
         (with-temp-buffer
           (magit-git-insert "log" "--oneline" (format "-n%d" count) path)
           (buffer-string))
       (shell-command-to-string
        (format "git log --oneline -n %d %s" count (or path ""))))))
 
-(defun gemini-repl--tool-git-branch (_args)
+(defun sage--tool-git-branch (_args)
   "Get git branches."
-  (let ((default-directory (gemini-repl-tools--get-workspace)))
-    (if (gemini-repl--use-magit-p)
+  (let ((default-directory (sage-tools--get-workspace)))
+    (if (sage--use-magit-p)
         (with-temp-buffer
           (magit-git-insert "branch" "-a")
           (buffer-string))
       (shell-command-to-string "git branch -a"))))
 
-(defun gemini-repl--tool-git-blame (args)
+(defun sage--tool-git-blame (args)
   "Get git blame for a file."
   (let ((path (alist-get 'path args))
-        (default-directory (gemini-repl-tools--get-workspace)))
-    (if (gemini-repl-tools--safe-path-p path)
-        (let ((full-path (expand-file-name path (gemini-repl-tools--get-workspace))))
+        (default-directory (sage-tools--get-workspace)))
+    (if (sage-tools--safe-path-p path)
+        (let ((full-path (expand-file-name path (sage-tools--get-workspace))))
           (if (file-exists-p full-path)
-              (if (gemini-repl--use-magit-p)
+              (if (sage--use-magit-p)
                   (with-temp-buffer
                     (magit-git-insert "blame" path)
                     (buffer-string))
@@ -193,9 +193,9 @@ Applies unified diff patches to files."
 
 ;;; SEARCH TOOLS
 
-(defun gemini-repl--tool-code-search (args)
+(defun sage--tool-code-search (args)
   "Search code using ripgrep or grep."
-  (let ((default-directory (gemini-repl-tools--get-workspace))
+  (let ((default-directory (sage-tools--get-workspace))
         (pattern (alist-get 'pattern args))
         (file-type (alist-get 'file_type args))
         (context (or (alist-get 'context args) 2)))
@@ -207,21 +207,21 @@ Applies unified diff patches to files."
              context
              pattern))))
 
-(defun gemini-repl--tool-glob-files (args)
+(defun sage--tool-glob-files (args)
   "Find files matching a glob pattern."
   (let ((pattern (alist-get 'pattern args)))
     (mapconcat #'identity
                (file-expand-wildcards
-                (expand-file-name pattern (gemini-repl-tools--get-workspace))
+                (expand-file-name pattern (sage-tools--get-workspace))
                 t)
                "\n")))
 
-(defun gemini-repl--tool-search-preview (args)
+(defun sage--tool-search-preview (args)
   "Search with context preview."
   (let ((pattern (alist-get 'pattern args))
         (file-pattern (alist-get 'file_pattern args))
         (context-lines (or (alist-get 'context_lines args) 3))
-        (default-directory (gemini-repl-tools--get-workspace)))
+        (default-directory (sage-tools--get-workspace)))
     (shell-command-to-string
      (format "rg -n -C %d %s '%s' 2>/dev/null || grep -rn -C %d %s '%s' . 2>/dev/null"
              context-lines
@@ -233,14 +233,14 @@ Applies unified diff patches to files."
 
 ;;; EMACS-SPECIFIC TOOLS
 
-(defun gemini-repl--tool-eval-elisp (args)
+(defun sage--tool-eval-elisp (args)
   "Evaluate Elisp code safely."
   (let ((code (alist-get 'code args)))
     (condition-case err
         (format "%S" (eval (read code) t))
       (error (format "Eval error: %s" (error-message-string err))))))
 
-(defun gemini-repl--tool-describe-function (args)
+(defun sage--tool-describe-function (args)
   "Get function documentation."
   (let ((function (intern (alist-get 'function args))))
     (if (fboundp function)
@@ -250,7 +250,7 @@ Applies unified diff patches to files."
             (buffer-string)))
       (format "Function not found: %s" function))))
 
-(defun gemini-repl--tool-describe-variable (args)
+(defun sage--tool-describe-variable (args)
   "Get variable documentation."
   (let ((variable (intern (alist-get 'variable args))))
     (if (boundp variable)
@@ -260,7 +260,7 @@ Applies unified diff patches to files."
             (buffer-string)))
       (format "Variable not found: %s" variable))))
 
-(defun gemini-repl--tool-find-definition (args)
+(defun sage--tool-find-definition (args)
   "Use xref to find definitions."
   (let ((symbol (alist-get 'symbol args)))
     (if (require 'xref nil t)
@@ -280,7 +280,7 @@ Applies unified diff patches to files."
           (error (format "Xref error: %s" (error-message-string err))))
       "xref not available")))
 
-(defun gemini-repl--tool-list-buffers (_args)
+(defun sage--tool-list-buffers (_args)
   "List open buffers."
   (mapconcat
    (lambda (buf)
@@ -294,7 +294,7 @@ Applies unified diff patches to files."
    (buffer-list)
    "\n"))
 
-(defun gemini-repl--tool-switch-buffer (args)
+(defun sage--tool-switch-buffer (args)
   "Switch to buffer."
   (let ((buffer-name (alist-get 'buffer_name args)))
     (if (get-buffer buffer-name)
@@ -303,7 +303,7 @@ Applies unified diff patches to files."
           (format "Switched to buffer: %s" buffer-name))
       (format "Buffer not found: %s" buffer-name))))
 
-(defun gemini-repl--tool-insert-at-point (args)
+(defun sage--tool-insert-at-point (args)
   "Insert text at point in current buffer."
   (let ((text (alist-get 'text args))
         (buffer-name (alist-get 'buffer_name args)))
@@ -318,7 +318,7 @@ Applies unified diff patches to files."
 
 ;;; SELF-AWARENESS TOOLS
 
-(defun gemini-repl--tool-project-map (_args)
+(defun sage--tool-project-map (_args)
   "Get project structure using project.el or projectile."
   (cond
    ((and (require 'projectile nil t) (fboundp 'projectile-project-root))
@@ -342,15 +342,15 @@ Applies unified diff patches to files."
       "Not in a project"))
    (t "No project system available")))
 
-(defun gemini-repl--tool-get-capabilities (_args)
+(defun sage--tool-get-capabilities (_args)
   "List available tools and capabilities."
   (let ((tools (mapcar (lambda (tool)
                          (format "- %s: %s"
                                  (alist-get 'name tool)
                                  (alist-get 'description tool)))
-                       gemini-repl-tools)))
+                       sage-tools)))
     (format "Available tools (%d):\n%s\n\nEmacs version: %s\nFeatures: magit=%s xref=%s project=%s projectile=%s"
-            (length gemini-repl-tools)
+            (length sage-tools)
             (mapconcat #'identity tools "\n")
             emacs-version
             (featurep 'magit)
@@ -361,40 +361,40 @@ Applies unified diff patches to files."
 ;;; TOOL INITIALIZATION
 
 ;; Provide fallback implementation of register function if not available
-(defun gemini-repl-tools--register (name description parameters execute-fn)
+(defun sage-tools--register (name description parameters execute-fn)
   "Register a tool (fallback implementation).
 NAME is the tool name.
 DESCRIPTION explains what it does.
 PARAMETERS is a JSON schema for arguments.
 EXECUTE-FN is called with arguments and returns result."
-  (if (fboundp 'gemini-repl-register-tool)
-      (gemini-repl-tools--register name description parameters execute-fn)
+  (if (fboundp 'sage-register-tool)
+      (sage-tools--register name description parameters execute-fn)
     ;; Fallback: register directly
-    (unless (boundp 'gemini-repl-tools)
-      (setq gemini-repl-tools nil))
+    (unless (boundp 'sage-tools)
+      (setq sage-tools nil))
     (push `((name . ,name)
             (description . ,description)
             (parameters . ,parameters)
             (execute . ,execute-fn))
-          gemini-repl-tools)))
+          sage-tools)))
 
 ;;;###autoload
-(defun gemini-repl--init-default-tools ()
+(defun sage--init-default-tools ()
   "Initialize all default tools."
-  (when (boundp 'gemini-repl-tools)
-    (setq gemini-repl-tools nil)) ; Clear existing tools
+  (when (boundp 'sage-tools)
+    (setq sage-tools nil)) ; Clear existing tools
 
   ;; FILE TOOLS
-  (gemini-repl-tools--register
+  (sage-tools--register
    "read_file"
    "Read contents of a file"
    '((type . "object")
      (properties . ((path . ((type . "string")
                              (description . "File path relative to workspace")))))
      (required . ["path"]))
-   #'gemini-repl--tool-read-file)
+   #'sage--tool-read-file)
 
-  (gemini-repl-tools--register
+  (sage-tools--register
    "write_file"
    "Write content to a file"
    '((type . "object")
@@ -403,9 +403,9 @@ EXECUTE-FN is called with arguments and returns result."
                     (content . ((type . "string")
                                (description . "Content to write")))))
      (required . ["path" "content"]))
-   #'gemini-repl--tool-write-file)
+   #'sage--tool-write-file)
 
-  (gemini-repl-tools--register
+  (sage-tools--register
    "list_files"
    "List files in a directory"
    '((type . "object")
@@ -414,9 +414,9 @@ EXECUTE-FN is called with arguments and returns result."
                     (pattern . ((type . "string")
                                (description . "Optional glob pattern")))))
      (required . ["path"]))
-   #'gemini-repl--tool-list-files)
+   #'sage--tool-list-files)
 
-  (gemini-repl-tools--register
+  (sage-tools--register
    "edit_file"
    "Edit file by replacing old text with new text"
    '((type . "object")
@@ -427,18 +427,18 @@ EXECUTE-FN is called with arguments and returns result."
                     (new_text . ((type . "string")
                                (description . "Replacement text")))))
      (required . ["path" "old_text" "new_text"]))
-   #'gemini-repl--tool-edit-file)
+   #'sage--tool-edit-file)
 
   ;; GIT TOOLS
-  (gemini-repl-tools--register
+  (sage-tools--register
    "git_status"
    "Get git status (uses magit if available)"
    '((type . "object")
      (properties . ())
      (required . []))
-   #'gemini-repl--tool-git-status)
+   #'sage--tool-git-status)
 
-  (gemini-repl-tools--register
+  (sage-tools--register
    "git_diff"
    "Get git diff (uses magit if available)"
    '((type . "object")
@@ -447,9 +447,9 @@ EXECUTE-FN is called with arguments and returns result."
                     (path . ((type . "string")
                             (description . "Optional path to diff")))))
      (required . []))
-   #'gemini-repl--tool-git-diff)
+   #'sage--tool-git-diff)
 
-  (gemini-repl-tools--register
+  (sage-tools--register
    "git_log"
    "Get git log (uses magit if available)"
    '((type . "object")
@@ -458,27 +458,27 @@ EXECUTE-FN is called with arguments and returns result."
                     (path . ((type . "string")
                             (description . "Optional path to filter log")))))
      (required . []))
-   #'gemini-repl--tool-git-log)
+   #'sage--tool-git-log)
 
-  (gemini-repl-tools--register
+  (sage-tools--register
    "git_branch"
    "List git branches (uses magit if available)"
    '((type . "object")
      (properties . ())
      (required . []))
-   #'gemini-repl--tool-git-branch)
+   #'sage--tool-git-branch)
 
-  (gemini-repl-tools--register
+  (sage-tools--register
    "git_blame"
    "Get git blame for a file (uses magit if available)"
    '((type . "object")
      (properties . ((path . ((type . "string")
                              (description . "File path to blame")))))
      (required . ["path"]))
-   #'gemini-repl--tool-git-blame)
+   #'sage--tool-git-blame)
 
   ;; SEARCH TOOLS
-  (gemini-repl-tools--register
+  (sage-tools--register
    "code_search"
    "Search code using ripgrep or grep"
    '((type . "object")
@@ -489,18 +489,18 @@ EXECUTE-FN is called with arguments and returns result."
                     (context . ((type . "integer")
                                (description . "Context lines to show (default 2)")))))
      (required . ["pattern"]))
-   #'gemini-repl--tool-code-search)
+   #'sage--tool-code-search)
 
-  (gemini-repl-tools--register
+  (sage-tools--register
    "glob_files"
    "Find files matching a glob pattern"
    '((type . "object")
      (properties . ((pattern . ((type . "string")
                                (description . "Glob pattern (e.g., '**/*.el')")))))
      (required . ["pattern"]))
-   #'gemini-repl--tool-glob-files)
+   #'sage--tool-glob-files)
 
-  (gemini-repl-tools--register
+  (sage-tools--register
    "search_preview"
    "Search with context preview (line numbers and context)"
    '((type . "object")
@@ -511,63 +511,63 @@ EXECUTE-FN is called with arguments and returns result."
                     (context_lines . ((type . "integer")
                                      (description . "Context lines to show (default 3)")))))
      (required . ["pattern"]))
-   #'gemini-repl--tool-search-preview)
+   #'sage--tool-search-preview)
 
   ;; EMACS-SPECIFIC TOOLS
-  (gemini-repl-tools--register
+  (sage-tools--register
    "eval_elisp"
    "Evaluate Elisp code safely"
    '((type . "object")
      (properties . ((code . ((type . "string")
                              (description . "Elisp code to evaluate")))))
      (required . ["code"]))
-   #'gemini-repl--tool-eval-elisp)
+   #'sage--tool-eval-elisp)
 
-  (gemini-repl-tools--register
+  (sage-tools--register
    "describe_function"
    "Get function documentation"
    '((type . "object")
      (properties . ((function . ((type . "string")
                                 (description . "Function name to describe")))))
      (required . ["function"]))
-   #'gemini-repl--tool-describe-function)
+   #'sage--tool-describe-function)
 
-  (gemini-repl-tools--register
+  (sage-tools--register
    "describe_variable"
    "Get variable documentation"
    '((type . "object")
      (properties . ((variable . ((type . "string")
                                 (description . "Variable name to describe")))))
      (required . ["variable"]))
-   #'gemini-repl--tool-describe-variable)
+   #'sage--tool-describe-variable)
 
-  (gemini-repl-tools--register
+  (sage-tools--register
    "find_definition"
    "Use xref to find symbol definitions"
    '((type . "object")
      (properties . ((symbol . ((type . "string")
                               (description . "Symbol to find definition for")))))
      (required . ["symbol"]))
-   #'gemini-repl--tool-find-definition)
+   #'sage--tool-find-definition)
 
-  (gemini-repl-tools--register
+  (sage-tools--register
    "list_buffers"
    "List open buffers with their modes and files"
    '((type . "object")
      (properties . ())
      (required . []))
-   #'gemini-repl--tool-list-buffers)
+   #'sage--tool-list-buffers)
 
-  (gemini-repl-tools--register
+  (sage-tools--register
    "switch_buffer"
    "Switch to a buffer by name"
    '((type . "object")
      (properties . ((buffer_name . ((type . "string")
                                    (description . "Buffer name to switch to")))))
      (required . ["buffer_name"]))
-   #'gemini-repl--tool-switch-buffer)
+   #'sage--tool-switch-buffer)
 
-  (gemini-repl-tools--register
+  (sage-tools--register
    "insert_at_point"
    "Insert text at point in current buffer or specified buffer"
    '((type . "object")
@@ -576,26 +576,26 @@ EXECUTE-FN is called with arguments and returns result."
                     (buffer_name . ((type . "string")
                                    (description . "Optional buffer name (current if not specified)")))))
      (required . ["text"]))
-   #'gemini-repl--tool-insert-at-point)
+   #'sage--tool-insert-at-point)
 
   ;; SELF-AWARENESS TOOLS
-  (gemini-repl-tools--register
+  (sage-tools--register
    "project_map"
    "Get project structure using project.el or projectile"
    '((type . "object")
      (properties . ())
      (required . []))
-   #'gemini-repl--tool-project-map)
+   #'sage--tool-project-map)
 
-  (gemini-repl-tools--register
+  (sage-tools--register
    "get_capabilities"
    "List available tools and system capabilities"
    '((type . "object")
      (properties . ())
      (required . []))
-   #'gemini-repl--tool-get-capabilities)
+   #'sage--tool-get-capabilities)
 
-  (message "Initialized %d gemini-repl tools" (length gemini-repl-tools)))
+  (message "Initialized %d sage tools" (length sage-tools)))
 
-(provide 'gemini-repl-tools)
-;;; gemini-repl-tools.el ends here
+(provide 'sage-tools)
+;;; sage-tools.el ends here

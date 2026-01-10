@@ -4,7 +4,7 @@
 
 ;;; Commentary:
 
-;; Demonstrates a complete multi-agent workflow using gemini-repl-queue
+;; Demonstrates a complete multi-agent workflow using sage-queue
 ;; to coordinate between multiple AI agents performing different tasks.
 ;;
 ;; Scenario: Code review workflow
@@ -15,7 +15,7 @@
 
 ;;; Code:
 
-(require 'gemini-repl-queue)
+(require 'sage-queue)
 
 ;;; Configuration
 
@@ -132,20 +132,20 @@ Date: %s"
   (interactive)
 
   ;; Register handlers for each agent
-  (gemini-repl-queue-register-handler 'code_analysis
+  (sage-queue-register-handler 'code_analysis
                                       #'multi-agent-workflow--code-analyzer-handler)
 
-  (gemini-repl-queue-register-handler 'security_review
+  (sage-queue-register-handler 'security_review
                                       #'multi-agent-workflow--security-reviewer-handler)
 
-  (gemini-repl-queue-register-handler 'doc_review
+  (sage-queue-register-handler 'doc_review
                                       #'multi-agent-workflow--doc-reviewer-handler)
 
-  (gemini-repl-queue-register-handler 'coordinate_review
+  (sage-queue-register-handler 'coordinate_review
                                       #'multi-agent-workflow--coordinator-handler)
 
   ;; Enable watch mode for automatic processing
-  (gemini-repl-queue-watch-mode 1)
+  (sage-queue-watch-mode 1)
 
   (message "Multi-agent workflow initialized. Agents ready."))
 
@@ -155,25 +155,25 @@ Date: %s"
 FILE is the path to the file to review."
   (interactive "fFile to review: ")
 
-  (let ((review-id (gemini-repl-queue--generate-id))
+  (let ((review-id (sage-queue--generate-id))
         (content (with-temp-buffer
                    (insert-file-contents file)
                    (buffer-string))))
 
     ;; Submit to all review agents
-    (gemini-repl-queue-submit
+    (sage-queue-submit
      'code_analysis
      content
      `((file . ,file)
        (review_id . ,review-id)))
 
-    (gemini-repl-queue-submit
+    (sage-queue-submit
      'security_review
      content
      `((file . ,file)
        (review_id . ,review-id)))
 
-    (gemini-repl-queue-submit
+    (sage-queue-submit
      'doc_review
      content
      `((file . ,file)
@@ -183,7 +183,7 @@ FILE is the path to the file to review."
     (run-with-timer
      5.0 nil ; Wait 5 seconds for agents
      (lambda ()
-       (gemini-repl-queue-submit
+       (sage-queue-submit
         'coordinate_review
         "Aggregate review results"
         `((file . ,file)
@@ -218,7 +218,7 @@ FILES is a list of file paths."
                      (buffer-string))))
 
       ;; Each file gets analyzed by all agents in parallel
-      (gemini-repl-queue-submit
+      (sage-queue-submit
        'code_analysis
        content
        `((file . ,file)
@@ -233,37 +233,37 @@ FILES is a list of file paths."
   (interactive)
 
   ;; Stage 1: Extract functions
-  (gemini-repl-queue-register-handler
+  (sage-queue-register-handler
    'extract_functions
    (lambda (request)
      (let ((content (alist-get 'content request)))
        ;; Extract function definitions (simplified)
-       (gemini-repl-queue-submit
+       (sage-queue-submit
         'analyze_functions
         "function list here"
         (alist-get 'context request))
        (cons 'success "Functions extracted, queued for analysis"))))
 
   ;; Stage 2: Analyze functions
-  (gemini-repl-queue-register-handler
+  (sage-queue-register-handler
    'analyze_functions
    (lambda (request)
      (let ((functions (alist-get 'content request)))
        ;; Analyze each function
-       (gemini-repl-queue-submit
+       (sage-queue-submit
         'generate_tests
         functions
         (alist-get 'context request))
        (cons 'success "Functions analyzed, queued for test generation"))))
 
   ;; Stage 3: Generate tests
-  (gemini-repl-queue-register-handler
+  (sage-queue-register-handler
    'generate_tests
    (lambda (request)
      (cons 'success "Tests generated successfully")))
 
   ;; Start pipeline
-  (gemini-repl-queue-submit
+  (sage-queue-submit
    'extract_functions
    (buffer-substring-no-properties (point-min) (point-max))
    `((file . ,(buffer-file-name)))))
@@ -276,10 +276,10 @@ FILES is a list of file paths."
   (interactive)
 
   ;; Show queue status
-  (gemini-repl-queue-status)
+  (sage-queue-status)
 
   ;; Add workflow-specific stats
-  (with-current-buffer "*gemini-repl-queue-status*"
+  (with-current-buffer "*sage-queue-status*"
     (goto-char (point-max))
     (insert "\n\nWorkflow Status:\n")
     (insert "================\n")
@@ -303,7 +303,7 @@ FILES is a list of file paths."
 
   ;; Step 2: Submit a review
   (message "Step 2: Submitting file for review...")
-  (let ((demo-file (expand-file-name "gemini-repl-queue.el"
+  (let ((demo-file (expand-file-name "sage-queue.el"
                                      (file-name-directory (or load-file-name
                                                              buffer-file-name)))))
     (when (file-exists-p demo-file)
@@ -317,33 +317,33 @@ FILES is a list of file paths."
 
   (message "Demo complete! Check the queue status buffer for results."))
 
-;;; Integration with gemini-repl
+;;; Integration with sage
 
 ;;;###autoload
 (defun multi-agent-workflow-with-ai ()
-  "Use actual AI (gemini-repl) for agent tasks."
+  "Use actual AI (sage) for agent tasks."
   (interactive)
 
-  (require 'gemini-repl)
+  (require 'sage)
 
   ;; Override handlers to use real AI
-  (gemini-repl-queue-register-handler
+  (sage-queue-register-handler
    'code_analysis
    (lambda (request)
      (let ((content (alist-get 'content request)))
        (condition-case err
-           (let ((result (gemini-repl-exec
+           (let ((result (sage-exec
                          (format "Analyze this code for quality, style, and maintainability:\n\n%s"
                                 content))))
              (cons 'success result))
          (error (cons 'error (format "AI error: %s" err)))))))
 
-  (gemini-repl-queue-register-handler
+  (sage-queue-register-handler
    'security_review
    (lambda (request)
      (let ((content (alist-get 'content request)))
        (condition-case err
-           (let ((result (gemini-repl-exec
+           (let ((result (sage-exec
                          (format "Review this code for security vulnerabilities:\n\n%s"
                                 content))))
              (cons 'success result))

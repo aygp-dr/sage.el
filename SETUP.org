@@ -1,0 +1,1025 @@
+#+TITLE: Sage 009 - Setup and Implementation
+#+AUTHOR: AYGP-DR
+#+DATE: 2025-07-26
+#+PROPERTY: header-args:rust :tangle yes :mkdirp yes
+#+PROPERTY: header-args:toml :tangle yes :mkdirp yes
+#+PROPERTY: header-args:makefile :tangle Makefile :mkdirp yes
+
+* Overview
+
+This document contains the literate programming source for the Sage v0 implementation in Rust. Code blocks can be tangled to generate the source files.
+
+* Project Configuration
+
+** Cargo.toml
+
+#+BEGIN_SRC toml :tangle Cargo.toml
+[package]
+name = "sage"
+version = "0.1.0"
+edition = "2021"
+authors = ["AYGP-DR"]
+description = "Interactive REPL for Google's Gemini AI API"
+license = "MIT"
+repository = "https://github.com/aygp-dr/sage-009"
+keywords = ["gemini", "ai", "repl", "cli", "google"]
+categories = ["command-line-utilities"]
+
+[[bin]]
+name = "sage"
+path = "src/main.rs"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.40", features = ["full"] }
+
+# HTTP client
+reqwest = { version = "0.12", features = ["json", "stream"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# CLI
+clap = { version = "4.5", features = ["derive", "env"] }
+rustyline = "14.0"
+rustyline-derive = "0.10"
+
+# Terminal UI
+colored = "2.1"
+indicatif = "0.17"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Logging
+env_logger = "0.11"
+log = "0.4"
+
+# Configuration
+dotenv = "0.15"
+dirs = "5.0"
+toml = "0.8"
+
+# Utilities
+chrono = { version = "0.4", features = ["serde"] }
+regex = "1.10"
+base64 = "0.22"
+uuid = { version = "1.10", features = ["v4", "serde"] }
+
+[dev-dependencies]
+tokio-test = "0.4"
+mockito = "1.5"
+pretty_assertions = "1.4"
+criterion = "0.5"
+
+[[bench]]
+name = "api_bench"
+harness = false
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+opt-level = "z"
+#+END_SRC
+
+** Makefile
+
+#+BEGIN_SRC makefile :tangle Makefile
+# Sage Makefile
+
+.PHONY: all build test clean install run dev docs lint fmt help
+
+# Default target
+all: build
+
+# Build the project
+build:
+	@echo "Building sage..."
+	@cargo build --release
+
+# Run tests
+test:
+	@echo "Running tests..."
+	@cargo test
+
+# Clean build artifacts
+clean:
+	@echo "Cleaning..."
+	@cargo clean
+	@rm -rf target/
+
+# Install the binary
+install: build
+	@echo "Installing sage..."
+	@cargo install --path .
+
+# Run the REPL
+run:
+	@cargo run --release
+
+# Development mode with auto-reload
+dev:
+	@cargo watch -x run
+
+# Generate documentation
+docs:
+	@cargo doc --open
+
+# Run linter
+lint:
+	@cargo clippy -- -D warnings
+
+# Format code
+fmt:
+	@cargo fmt
+
+# Run all checks
+check: fmt lint test
+	@echo "All checks passed!"
+
+# Show help
+help:
+	@echo "Sage Makefile"
+	@echo ""
+	@echo "Available targets:"
+	@echo "  make build    - Build the project"
+	@echo "  make test     - Run tests"
+	@echo "  make clean    - Clean build artifacts"
+	@echo "  make install  - Install the binary"
+	@echo "  make run      - Run the REPL"
+	@echo "  make dev      - Run in development mode"
+	@echo "  make docs     - Generate documentation"
+	@echo "  make lint     - Run linter"
+	@echo "  make fmt      - Format code"
+	@echo "  make check    - Run all checks"
+	@echo "  make help     - Show this help"
+
+# Dependencies target for the user's request
+deps: build
+
+# Install and run for the user's request
+install-and-run: install run
+#+END_SRC
+
+* Source Code
+
+** Main Entry Point
+
+#+BEGIN_SRC rust :tangle src/main.rs
+use anyhow::Result;
+use clap::Parser;
+use colored::*;
+use env_logger;
+use log::info;
+use std::path::PathBuf;
+
+mod api;
+mod config;
+mod context;
+mod repl;
+mod tools;
+mod utils;
+
+use crate::config::Config;
+use crate::repl::Repl;
+
+/// Sage - Interactive AI conversations
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Query to send (if not provided, starts interactive mode)
+    query: Option<String>,
+
+    /// Model to use
+    #[arg(short, long, env = "GEMINI_MODEL")]
+    model: Option<String>,
+
+    /// Resume a previous session
+    #[arg(short, long)]
+    resume: Option<String>,
+
+    /// List all sessions
+    #[arg(long)]
+    list_sessions: bool,
+
+    /// Configuration file path
+    #[arg(short, long)]
+    config: Option<PathBuf>,
+
+    /// Enable debug mode
+    #[arg(short, long)]
+    debug: bool,
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Load environment variables
+    dotenv::dotenv().ok();
+
+    // Parse command line arguments
+    let args = Args::parse();
+
+    // Initialize logging
+    let log_level = if args.debug { "debug" } else { "info" };
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(log_level))
+        .init();
+
+    info!("Starting Sage v{}", env!("CARGO_PKG_VERSION"));
+
+    // Load configuration
+    let config = Config::load(args.config)?;
+
+    // Handle list sessions
+    if args.list_sessions {
+        list_sessions(&config)?;
+        return Ok(());
+    }
+
+    // Create REPL instance
+    let mut repl = Repl::new(config).await?;
+
+    // Handle resume session
+    if let Some(session_name) = args.resume {
+        repl.resume_session(&session_name)?;
+    }
+
+    // Handle one-shot query
+    if let Some(query) = args.query {
+        repl.process_query(&query).await?;
+    } else {
+        // Start interactive mode
+        print_banner();
+        repl.run().await?;
+    }
+
+    Ok(())
+}
+
+fn print_banner() {
+    println!("{}", "╔══════════════════════════════════════╗".bright_blue());
+    println!("{}", "║      🦀 Sage v0.1.0 🦀        ║".bright_blue());
+    println!("{}", "║   Rust-powered AI conversations      ║".bright_blue());
+    println!("{}", "║   Type /help for available commands  ║".bright_blue());
+    println!("{}", "╚══════════════════════════════════════╝".bright_blue());
+    println!();
+}
+
+fn list_sessions(config: &Config) -> Result<()> {
+    // TODO: Implement session listing
+    println!("Available sessions:");
+    println!("  - No sessions found");
+    Ok(())
+}
+#+END_SRC
+
+** Configuration Module
+
+#+BEGIN_SRC rust :tangle src/config.rs
+use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Config {
+    pub api: ApiConfig,
+    pub repl: ReplConfig,
+    pub logging: LoggingConfig,
+    pub tools: ToolsConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiConfig {
+    pub api_key: String,
+    pub model: String,
+    pub base_url: String,
+    pub timeout: u64,
+    pub max_retries: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReplConfig {
+    pub prompt: String,
+    pub history_size: usize,
+    pub color_enabled: bool,
+    pub session_dir: PathBuf,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoggingConfig {
+    pub level: String,
+    pub file: Option<PathBuf>,
+    pub format: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolsConfig {
+    pub enabled: bool,
+    pub sandbox_dir: PathBuf,
+    pub max_file_size: usize,
+}
+
+impl Config {
+    pub fn load(path: Option<PathBuf>) -> Result<Self> {
+        // Try to load from file if provided
+        if let Some(path) = path {
+            return Self::from_file(&path);
+        }
+
+        // Otherwise, try default locations
+        if let Some(config_path) = Self::default_config_path() {
+            if config_path.exists() {
+                return Self::from_file(&config_path);
+            }
+        }
+
+        // Fall back to environment variables
+        Self::from_env()
+    }
+
+    fn from_file(path: &Path) -> Result<Self> {
+        let content = std::fs::read_to_string(path)
+            .with_context(|| format!("Failed to read config file: {}", path.display()))?;
+        
+        toml::from_str(&content)
+            .with_context(|| format!("Failed to parse config file: {}", path.display()))
+    }
+
+    fn from_env() -> Result<Self> {
+        let api_key = std::env::var("GEMINI_API_KEY")
+            .context("GEMINI_API_KEY not set")?;
+
+        Ok(Self {
+            api: ApiConfig {
+                api_key,
+                model: std::env::var("GEMINI_MODEL")
+                    .unwrap_or_else(|_| "gemini-2.0-flash-exp".to_string()),
+                base_url: "https://generativelanguage.googleapis.com".to_string(),
+                timeout: 30,
+                max_retries: 3,
+            },
+            repl: ReplConfig {
+                prompt: "> ".to_string(),
+                history_size: 1000,
+                color_enabled: true,
+                session_dir: dirs::home_dir()
+                    .unwrap_or_else(|| PathBuf::from("."))
+                    .join(".gemini_repl")
+                    .join("sessions"),
+            },
+            logging: LoggingConfig {
+                level: "info".to_string(),
+                file: None,
+                format: "json".to_string(),
+            },
+            tools: ToolsConfig {
+                enabled: true,
+                sandbox_dir: PathBuf::from("workspace"),
+                max_file_size: 1024 * 1024, // 1MB
+            },
+        })
+    }
+
+    fn default_config_path() -> Option<PathBuf> {
+        dirs::home_dir().map(|home| home.join(".gemini_repl").join("config.toml"))
+    }
+}
+#+END_SRC
+
+** REPL Core Module
+
+#+BEGIN_SRC rust :tangle src/repl/mod.rs
+use anyhow::{Context, Result};
+use colored::*;
+use rustyline::error::ReadlineError;
+use rustyline::{DefaultEditor, Editor};
+use std::path::PathBuf;
+
+use crate::api::GeminiClient;
+use crate::config::Config;
+use crate::context::ConversationContext;
+
+pub struct Repl {
+    config: Config,
+    client: GeminiClient,
+    context: ConversationContext,
+    editor: Editor<(), rustyline::history::FileHistory>,
+}
+
+impl Repl {
+    pub async fn new(config: Config) -> Result<Self> {
+        // Create API client
+        let client = GeminiClient::new(&config)?;
+
+        // Create conversation context
+        let context = ConversationContext::new();
+
+        // Create readline editor
+        let mut editor = DefaultEditor::new()?;
+        
+        // Load history if available
+        let history_path = dirs::home_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join(".gemini_repl")
+            .join("history");
+        
+        let _ = editor.load_history(&history_path);
+
+        Ok(Self {
+            config,
+            client,
+            context,
+            editor,
+        })
+    }
+
+    pub async fn run(&mut self) -> Result<()> {
+        loop {
+            let prompt = self.get_prompt();
+            
+            match self.editor.readline(&prompt) {
+                Ok(line) => {
+                    if line.trim().is_empty() {
+                        continue;
+                    }
+
+                    // Add to history
+                    let _ = self.editor.add_history_entry(&line);
+
+                    // Process the input
+                    if let Err(e) = self.process_input(&line).await {
+                        eprintln!("{}: {}", "Error".red(), e);
+                    }
+                }
+                Err(ReadlineError::Interrupted) => {
+                    println!("{}Use /exit to quit", "^C ".yellow());
+                }
+                Err(ReadlineError::Eof) => {
+                    println!("{}Goodbye!", "".yellow());
+                    break;
+                }
+                Err(err) => {
+                    eprintln!("{}: {:?}", "Error".red(), err);
+                    break;
+                }
+            }
+        }
+
+        // Save history
+        let history_path = dirs::home_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join(".gemini_repl")
+            .join("history");
+        
+        std::fs::create_dir_all(history_path.parent().unwrap())?;
+        let _ = self.editor.save_history(&history_path);
+
+        Ok(())
+    }
+
+    pub async fn process_query(&mut self, query: &str) -> Result<()> {
+        self.process_input(query).await
+    }
+
+    pub fn resume_session(&mut self, session_name: &str) -> Result<()> {
+        // TODO: Implement session resume
+        println!("Resuming session: {}", session_name);
+        Ok(())
+    }
+
+    async fn process_input(&mut self, input: &str) -> Result<()> {
+        // Check for slash commands
+        if input.starts_with('/') {
+            return self.handle_command(input);
+        }
+
+        // Send to Gemini
+        let response = self.client.send_message(input, &self.context).await?;
+        
+        // Print response
+        println!("\n{}: {}", "Gemini".green().bold(), response.content);
+        
+        // Print metadata
+        if let Some(metadata) = response.metadata {
+            println!(
+                "[{} {} tokens | ${:.4} | {:.1}s]",
+                "🟢",
+                metadata.total_tokens,
+                metadata.estimated_cost,
+                metadata.latency
+            );
+        }
+
+        // Update context
+        self.context.add_user_message(input);
+        self.context.add_assistant_message(&response.content);
+
+        Ok(())
+    }
+
+    fn handle_command(&mut self, command: &str) -> Result<()> {
+        let parts: Vec<&str> = command.split_whitespace().collect();
+        let cmd = parts.get(0).map(|s| *s).unwrap_or("");
+
+        match cmd {
+            "/help" => self.show_help(),
+            "/exit" | "/quit" => {
+                println!("{}", "Goodbye!".yellow());
+                std::process::exit(0);
+            }
+            "/clear" => {
+                print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
+                Ok(())
+            }
+            "/context" => self.show_context(),
+            "/stats" => self.show_stats(),
+            "/reset" => {
+                self.context.clear();
+                println!("{}", "Context cleared.".green());
+                Ok(())
+            }
+            "/version" => {
+                println!("Sage v{}", env!("CARGO_PKG_VERSION"));
+                Ok(())
+            }
+            _ => {
+                println!("{}: Unknown command: {}", "Error".red(), cmd);
+                Ok(())
+            }
+        }
+    }
+
+    fn show_help(&self) -> Result<()> {
+        println!("{}", "Available Commands:".bold());
+        println!("  {}  - Show this help message", "/help".cyan());
+        println!("  {}  - Exit the REPL", "/exit".cyan());
+        println!("  {} - Clear the screen", "/clear".cyan());
+        println!("  {} - Show conversation context", "/context".cyan());
+        println!("  {} - Show session statistics", "/stats".cyan());
+        println!("  {} - Clear conversation context", "/reset".cyan());
+        println!("  {} - Show version information", "/version".cyan());
+        Ok(())
+    }
+
+    fn show_context(&self) -> Result<()> {
+        println!("{}", "Conversation Context:".bold());
+        for (i, msg) in self.context.messages.iter().enumerate() {
+            let role_color = if msg.role == "user" { "blue" } else { "green" };
+            println!(
+                "{}: {}",
+                format!("[{}] {}", i + 1, msg.role).color(role_color),
+                msg.content
+            );
+        }
+        Ok(())
+    }
+
+    fn show_stats(&self) -> Result<()> {
+        println!("{}", "Session Statistics:".bold());
+        println!("  Messages: {}", self.context.messages.len());
+        println!("  Total tokens: {}", self.context.total_tokens());
+        // TODO: Add more stats
+        Ok(())
+    }
+
+    fn get_prompt(&self) -> String {
+        if self.config.repl.color_enabled {
+            format!("{} ", self.config.repl.prompt.bright_green())
+        } else {
+            self.config.repl.prompt.clone()
+        }
+    }
+}
+#+END_SRC
+
+** API Client Module
+
+#+BEGIN_SRC rust :tangle src/api/mod.rs
+use anyhow::{Context, Result};
+use reqwest::{Client, ClientBuilder};
+use serde::{Deserialize, Serialize};
+use std::time::{Duration, Instant};
+
+use crate::config::Config;
+use crate::context::ConversationContext;
+
+pub struct GeminiClient {
+    client: Client,
+    api_key: String,
+    model: String,
+    base_url: String,
+}
+
+#[derive(Debug, Serialize)]
+struct GeminiRequest {
+    contents: Vec<Content>,
+    generation_config: GenerationConfig,
+}
+
+#[derive(Debug, Serialize)]
+struct Content {
+    role: String,
+    parts: Vec<Part>,
+}
+
+#[derive(Debug, Serialize)]
+struct Part {
+    text: String,
+}
+
+#[derive(Debug, Serialize)]
+struct GenerationConfig {
+    temperature: f32,
+    max_output_tokens: u32,
+}
+
+#[derive(Debug, Deserialize)]
+struct GeminiResponse {
+    candidates: Vec<Candidate>,
+    usage_metadata: Option<UsageMetadata>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Candidate {
+    content: Content,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UsageMetadata {
+    prompt_token_count: u32,
+    candidates_token_count: u32,
+    total_token_count: u32,
+}
+
+pub struct Response {
+    pub content: String,
+    pub metadata: Option<ResponseMetadata>,
+}
+
+pub struct ResponseMetadata {
+    pub total_tokens: u32,
+    pub estimated_cost: f64,
+    pub latency: f64,
+}
+
+impl GeminiClient {
+    pub fn new(config: &Config) -> Result<Self> {
+        let client = ClientBuilder::new()
+            .timeout(Duration::from_secs(config.api.timeout))
+            .build()
+            .context("Failed to create HTTP client")?;
+
+        Ok(Self {
+            client,
+            api_key: config.api.api_key.clone(),
+            model: config.api.model.clone(),
+            base_url: config.api.base_url.clone(),
+        })
+    }
+
+    pub async fn send_message(
+        &self,
+        message: &str,
+        context: &ConversationContext,
+    ) -> Result<Response> {
+        let start = Instant::now();
+
+        // Build contents from context
+        let mut contents = Vec::new();
+        
+        // Add context messages
+        for msg in &context.messages {
+            contents.push(Content {
+                role: msg.role.clone(),
+                parts: vec![Part {
+                    text: msg.content.clone(),
+                }],
+            });
+        }
+
+        // Add current message
+        contents.push(Content {
+            role: "user".to_string(),
+            parts: vec![Part {
+                text: message.to_string(),
+            }],
+        });
+
+        // Create request
+        let request = GeminiRequest {
+            contents,
+            generation_config: GenerationConfig {
+                temperature: 0.7,
+                max_output_tokens: 8192,
+            },
+        };
+
+        // Build URL
+        let url = format!(
+            "{}/v1beta/models/{}:generateContent?key={}",
+            self.base_url, self.model, self.api_key
+        );
+
+        // Send request
+        let response = self
+            .client
+            .post(&url)
+            .json(&request)
+            .send()
+            .await
+            .context("Failed to send request")?;
+
+        // Check status
+        if !response.status().is_success() {
+            let status = response.status();
+            let text = response.text().await.unwrap_or_default();
+            anyhow::bail!("API request failed: {} - {}", status, text);
+        }
+
+        // Parse response
+        let gemini_response: GeminiResponse = response
+            .json()
+            .await
+            .context("Failed to parse response")?;
+
+        // Extract content
+        let content = gemini_response
+            .candidates
+            .first()
+            .and_then(|c| c.content.parts.first())
+            .map(|p| p.text.clone())
+            .unwrap_or_else(|| "No response generated".to_string());
+
+        // Calculate metadata
+        let metadata = gemini_response.usage_metadata.map(|usage| {
+            let total_tokens = usage.total_token_count;
+            let estimated_cost = calculate_cost(&self.model, total_tokens);
+            let latency = start.elapsed().as_secs_f64();
+
+            ResponseMetadata {
+                total_tokens,
+                estimated_cost,
+                latency,
+            }
+        });
+
+        Ok(Response { content, metadata })
+    }
+}
+
+fn calculate_cost(model: &str, tokens: u32) -> f64 {
+    // Rough cost estimates per 1M tokens
+    let cost_per_million = match model {
+        m if m.contains("flash") => 0.075,
+        m if m.contains("pro") => 0.50,
+        _ => 0.10,
+    };
+
+    (tokens as f64 / 1_000_000.0) * cost_per_million
+}
+#+END_SRC
+
+** Context Module
+
+#+BEGIN_SRC rust :tangle src/context/mod.rs
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConversationContext {
+    pub id: String,
+    pub messages: Vec<Message>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Message {
+    pub role: String,
+    pub content: String,
+    pub timestamp: DateTime<Utc>,
+}
+
+impl ConversationContext {
+    pub fn new() -> Self {
+        Self {
+            id: Uuid::new_v4().to_string(),
+            messages: Vec::new(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    pub fn add_user_message(&mut self, content: &str) {
+        self.messages.push(Message {
+            role: "user".to_string(),
+            content: content.to_string(),
+            timestamp: Utc::now(),
+        });
+        self.updated_at = Utc::now();
+    }
+
+    pub fn add_assistant_message(&mut self, content: &str) {
+        self.messages.push(Message {
+            role: "model".to_string(),
+            content: content.to_string(),
+            timestamp: Utc::now(),
+        });
+        self.updated_at = Utc::now();
+    }
+
+    pub fn clear(&mut self) {
+        self.messages.clear();
+        self.updated_at = Utc::now();
+    }
+
+    pub fn total_tokens(&self) -> usize {
+        // Rough estimate: 1 token per 4 characters
+        self.messages
+            .iter()
+            .map(|m| m.content.len() / 4)
+            .sum()
+    }
+}
+#+END_SRC
+
+** Tools Module (Placeholder)
+
+#+BEGIN_SRC rust :tangle src/tools/mod.rs
+// Tool system implementation placeholder
+// TODO: Implement tool calling functionality
+
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Tool {
+    pub name: String,
+    pub description: String,
+}
+
+pub trait ToolExecutor {
+    fn execute(&self, args: serde_json::Value) -> Result<serde_json::Value>;
+}
+#+END_SRC
+
+** Utils Module
+
+#+BEGIN_SRC rust :tangle src/utils/mod.rs
+// Utility functions
+
+use std::path::{Path, PathBuf};
+
+pub fn ensure_dir_exists(path: &Path) -> std::io::Result<()> {
+    if !path.exists() {
+        std::fs::create_dir_all(path)?;
+    }
+    Ok(())
+}
+
+pub fn expand_tilde(path: &str) -> PathBuf {
+    if path.starts_with("~") {
+        if let Some(home) = dirs::home_dir() {
+            return home.join(&path[2..]);
+        }
+    }
+    PathBuf::from(path)
+}
+#+END_SRC
+
+* Testing
+
+** Integration Tests
+
+#+BEGIN_SRC rust :tangle tests/integration_test.rs
+use gemini_repl::*;
+
+#[tokio::test]
+async fn test_basic_functionality() {
+    // TODO: Add integration tests
+    assert!(true);
+}
+#+END_SRC
+
+* Scripts
+
+** Development Setup Script
+
+#+BEGIN_SRC bash :tangle scripts/setup.sh :shebang #!/bin/bash
+#!/bin/bash
+set -e
+
+echo "Setting up Sage development environment..."
+
+# Check for Rust
+if ! command -v cargo &> /dev/null; then
+    echo "Error: Rust is not installed. Please install from https://rustup.rs/"
+    exit 1
+fi
+
+# Create directories
+mkdir -p workspace
+mkdir -p logs
+mkdir -p .sessions
+
+# Check for .env file
+if [ ! -f .env ]; then
+    cp .env.example .env
+    echo "Created .env file. Please add your GEMINI_API_KEY."
+fi
+
+# Install dependencies
+cargo fetch
+
+echo "Setup complete! Run 'make build' to build the project."
+#+END_SRC
+
+* Documentation
+
+** API Documentation
+
+#+BEGIN_SRC markdown :tangle docs/API.md
+# Sage API Documentation
+
+## Overview
+
+The Sage provides a Rust API for interacting with Google's Gemini AI models.
+
+## Core Components
+
+### GeminiClient
+
+The main client for API interactions.
+
+```rust
+use gemini_repl::api::GeminiClient;
+
+let client = GeminiClient::new(&config)?;
+let response = client.send_message("Hello", &context).await?;
+```
+
+### ConversationContext
+
+Manages conversation history and context.
+
+```rust
+use gemini_repl::context::ConversationContext;
+
+let mut context = ConversationContext::new();
+context.add_user_message("Hello");
+context.add_assistant_message("Hi there!");
+```
+
+## Configuration
+
+See the Config struct for available options.
+#+END_SRC
+
+* Deployment
+
+** GitHub Actions Workflow
+
+#+BEGIN_SRC yaml :tangle .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build
+      run: cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose
+    - name: Run clippy
+      run: cargo clippy -- -D warnings
+#+END_SRC
+
+* Next Steps
+
+To complete the v0 implementation:
+
+1. Tangle this file: =C-c C-v t= in Emacs or use =org-babel-tangle=
+2. Build the project: =make build=
+3. Set up your API key in =.env=
+4. Run the REPL: =make run=
+
+For further development:
+- Implement the tool system
+- Add session persistence
+- Enhance error handling
+- Add more tests
+- Implement streaming responses

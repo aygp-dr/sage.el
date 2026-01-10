@@ -1,7 +1,7 @@
 (source gnu)
 (source melpa)
 
-(package-file "gemini-repl.el")
+(package-file "sage.el")
 
 (development
  (depends-on "ert")

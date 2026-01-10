@@ -1,0 +1,358 @@
+#+TITLE: PROMPTS.org - From-Scratch Development Template
+#+AUTHOR: jwalsh + Claude  
+#+DATE: 2025-07-14
+#+STARTUP: overview
+
+* README: How to Use This Template
+
+This document serves as a *from-scratch development template* for creating AI-assisted software projects using the proven methodologies discovered in the Sage development process.
+
+** For Iterative Development
+Each iteration follows this pattern:
+1. Start with this template
+2. Document every prompt in real-time
+3. Track methodology discoveries
+4. Rebuild template with learnings
+5. Repeat for continuous improvement
+
+** Core Philosophy
+#+BEGIN_QUOTE
+"Document every prompt, track every decision, enable perfect reproduction."
+#+END_QUOTE
+
+* Phase 1: Initial Vision and Concept
+
+** The Three Foundation Prompts
+Every successful AI-assisted project begins with these three critical prompts:
+
+*** 1. Technology and Scope Definition
+#+BEGIN_SRC
+"I want to [DESCRIBE BASIC FUNCTIONALITY] using [TECHNOLOGY STACK] in a [FORMAT/INTERFACE] format"
+#+END_SRC
+
+*Example from Sage:*
+#+BEGIN_QUOTE
+"i want to have a simple, simple console app in clojurescript that just makes calls to curl [Gemini API endpoint] but in a repl-ish format"
+#+END_QUOTE
+
+*** 2. User Interface and Interaction Design  
+#+BEGIN_SRC
+"The [COMMANDS/INTERFACE] should use [SPECIFIC PATTERN/STRUCTURE]"
+#+END_SRC
+
+*Example from Sage:*
+#+BEGIN_QUOTE
+"the exit and help commands should use a slash structure"
+#+END_QUOTE
+
+*** 3. Development Methodology Decision
+#+BEGIN_SRC
+"I want to start by using [METHODOLOGY/APPROACH] to [ENSURE QUALITY/SAFETY/STRUCTURE]"
+#+END_SRC
+
+*Example from Sage:*
+#+BEGIN_QUOTE  
+"i want to start by using formal methods to describe the interfaces or expectations of the system"
+#+END_QUOTE
+
+** Vision Documentation Template
+#+BEGIN_SRC org
+*** Project: [PROJECT NAME]
+*** Technology Stack: [LANGUAGES/FRAMEWORKS/TOOLS]
+*** Interface Type: [CLI/WEB/API/DESKTOP]
+*** Quality Approach: [TESTING/FORMAL-METHODS/TDD/BDD]
+*** Success Criteria: [WHAT CONSTITUTES SUCCESS]
+#+END_SRC
+
+* Phase 2: Literate Programming and Structure Generation
+
+** The .org File Generation Pattern
+The most powerful pattern discovered: *generate comprehensive project structure through literate programming files*.
+
+** Setup File Generation Sequence
+*** 1. SETUP.org - Foundation
+#+BEGIN_SRC
+"show a SETUP.org that just builds out those initial files"
+#+END_SRC
+
+*Purpose:* Create complete project directory structure, initial configurations, and scaffolding.
+
+*** 2. [TECH]-SETUP.org - Technology Environment
+#+BEGIN_SRC
+"create [TECHNOLOGY]-SETUP.org for [SPECIFIC ENVIRONMENT/PLATFORM]"
+#+END_SRC
+
+*Purpose:* Development environment, build tools, language-specific configuration.
+
+*** 3. [INFRASTRUCTURE]-SETUP.org - Supporting Systems
+#+BEGIN_SRC
+"show [INFRASTRUCTURE]-SETUP.org"
+#+END_SRC
+
+*Purpose:* CI/CD, GitHub integration, project management, documentation systems.
+
+*** 4. SHARED-SETUP.org - Cross-Project Infrastructure
+#+BEGIN_SRC
+"i want a SHARED-SETUP.org that creates directories for [PROJECT MANAGEMENT STRUCTURE] as well as [TOOL INTEGRATIONS]"
+#+END_SRC
+
+*Purpose:* Reusable infrastructure, command systems, research frameworks.
+
+** Tangling and Cleanup Process
+#+BEGIN_SRC bash
+# For each .org file:
+1. Generate .org file with AI assistance
+2. Review and validate structure
+3. Tangle (extract) actual files from org blocks
+4. Test generated structure
+5. Remove .org file after successful extraction
+6. Commit with detailed git notes
+#+END_SRC
+
+* Phase 3: Systematic Development with Issue Tracking
+
+** Issue-Driven Development Pattern
+Every change, however small, follows this pattern:
+
+*** 1. Issue Creation
+#+BEGIN_SRC
+"add a gh issue for [DESCRIPTION] then [IMPLEMENTATION INSTRUCTION]"
+#+END_SRC
+
+*** 2. Implementation
+#+BEGIN_SRC
+"implement that change" OR "ok, smallest possible change to implement that"
+#+END_SRC
+
+*** 3. Verification
+#+BEGIN_SRC
+"gmake lint test verify" OR project-specific validation commands
+#+END_SRC
+
+*** 4. Closure
+#+BEGIN_SRC
+Close issue with detailed implementation notes and verification results
+#+END_SRC
+
+** Git Workflow Template
+#+BEGIN_SRC bash
+# Every commit follows this pattern:
+git add [files]
+git commit -m "[type]([scope]): [description]
+
+- [Detail 1]
+- [Detail 2]
+- [Verification steps]
+
+Closes #[issue]" --trailer "Co-Authored-By: Claude <noreply@anthropic.com>"
+
+# Always add git notes:
+git notes add -m "Session prompts used:
+- [Prompt 1]: [Context and outcome]
+- [Prompt 2]: [Context and outcome]
+- [Summary of session achievements]"
+#+END_SRC
+
+* Phase 4: Quality Assurance and Formal Methods
+
+** Formal Specification Integration
+*** When to Add Formal Methods
+- Critical system behavior
+- Safety-critical operations  
+- Complex state management
+- API contracts and interfaces
+
+*** TLA+ Specification Pattern
+#+BEGIN_SRC
+"can you create a spec for the [SYSTEM COMPONENT] of the [PROJECT]"
+#+END_SRC
+
+*** Alloy Model Pattern  
+#+BEGIN_SRC
+"create an alloy model for [STRUCTURAL VALIDATION] of [COMPONENT]"
+#+END_SRC
+
+** Verification Pipeline
+#+BEGIN_SRC makefile
+# Standard verification targets:
+verify: verify-tla verify-alloy
+lint: lint-code lint-scripts
+test: test-unit test-integration
+build: compile package
+#+END_SRC
+
+* Phase 5: Advanced Features and Self-Hosting
+
+** Command System Development
+*** Slash Command Pattern
+#+BEGIN_SRC
+"add /[command] command that [FUNCTIONALITY]"
+#+END_SRC
+
+*** Help System
+#+BEGIN_SRC
+"implement /help command showing all available commands"
+#+END_SRC
+
+** Self-Analysis and Capability Assessment
+*** Regular Self-Assessment
+#+BEGIN_SRC
+"/self-analyze"
+#+END_SRC
+
+*Purpose:* Document current capabilities, limitations, and growth opportunities.
+
+** Research Integration
+*** Systematic Research Documentation
+#+BEGIN_SRC
+"/research [topic]"
+#+END_SRC
+
+*Structure:*
+#+BEGIN_SRC
+research/[topic]/
+├── README.org         # Overview and findings
+├── sources.org        # Bibliography
+├── notes/            # Detailed investigation
+└── recommendations.org
+#+END_SRC
+
+* Prompt Templates by Development Phase
+
+** Project Initialization
+#+BEGIN_SRC
+1. "[BASIC FUNCTIONALITY] using [TECH STACK] in [FORMAT]"
+2. "[INTERFACE] should use [PATTERN]" 
+3. "start by using [METHODOLOGY] to [ENSURE QUALITY]"
+4. "show a SETUP.org that builds out initial files"
+#+END_SRC
+
+** Feature Development
+#+BEGIN_SRC
+1. "add a gh issue for [FEATURE] then implement"
+2. "smallest possible change to implement [REQUIREMENT]"
+3. "add [COMMAND/FUNCTION] that [BEHAVIOR]"
+4. "fix [ISSUE] with [APPROACH]"
+#+END_SRC
+
+** Quality and Testing
+#+BEGIN_SRC
+1. "gmake lint test verify"
+2. "add tests for [FUNCTIONALITY]"
+3. "create formal spec for [COMPONENT]"
+4. "run security review on [SYSTEM]"
+#+END_SRC
+
+** Documentation and Analysis
+#+BEGIN_SRC
+1. "/mise-en-place" - workspace organization
+2. "/self-analyze" - capability assessment  
+3. "/research [topic]" - investigate area
+4. "/security-review" - security analysis
+#+END_SRC
+
+* Iteration and Improvement Patterns
+
+** After Each Development Session
+1. **Document all prompts** in git notes
+2. **Update this template** with new patterns discovered
+3. **Commit template changes** with methodology notes
+4. **Prepare for next iteration** with clean starting point
+
+** Template Evolution Process
+#+BEGIN_SRC
+Session N: Use current template → Document new patterns
+Session N+1: Update template → Test improvements  
+Session N+2: Refine template → Validate methodology
+Repeat: Continuous template improvement
+#+END_SRC
+
+** Methodology Metrics
+Track these metrics across iterations:
+- Time from vision to working prototype
+- Number of prompts to achieve functionality
+- Quality gate success rate
+- Template reusability across projects
+
+* Anti-Patterns and Lessons Learned
+
+** Avoid These Patterns
+*** 1. Undocumented Prompts
+*Problem:* Losing reproducibility and learning
+*Solution:* Always document in git notes
+
+*** 2. Monolithic Changes
+*Problem:* Hard to debug and verify
+*Solution:* "Smallest possible change" approach
+
+*** 3. Skipping Quality Gates
+*Problem:* Technical debt accumulation
+*Solution:* Always run lint/test/verify before commit
+
+*** 4. Missing Issue Tracking
+*Problem:* Lost context and decision history
+*Solution:* Create issue for every change
+
+** Successful Patterns to Amplify
+*** 1. Literate Programming
+*Benefit:* Rapid, comprehensive project generation
+*Application:* Use .org files for major structure changes
+
+*** 2. Formal Methods Integration
+*Benefit:* Safety constraints and behavior validation
+*Application:* Critical system components and APIs
+
+*** 3. Systematic Documentation
+*Benefit:* Perfect reproducibility and knowledge transfer
+*Application:* Every prompt, decision, and outcome
+
+*** 4. Issue-Driven Development
+*Benefit:* Complete traceability and context preservation
+*Application:* All changes, even trivial ones
+
+* Next Iteration Preparation
+
+** Before Starting Next Project
+1. **Review this template** for completeness
+2. **Prepare development environment** with tools
+3. **Define success criteria** for the iteration
+4. **Set up tracking systems** (git, issues, documentation)
+
+** Success Criteria for Template Validation
+- [ ] Can reproduce project from scratch using only this template
+- [ ] All major methodologies documented with examples  
+- [ ] Reusable patterns extracted and tested
+- [ ] Quality gates integrated and validated
+- [ ] Documentation systems functional
+
+** Template Improvement Areas
+*Current gaps to address in next iteration:*
+- [ ] Automated testing integration patterns
+- [ ] Deployment and distribution workflows
+- [ ] Multi-language project templates
+- [ ] Collaborative development patterns
+- [ ] Performance optimization methodologies
+
+---
+
+*This template represents the distilled methodology for AI-assisted software development, designed for infinite iteration and continuous improvement.*
+
+** Meta-Learning Loop
+#+BEGIN_SRC
+Use Template → Document Discoveries → Update Template → Test Improvements → Repeat
+#+END_SRC
+
+Each iteration makes the next one more efficient and effective.
+
+** Repository Template Checklist
+When starting fresh:
+- [ ] Initialize git repository
+- [ ] Set up direnv for environment management
+- [ ] Create .env.example with all configuration options
+- [ ] Establish conventional commit patterns
+- [ ] Set up issue tracking with labels
+- [ ] Configure quality gates (lint/test/verify)
+- [ ] Document methodology in PROMPTS.org
+- [ ] Track all prompts in git notes
+
+*End of from-scratch template. Ready for infinite iteration and improvement.*

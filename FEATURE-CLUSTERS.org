@@ -1,0 +1,247 @@
+#+TITLE: Feature Clusters and Dependencies
+#+AUTHOR: AYGP-DR
+#+DATE: 2025-07-26
+
+* Feature Cluster Dependency Graph
+
+#+BEGIN_SRC
+┌─────────────────────────────────────────────────────────────────┐
+│                        PHASE 5: ADVANCED                       │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
+│  │  Extended Tools │  │ Advanced Session│  │  Experimental   │  │
+│  │ • run_command   │  │ • Branching     │  │ • Multi-model   │  │
+│  │ • edit_file     │  │ • Templates     │  │ • Plugins       │  │
+│  │ • search_replace│  │ • Analytics     │  │ • Web UI        │  │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
+└───────────────────────────┬───────────────────────────────────────┘
+                            │
+                     ┌──────▼──────┐
+                     │ Dependencies │
+                     └──────┬──────┘
+                            │
+┌─────────────────────────────────────────────────────────────────┐
+│                       PHASE 4: PRODUCTION                      │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
+│  │  Performance   │  │ Error Handling  │  │ UI Enhancement  │  │
+│  │ • Streaming     │  │ • Graceful fail │  │ • Progress bars │  │
+│  │ • Async ops     │  │ • Recovery      │  │ • Status line   │  │
+│  │ • Caching       │  │ • Timeouts      │  │ • Themes        │  │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
+└───────────────────────────┬───────────────────────────────────────┘
+                            │
+                     ┌──────▼──────┐
+                     │ Dependencies │
+                     └──────┬──────┘
+                            │
+┌─────────────────────────────────────────────────────────────────┐
+│                     PHASE 3: TOOL SYSTEM                       │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
+│  │ Security Sandbox│  │   Core Tools    │  │ Tool Integration│  │
+│  │ • Path validate │  │ • read_file     │  │ • Function call │  │
+│  │ • Workspace     │  │ • write_file    │  │ • Validation    │  │
+│  │ • Symlink block │  │ • list_files    │  │ • Error handle  │  │
+│  │ • Size limits   │  │ • search_files  │  │ • Usage logging │  │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
+└───────────────────────────┬───────────────────────────────────────┘
+                            │
+                     ┌──────▼──────┐
+                     │ Dependencies │
+                     └──────┬──────┘
+                            │
+┌─────────────────────────────────────────────────────────────────┐
+│                   PHASE 2: CONTEXT MANAGEMENT                  │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
+│  │ Conversation    │  │Session Persist  │  │ Token Mgmt      │  │
+│  │ • History track │  │ • Save/load     │  │ • Counting      │  │
+│  │ • Role mgmt     │  │ • Named sessions│  │ • Cost estimate │  │
+│  │ • Multi-turn    │  │ • Auto-save     │  │ • Window limits │  │
+│  │ • Context valid │  │ • Metadata      │  │ • Pruning warn  │  │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
+└───────────────────────────┬───────────────────────────────────────┘
+                            │
+                     ┌──────▼──────┐
+                     │ Dependencies │
+                     └──────┬──────┘
+                            │
+┌─────────────────────────────────────────────────────────────────┐
+│                     PHASE 1: FOUNDATION                        │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
+│  │ Core REPL Loop  │  │  API Client     │  │ Command System  │  │
+│  │ • Readline      │  │ • HTTP client   │  │ • Parser        │  │
+│  │ • Prompt handle │  │ • Auth mgmt     │  │ • Dispatcher    │  │
+│  │ • Signal handle │  │ • Error handle  │  │ • Registry      │  │
+│  │ • Terminal caps │  │ • Retry logic   │  │ • Help system   │  │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+#+END_SRC
+
+* Critical Path Analysis
+
+** Must-Have Dependencies
+
+*** Context Depends on Foundation
+- REPL loop must be stable for multi-turn conversations
+- API client must handle conversation history
+- Command system needed for context commands
+
+*** Tools Depend on Context
+- Tool usage is 80% multi-turn conversations
+- Session persistence enables complex tool workflows
+- Context commands needed for tool debugging
+
+*** Production Depends on Tools
+- Performance optimization requires working tools
+- Error handling must cover tool failures
+- UI enhancements build on complete system
+
+** Can Be Parallel
+
+*** Within Phase 1 (Foundation)
+- REPL loop and API client can develop in parallel
+- Command system can start once REPL basics work
+- Logging can be added incrementally
+
+*** Within Phase 2 (Context)
+- Conversation and session features somewhat independent
+- Token management can be added later
+- Context commands need conversation working first
+
+*** Within Phase 3 (Tools)
+- Security sandbox is prerequisite for all tools
+- Individual tools can be added incrementally
+- Tool integration layer needs at least one tool working
+
+* Risk Assessment by Cluster
+
+** High Risk (⚠️)
+- **Signal Handling**: Multiple versions failed here
+- **Security Sandbox**: Critical vulnerability if wrong
+- **API Integration**: External dependency, can change
+
+** Medium Risk (⚡)
+- **Context Management**: Easy to lose user data
+- **Tool Integration**: Complex Gemini function calling
+- **Session Persistence**: Data corruption risks
+
+** Low Risk (✅)
+- **Command System**: Well-understood patterns
+- **Logging**: Standard libraries available
+- **UI Enhancements**: Nice-to-have features
+
+* Feature Usage Statistics (from Analysis)
+
+** Core Features (Used by 100% of users)
+- Basic REPL operations
+- API communication
+- Help system
+- Clean exit
+
+** High-Value Features (Used by 80%+ of users)
+- Conversation history
+- Session save/load
+- File read/write tools
+- Error recovery
+
+** Medium-Value Features (Used by 40-60% of users)
+- Advanced context commands
+- Progress indicators
+- Configuration management
+- Search tools
+
+** Low-Value Features (Used by <20% of users)
+- Session branching
+- Plugin system
+- Web interface
+- Multi-model support
+
+* Implementation Effort vs Value Matrix
+
+#+BEGIN_SRC
+High Value │ Context Mgmt    │ Tool System     │
+          │ Session Persist │ Security        │
+          │                 │                 │
+Medium    │ UI Enhancement  │ Performance     │
+Value     │ Error Handling  │ Config Mgmt     │
+          │                 │                 │
+Low Value │ Advanced Tools  │ Experimental    │
+          │ Plugins         │ Multi-model     │
+          └─────────────────┼─────────────────┘
+            Low Effort        High Effort
+#+END_SRC
+
+** Quick Wins (High Value, Low Effort)
+- Context management
+- Session persistence
+- Basic tool system
+- Error recovery
+
+** Strategic Investments (High Value, High Effort)
+- Security sandbox
+- Performance optimization
+- Comprehensive testing
+
+** Nice-to-Have (Low Value, Low Effort)
+- UI themes
+- Additional commands
+- Status indicators
+
+** Avoid (Low Value, High Effort)
+- Plugin architecture
+- Multi-model support
+- Web interface
+
+* Testing Strategy by Cluster
+
+** Foundation Testing
+- Unit tests for all core functions
+- Integration tests for API client
+- Signal handling tests (automated)
+- Terminal capability tests
+
+** Context Testing
+- Conversation flow tests
+- Session persistence tests
+- Token counting accuracy tests
+- Memory leak tests
+
+** Tool Testing
+- Security boundary tests (critical)
+- Function calling integration tests
+- File operation tests
+- Sandbox escape attempt tests
+
+** Production Testing
+- Performance benchmarks
+- Error scenario tests
+- Load testing
+- User experience tests
+
+* Success Metrics by Phase
+
+** Phase 1: Foundation
+- ✅ REPL starts and responds
+- ✅ API calls succeed
+- ✅ No crashes on edge cases
+- ✅ Clean shutdown works
+
+** Phase 2: Context
+- ✅ Multi-turn conversations work
+- ✅ Sessions save/load correctly
+- ✅ Token counts accurate
+- ✅ No data loss
+
+** Phase 3: Tools
+- ✅ Security audit passes
+- ✅ All tools functional
+- ✅ Self-hosting capability
+- ✅ No privilege escalation
+
+** Phase 4: Production
+- ✅ <50ms startup time
+- ✅ <500ms first response
+- ✅ Graceful error recovery
+- ✅ Production-ready logs
+
+---
+
+This analysis provides clear guidance for implementation sequencing and risk management.

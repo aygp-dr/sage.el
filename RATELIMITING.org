@@ -1,10 +1,10 @@
-#+TITLE: Rate Limiting in gemini-repl
+#+TITLE: Rate Limiting in sage
 #+AUTHOR: Jason Walsh
 #+DATE: 2024-12-23
 
 * Overview
 
-The =gemini-repl-ratelimit= module provides automatic rate limiting for API requests to prevent exceeding provider limits and potential service interruptions or account penalties.
+The =sage-ratelimit= module provides automatic rate limiting for API requests to prevent exceeding provider limits and potential service interruptions or account penalties.
 
 * Features
 
@@ -64,7 +64,7 @@ This buffer prevents hitting hard limits due to timing variations or concurrent 
 
 Configure via:
 #+begin_src elisp
-(setq gemini-repl-ratelimit-safety-margin 0.8)  ; 80% instead of 90%
+(setq sage-ratelimit-safety-margin 0.8)  ; 80% instead of 90%
 #+end_src
 
 ** Wait Strategy
@@ -81,7 +81,7 @@ When rate limited:
 
 ** Automatic Integration
 
-Rate limiting is automatically applied to all API requests in =gemini-repl=. No configuration needed.
+Rate limiting is automatically applied to all API requests in =sage=. No configuration needed.
 
 ** REPL Commands
 
@@ -104,7 +104,7 @@ Rate limit reset for gemini-2.0-flash-exp
 *** Check if Request Allowed
 
 #+begin_src elisp
-(if (gemini-repl-ratelimit-check "gemini-2.0-flash-exp")
+(if (sage-ratelimit-check "gemini-2.0-flash-exp")
     (message "Can make request")
   (message "Rate limited"))
 #+end_src
@@ -112,20 +112,20 @@ Rate limit reset for gemini-2.0-flash-exp
 *** Record a Request
 
 #+begin_src elisp
-(gemini-repl-ratelimit-record "gemini-2.0-flash-exp")
+(sage-ratelimit-record "gemini-2.0-flash-exp")
 #+end_src
 
 *** Wait Until Allowed
 
 #+begin_src elisp
 ;; Blocks until request is allowed
-(gemini-repl-ratelimit-wait "gemini-2.0-flash-exp")
+(sage-ratelimit-wait "gemini-2.0-flash-exp")
 #+end_src
 
 *** Wrap Request with Rate Limiting
 
 #+begin_src elisp
-(gemini-repl-ratelimit-wrap-request
+(sage-ratelimit-wrap-request
  "gemini-2.0-flash-exp"
  (lambda ()
    ;; Make API request here
@@ -136,10 +136,10 @@ Rate limit reset for gemini-2.0-flash-exp
 
 #+begin_src elisp
 ;; Interactive
-M-x gemini-repl-ratelimit-status
+M-x sage-ratelimit-status
 
 ;; Programmatic
-(gemini-repl-ratelimit-status "gemini-2.0-flash-exp")
+(sage-ratelimit-status "gemini-2.0-flash-exp")
 #+end_src
 
 ** Modeline Display
@@ -147,7 +147,7 @@ M-x gemini-repl-ratelimit-status
 Enable real-time rate limit display in the modeline:
 
 #+begin_src elisp
-(gemini-repl-ratelimit-enable-modeline "gemini-2.0-flash-exp")
+(sage-ratelimit-enable-modeline "gemini-2.0-flash-exp")
 #+end_src
 
 Shows:
@@ -162,10 +162,10 @@ Add or modify model limits:
 
 #+begin_src elisp
 ;; Set custom limit for a model
-(gemini-repl-ratelimit-configure-limit "my-custom-model" 20)  ; 20 RPM
+(sage-ratelimit-configure-limit "my-custom-model" 20)  ; 20 RPM
 
 ;; Set unlimited
-(gemini-repl-ratelimit-configure-limit "my-local-model" nil)
+(sage-ratelimit-configure-limit "my-local-model" nil)
 #+end_src
 
 ** Countdown Display
@@ -173,7 +173,7 @@ Add or modify model limits:
 Disable countdown timer:
 
 #+begin_src elisp
-(setq gemini-repl-ratelimit-show-countdown nil)
+(setq sage-ratelimit-show-countdown nil)
 #+end_src
 
 ** Time Window
@@ -181,16 +181,16 @@ Disable countdown timer:
 Change from 60 seconds (default for RPM):
 
 #+begin_src elisp
-(setq gemini-repl-ratelimit-window 120)  ; 2 minutes
+(setq sage-ratelimit-window 120)  ; 2 minutes
 #+end_src
 
 * Testing
 
-The module includes comprehensive tests in =test/gemini-repl-ratelimit-test.el=.
+The module includes comprehensive tests in =test/sage-ratelimit-test.el=.
 
 Run tests:
 #+begin_src bash
-cd /path/to/gemini-repl-010
+cd /path/to/sage-010
 gmake test-ratelimit
 #+end_src
 
@@ -208,12 +208,12 @@ Test coverage includes:
 ** Data Structures
 
 #+begin_src
-gemini-repl-ratelimit--history (hash-table)
+sage-ratelimit--history (hash-table)
   ├─ "model-name-1" → ring-buffer of timestamps
   ├─ "model-name-2" → ring-buffer of timestamps
   └─ ...
 
-gemini-repl-ratelimit--limits (alist)
+sage-ratelimit--limits (alist)
   ├─ ("gemini-2.0-flash-exp" . 10)
   ├─ ("gpt-4o" . 10)
   └─ ...
@@ -221,11 +221,11 @@ gemini-repl-ratelimit--limits (alist)
 
 ** Flow
 
-1. User makes request via =gemini-repl--request=
-2. Request wrapped by =gemini-repl-ratelimit-wrap-request=
-3. Check if allowed via =gemini-repl-ratelimit-check=
-4. If not allowed, wait via =gemini-repl-ratelimit-wait=
-5. Record request via =gemini-repl-ratelimit-record=
+1. User makes request via =sage--request=
+2. Request wrapped by =sage-ratelimit-wrap-request=
+3. Check if allowed via =sage-ratelimit-check=
+4. If not allowed, wait via =sage-ratelimit-wait=
+5. Record request via =sage-ratelimit-record=
 6. Proceed with actual API call
 
 * Examples
@@ -234,7 +234,7 @@ gemini-repl-ratelimit--limits (alist)
 
 #+begin_src elisp
 ;; Start REPL
-M-x gemini-repl
+M-x sage
 
 ;; Check rate limit status
 > /ratelimit
@@ -254,25 +254,25 @@ gemini-2.0-flash-exp: 3/9 requests used (33% limit, safety margin: 90%). Ready
 
 #+begin_src elisp
 ;; Configure custom model
-(gemini-repl-ratelimit-configure-limit "claude-3-opus" 5)
+(sage-ratelimit-configure-limit "claude-3-opus" 5)
 
 ;; Use in code
 (defun my-ai-function ()
-  (gemini-repl-ratelimit-wrap-request
+  (sage-ratelimit-wrap-request
    "claude-3-opus"
    (lambda ()
      ;; Make API call
      (my-api-call-to-claude))))
 
 ;; Check status
-(gemini-repl-ratelimit-status "claude-3-opus")
+(sage-ratelimit-status "claude-3-opus")
 #+end_src
 
 ** Monitoring
 
 #+begin_src elisp
 ;; Enable modeline
-(gemini-repl-ratelimit-enable-modeline "gemini-2.0-flash-exp")
+(sage-ratelimit-enable-modeline "gemini-2.0-flash-exp")
 
 ;; Watch in modeline as you make requests
 ;; [RL:0/9] → [RL:1/9] → [RL:2/9] → ...
@@ -295,7 +295,7 @@ gemini-2.0-flash-exp: 3/9 requests used (33% limit, safety margin: 90%). Ready
 
 ** Modeline Not Updating
 
-- Ensure =gemini-repl-ratelimit-enable-modeline= was called
+- Ensure =sage-ratelimit-enable-modeline= was called
 - Check that timer is running
 - Force update: =M-x force-mode-line-update=
 
@@ -313,4 +313,4 @@ Potential improvements:
 
 * License
 
-GPL-3.0 (same as gemini-repl)
+GPL-3.0 (same as sage)

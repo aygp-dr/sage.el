@@ -1,10 +1,21 @@
-#+TITLE: gemini-repl.el - AI REPL with Tool Calling for Emacs
+#+TITLE: sage.el - AI REPL with Tool Calling for Emacs
 #+AUTHOR: Jason Walsh
 #+EMAIL: j@wal.sh
 
+[[https://github.com/aygp-dr/sage.el/actions][https://img.shields.io/github/actions/workflow/status/aygp-dr/sage.el/test.yml?branch=main&style=flat-square]]
+[[https://www.gnu.org/software/emacs/][https://img.shields.io/badge/Emacs-28.1+-blueviolet.svg?style=flat-square]]
+[[https://github.com/aygp-dr/sage.el/blob/main/LICENSE][https://img.shields.io/badge/license-GPL--3.0-blue.svg?style=flat-square]]
+[[https://melpa.org/#/sage][https://img.shields.io/badge/MELPA-planned-orange.svg?style=flat-square]]
+
 * Overview
 
-=gemini-repl= is an Emacs package providing an interactive AI REPL with tool/function calling capabilities. It supports multiple LLM providers (Gemini, Ollama, OpenAI) and includes built-in tools for file operations, code search, and git commands.
+=sage.el= is an Emacs package providing an interactive AI REPL with tool/function calling capabilities. It supports multiple LLM providers (Gemini, Ollama, OpenAI) with a local-first philosophy - use Ollama for free, private AI assistance.
+
+| Provider | Local | API Key | Models |
+|----------+-------+---------+--------|
+| Ollama | Yes | No | llama3.2, mistral, qwen2.5 |
+| Gemini | No | Yes | gemini-2.0-flash, gemini-1.5-pro |
+| OpenAI | No | Yes | gpt-4o, gpt-4o-mini |
 
 This is the Elisp version of [[https://github.com/aygp-dr/gemini-repl-009][gemini-repl-009]] (Rust implementation).
 
@@ -39,35 +50,35 @@ This is the Elisp version of [[https://github.com/aygp-dr/gemini-repl-009][gemin
 ** Manual Installation
 
 #+begin_src bash
-git clone https://github.com/aygp-dr/gemini-repl-010 ~/.emacs.d/site-lisp/gemini-repl
+git clone https://github.com/aygp-dr/sage.el ~/.emacs.d/site-lisp/sage
 #+end_src
 
 #+begin_src elisp
-(add-to-list 'load-path "~/.emacs.d/site-lisp/gemini-repl")
-(require 'gemini-repl)
+(add-to-list 'load-path "~/.emacs.d/site-lisp/sage")
+(require 'sage)
 #+end_src
 
 ** use-package
 
 #+begin_src elisp
-(use-package gemini-repl
-  :load-path "~/.emacs.d/site-lisp/gemini-repl"
+(use-package sage
+  :load-path "~/.emacs.d/site-lisp/sage"
   :config
-  (setq gemini-repl-api-key (getenv "GEMINI_API_KEY"))
-  (setq gemini-repl-provider 'gemini))
+  (setq sage-api-key (getenv "GEMINI_API_KEY"))
+  (setq sage-provider 'gemini))
 
 ;; Project-based conversation history (optional)
-(use-package gemini-repl-project
-  :after gemini-repl
+(use-package sage-project
+  :after sage
   :config
-  (setq gemini-repl-project-auto-load t)
-  (setq gemini-repl-project-auto-save t))
+  (setq sage-project-auto-load t)
+  (setq sage-project-auto-save t))
 
 ;; Emacs-native integrations (optional)
-(use-package gemini-repl-emacs
-  :after gemini-repl
+(use-package sage-emacs
+  :after sage
   :config
-  (global-gemini-repl-mode 1))
+  (global-sage-mode 1))
 #+end_src
 
 * Configuration
@@ -76,43 +87,43 @@ git clone https://github.com/aygp-dr/gemini-repl-010 ~/.emacs.d/site-lisp/gemini
 
 #+begin_src elisp
 ;; For Gemini (or set GEMINI_API_KEY env var)
-(setq gemini-repl-api-key "your-api-key")
+(setq sage-api-key "your-api-key")
 
 ;; For OpenAI (or set OPENAI_API_KEY env var)
-(setq gemini-repl-openai-api-key "your-api-key")
+(setq sage-openai-api-key "your-api-key")
 
 ;; For Ollama (no key needed, just ensure server is running)
-(setq gemini-repl-ollama-host "http://localhost:11434")
+(setq sage-ollama-host "http://localhost:11434")
 #+end_src
 
 ** Provider Selection
 
 #+begin_src elisp
 ;; Options: 'gemini, 'ollama, 'openai
-(setq gemini-repl-provider 'gemini)
+(setq sage-provider 'gemini)
 
 ;; Model override (optional)
-(setq gemini-repl-model "gemini-2.0-flash-exp")
+(setq sage-model "gemini-2.0-flash-exp")
 #+end_src
 
 ** Permission Settings
 
 #+begin_src elisp
 ;; Skip all permission checks (dangerous!)
-(setq gemini-repl-yolo-mode nil)
+(setq sage-yolo-mode nil)
 
 ;; Require confirmation even for read-only tools
-(setq gemini-repl-confirm-safe-tools nil)
+(setq sage-confirm-safe-tools nil)
 
 ;; Maximum tool iterations per request
-(setq gemini-repl-max-tool-iterations 10)
+(setq sage-max-tool-iterations 10)
 #+end_src
 
 ** Workspace
 
 #+begin_src elisp
 ;; Set workspace for file operations (defaults to current directory)
-(setq gemini-repl-workspace "/path/to/project")
+(setq sage-workspace "/path/to/project")
 #+end_src
 
 * Usage
@@ -120,7 +131,7 @@ git clone https://github.com/aygp-dr/gemini-repl-010 ~/.emacs.d/site-lisp/gemini
 ** Starting the REPL
 
 #+begin_src
-M-x gemini-repl
+M-x sage
 #+end_src
 
 Type your message at the =>=  prompt and press =RET= to send.
@@ -129,15 +140,15 @@ Type your message at the =>=  prompt and press =RET= to send.
 
 | Key       | Command                | Description           |
 |-----------+------------------------+-----------------------|
-| =RET=     | gemini-repl-send-input | Send message          |
-| =C-c C-k= | gemini-repl-clear      | Clear conversation    |
-| =C-c C-c= | gemini-repl-interrupt  | Interrupt request     |
+| =RET=     | sage-send-input | Send message          |
+| =C-c C-k= | sage-clear      | Clear conversation    |
+| =C-c C-c= | sage-interrupt  | Interrupt request     |
 
 ** Commands
 
-- =M-x gemini-repl= - Start interactive REPL
-- =M-x gemini-repl-exec= - Single-shot prompt execution
-- =M-x gemini-repl-send-region= - Send selected region to AI
+- =M-x sage= - Start interactive REPL
+- =M-x sage-exec= - Single-shot prompt execution
+- =M-x sage-send-region= - Send selected region to AI
 
 * Built-in Tools
 
@@ -154,7 +165,7 @@ Type your message at the =>=  prompt and press =RET= to send.
 
 * Rate Limiting
 
-=gemini-repl-ratelimit= provides automatic rate limiting to prevent exceeding API limits.
+=sage-ratelimit= provides automatic rate limiting to prevent exceeding API limits.
 
 ** Features
 
@@ -192,7 +203,7 @@ For more details, see [[file:RATELIMITING.org][RATELIMITING.org]].
 
 * Project-Based Conversations
 
-=gemini-repl-project.el= provides per-directory conversation history management, allowing each project to maintain its own persistent conversation context.
+=sage-project.el= provides per-directory conversation history management, allowing each project to maintain its own persistent conversation context.
 
 ** Features
 
@@ -206,7 +217,7 @@ For more details, see [[file:RATELIMITING.org][RATELIMITING.org]].
 ** Storage Structure
 
 #+begin_example
-~/.emacs.d/gemini-repl/projects/
+~/.emacs.d/sage/projects/
 ├── -home-user-project1/
 │   ├── conversation.jsonl   # Current conversation
 │   ├── metadata.json        # Project metadata
@@ -218,53 +229,53 @@ For more details, see [[file:RATELIMITING.org][RATELIMITING.org]].
 ** Configuration
 
 #+begin_src elisp
-(require 'gemini-repl-project)
+(require 'sage-project)
 
 ;; Enable auto-load and auto-save
-(setq gemini-repl-project-auto-load t)
-(setq gemini-repl-project-auto-save t)
+(setq sage-project-auto-load t)
+(setq sage-project-auto-save t)
 
 ;; Set maximum messages before auto-archive
-(setq gemini-repl-project-max-messages 1000)
+(setq sage-project-max-messages 1000)
 
 ;; Prefer projectile over project.el
-(setq gemini-repl-project-prefer-projectile nil)
+(setq sage-project-prefer-projectile nil)
 #+end_src
 
 ** Usage
 
 #+begin_src elisp
 ;; Load conversation for current project
-(gemini-repl-project-load)
+(sage-project-load)
 
 ;; Append a message
-(gemini-repl-project-append '("user" "How do I optimize this?"))
+(sage-project-append '("user" "How do I optimize this?"))
 
 ;; Clear conversation (archives first)
-(gemini-repl-project-clear)
+(sage-project-clear)
 
 ;; Archive current conversation
-(gemini-repl-project-archive "before-refactor")
+(sage-project-archive "before-refactor")
 
 ;; List archives
-(gemini-repl-project-list-archives)
+(sage-project-list-archives)
 
 ;; Load an archive
-(gemini-repl-project-load-archive "20241223-140530.jsonl")
+(sage-project-load-archive "20241223-140530.jsonl")
 
 ;; Display statistics
-(gemini-repl-project-stats)
+(sage-project-stats)
 
 ;; Export to JSON or Markdown
-(gemini-repl-project-export "conversation.json" 'json)
-(gemini-repl-project-export "conversation.md" 'markdown)
+(sage-project-export "conversation.json" 'json)
+(sage-project-export "conversation.md" 'markdown)
 #+end_src
 
 See [[file:PROJECT-SESSIONS.org][PROJECT-SESSIONS.org]] for detailed documentation.
 
 * Context Management
 
-=gemini-repl-context.el= provides token counting and context window management to prevent exceeding provider limits.
+=sage-context.el= provides token counting and context window management to prevent exceeding provider limits.
 
 ** Features
 
@@ -280,35 +291,35 @@ See [[file:PROJECT-SESSIONS.org][PROJECT-SESSIONS.org]] for detailed documentati
 ** Configuration
 
 #+begin_src elisp
-(require 'gemini-repl-context)
+(require 'sage-context)
 
 ;; Set warning and compaction thresholds
-(setq gemini-repl-context-warning-threshold 0.80)      ; Warn at 80%
-(setq gemini-repl-context-compaction-threshold 0.90)   ; Compact at 90%
+(setq sage-context-warning-threshold 0.80)      ; Warn at 80%
+(setq sage-context-compaction-threshold 0.90)   ; Compact at 90%
 
 ;; Enable automatic compaction
-(setq gemini-repl-context-auto-compact t)
+(setq sage-context-auto-compact t)
 
 ;; Choose default strategy
-(setq gemini-repl-context-default-strategy 'sliding-window)
+(setq sage-context-default-strategy 'sliding-window)
 ;; Options: 'sliding-window, 'summarization, 'hybrid
 
 ;; Configure sliding window size
-(setq gemini-repl-context-window-size 20)
+(setq sage-context-window-size 20)
 #+end_src
 
 ** Usage
 
 #+begin_src elisp
 ;; Show context status
-(gemini-repl-context-status)
+(sage-context-status)
 
 ;; Manually compact conversation
-(gemini-repl-context-compact-now)
+(sage-context-compact-now)
 
 ;; Check token usage
-(gemini-repl-context-tokens messages)
-(gemini-repl-context-usage messages)
+(sage-context-tokens messages)
+(sage-context-usage messages)
 #+end_src
 
 ** Provider Token Limits
@@ -329,7 +340,7 @@ See [[file:PROJECT-SESSIONS.org][PROJECT-SESSIONS.org]] for detailed documentati
 Register custom tools:
 
 #+begin_src elisp
-(gemini-repl-register-tool
+(sage-register-tool
  "my_tool"
  "Description of what the tool does"
  '((type . "object")
@@ -341,18 +352,18 @@ Register custom tools:
      (format "Result for %s" arg1))))
 #+end_src
 
-* Emacs-Native Integrations (gemini-repl-emacs.el)
+* Emacs-Native Integrations (sage-emacs.el)
 
-The =gemini-repl-emacs= package provides deep integration with Emacs modes and workflows.
+The =sage-emacs= package provides deep integration with Emacs modes and workflows.
 
 ** Org Mode Integration
 
 | Function                           | Description                              | Keybinding     |
 |------------------------------------+------------------------------------------+----------------|
-| =gemini-repl-org-send-subtree=     | Send current org subtree as context      | =C-c C-g o s=  |
-| =gemini-repl-org-send-src-block=   | Send org source block to AI              | =C-c C-g o c=  |
-| =gemini-repl-org-insert-response=  | Insert response as org AI block          | =C-c C-g o i=  |
-| =gemini-repl-org-process-ai-blocks= | Process all #+begin_ai blocks in buffer | =C-c C-g o p=  |
+| =sage-org-send-subtree=     | Send current org subtree as context      | =C-c C-g o s=  |
+| =sage-org-send-src-block=   | Send org source block to AI              | =C-c C-g o c=  |
+| =sage-org-insert-response=  | Insert response as org AI block          | =C-c C-g o i=  |
+| =sage-org-process-ai-blocks= | Process all #+begin_ai blocks in buffer | =C-c C-g o p=  |
 
 *** AI Blocks in Org Mode
 
@@ -364,18 +375,18 @@ Explain the key concepts in this document
 #+end_ai
 #+end_example
 
-Use =M-x gemini-repl-org-process-ai-blocks= to process all blocks and insert responses.
+Use =M-x sage-org-process-ai-blocks= to process all blocks and insert responses.
 
 ** Buffer Integration
 
 | Function                          | Description                    | Keybinding   |
 |-----------------------------------+--------------------------------+--------------|
-| =gemini-repl-send-buffer=         | Send entire buffer to AI       | =C-c C-g b=  |
-| =gemini-repl-send-region-improved= | Send selected region           | =C-c C-g g=  |
-| =gemini-repl-send-defun=          | Send current function          | =C-c C-g d=  |
-| =gemini-repl-insert-response=     | Insert last response at point  | =C-c C-g i=  |
-| =gemini-repl-ask-about-buffer=    | Ask question about buffer      | =C-c C-g a=  |
-| =gemini-repl-ask-about-project=   | Ask question about project     | =C-c C-g p=  |
+| =sage-send-buffer=         | Send entire buffer to AI       | =C-c C-g b=  |
+| =sage-send-region-improved= | Send selected region           | =C-c C-g g=  |
+| =sage-send-defun=          | Send current function          | =C-c C-g d=  |
+| =sage-insert-response=     | Insert last response at point  | =C-c C-g i=  |
+| =sage-ask-about-buffer=    | Ask question about buffer      | =C-c C-g a=  |
+| =sage-ask-about-project=   | Ask question about project     | =C-c C-g p=  |
 
 ** Dired Integration
 
@@ -383,8 +394,8 @@ When in Dired mode, additional commands are available:
 
 | Function                        | Description                | Keybinding   |
 |---------------------------------+----------------------------+--------------|
-| =gemini-repl-dired-summarize=   | Summarize marked files     | =C-c C-g s=  |
-| =gemini-repl-dired-describe-file= | Describe file at point   | =C-c C-g d=  |
+| =sage-dired-summarize=   | Summarize marked files     | =C-c C-g s=  |
+| =sage-dired-describe-file= | Describe file at point   | =C-c C-g d=  |
 
 ** Prog Mode Integration
 
@@ -392,9 +403,9 @@ Available in all programming modes:
 
 | Function                      | Description                        | Keybinding   |
 |-------------------------------+------------------------------------+--------------|
-| =gemini-repl-explain-error=   | Explain error at point with context | =C-c C-g x=  |
-| =gemini-repl-suggest-fix=     | Suggest fix for code at point      | =C-c C-g f=  |
-| =gemini-repl-explain-at-point= | Explain symbol/code at point       | =C-c C-g e=  |
+| =sage-explain-error=   | Explain error at point with context | =C-c C-g x=  |
+| =sage-suggest-fix=     | Suggest fix for code at point      | =C-c C-g f=  |
+| =sage-explain-at-point= | Explain symbol/code at point       | =C-c C-g e=  |
 
 ** Compilation Mode Integration
 
@@ -402,35 +413,35 @@ In compilation buffers:
 
 | Function                             | Description              | Keybinding   |
 |--------------------------------------+--------------------------+--------------|
-| =gemini-repl-explain-compilation-error= | Explain compilation error | =C-c C-g e=  |
+| =sage-explain-compilation-error= | Explain compilation error | =C-c C-g e=  |
 
 ** Minor Mode
 
-Enable =gemini-repl-mode= to activate all keybindings:
+Enable =sage-mode= to activate all keybindings:
 
 #+begin_src elisp
 ;; Enable globally
-(global-gemini-repl-mode 1)
+(global-sage-mode 1)
 
 ;; Or enable for specific buffers
-(add-hook 'emacs-lisp-mode-hook #'gemini-repl-mode)
-(add-hook 'python-mode-hook #'gemini-repl-mode)
+(add-hook 'emacs-lisp-mode-hook #'sage-mode)
+(add-hook 'python-mode-hook #'sage-mode)
 #+end_src
 
 ** Customization
 
 #+begin_src elisp
 ;; Type of org block for AI interactions
-(setq gemini-repl-emacs-org-ai-block-type "ai")
+(setq sage-emacs-org-ai-block-type "ai")
 
 ;; Insert responses as comments in code buffers
-(setq gemini-repl-emacs-insert-as-comment t)
+(setq sage-emacs-insert-as-comment t)
 
 ;; Lines of context for error explanations
-(setq gemini-repl-emacs-context-lines 5)
+(setq sage-emacs-context-lines 5)
 
 ;; Auto-format responses based on mode
-(setq gemini-repl-emacs-auto-format-response t)
+(setq sage-emacs-auto-format-response t)
 #+end_src
 
 ** Complete Keybinding Reference
@@ -467,7 +478,7 @@ The package includes several security measures:
 
 * Comparison with Other Tools
 
-| Feature          | gemini-repl.el | Claude Code | Efrit | Aider |
+| Feature          | sage.el | Claude Code | Efrit | Aider |
 |------------------+----------------+-------------+-------+-------|
 | Emacs native     | Yes            | No          | Yes   | No    |
 | Multi-provider   | Yes            | No          | No    | Yes   |
@@ -485,6 +496,6 @@ GPL-3.0 (to be compatible with Emacs)
 
 * See Also
 
-- [[https://github.com/aygp-dr/gemini-repl-009][gemini-repl-009]] - Rust implementation
+- [[https://github.com/aygp-dr/sage-009][sage-009]] - Rust implementation
 - [[https://github.com/steveyegge/efrit][Efrit]] - AI-Powered Emacs Coding Assistant
 - [[https://aider.chat][Aider]] - AI Pair Programming

@@ -1,4 +1,4 @@
-;;; gemini-repl-session.el --- Session persistence for gemini-repl -*- lexical-binding: t; -*-
+;;; sage-session.el --- Session persistence for sage -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2024 Jason Walsh
 ;; Author: Jason Walsh <j@wal.sh>
@@ -9,7 +9,7 @@
 
 ;;; Commentary:
 
-;; Provides session persistence for gemini-repl, including:
+;; Provides session persistence for sage, including:
 ;; - Save/load conversation sessions
 ;; - Export to JSON and Markdown
 ;; - Session statistics tracking
@@ -23,31 +23,31 @@
 
 ;;; Customization
 
-(defgroup gemini-repl-session nil
-  "Session persistence for Gemini REPL."
-  :group 'gemini-repl
-  :prefix "gemini-repl-session-")
+(defgroup sage-session nil
+  "Session persistence for Sage."
+  :group 'sage
+  :prefix "sage-session-")
 
-(defcustom gemini-repl-session-directory
-  (expand-file-name "gemini-repl/sessions" user-emacs-directory)
+(defcustom sage-session-directory
+  (expand-file-name "sage/sessions" user-emacs-directory)
   "Directory to store session files."
   :type 'directory
-  :group 'gemini-repl-session)
+  :group 'sage-session)
 
-(defcustom gemini-repl-session-auto-save t
+(defcustom sage-session-auto-save t
   "When non-nil, automatically save sessions."
   :type 'boolean
-  :group 'gemini-repl-session)
+  :group 'sage-session)
 
-(defcustom gemini-repl-session-auto-save-interval 300
+(defcustom sage-session-auto-save-interval 300
   "Auto-save interval in seconds (default: 5 minutes)."
   :type 'integer
-  :group 'gemini-repl-session)
+  :group 'sage-session)
 
 ;;; Data Structures
 
-(cl-defstruct (gemini-repl-session
-               (:constructor gemini-repl-session--create)
+(cl-defstruct (sage-session
+               (:constructor sage-session--create)
                (:copier nil))
   "Session data structure."
   (name nil :type string
@@ -71,106 +71,106 @@
 
 ;;; Variables
 
-(defvar gemini-repl-session--current nil
+(defvar sage-session--current nil
   "Current active session.")
 
-(defvar gemini-repl-session--auto-save-timer nil
+(defvar sage-session--auto-save-timer nil
   "Timer for auto-saving sessions.")
 
 ;;; Session Management
 
-(defun gemini-repl-session--ensure-directory ()
+(defun sage-session--ensure-directory ()
   "Ensure session directory exists."
-  (unless (file-directory-p gemini-repl-session-directory)
-    (make-directory gemini-repl-session-directory t)))
+  (unless (file-directory-p sage-session-directory)
+    (make-directory sage-session-directory t)))
 
-(defun gemini-repl-session--timestamp ()
+(defun sage-session--timestamp ()
   "Return current timestamp in ISO 8601 format."
   (format-time-string "%Y-%m-%dT%H:%M:%S%z"))
 
-(defun gemini-repl-session--session-file (name)
+(defun sage-session--session-file (name)
   "Return file path for session NAME."
   (expand-file-name
    (concat (replace-regexp-in-string "[^a-zA-Z0-9-_]" "_" name) ".json")
-   gemini-repl-session-directory))
+   sage-session-directory))
 
-(defun gemini-repl-session--estimate-tokens (text)
+(defun sage-session--estimate-tokens (text)
   "Estimate token count for TEXT (rough approximation: 1 token ≈ 4 chars)."
   (/ (length text) 4))
 
-(defun gemini-repl-session--update-stats (session)
+(defun sage-session--update-stats (session)
   "Update statistics for SESSION."
-  (setf (gemini-repl-session-message-count session)
-        (length (gemini-repl-session-messages session)))
+  (setf (sage-session-message-count session)
+        (length (sage-session-messages session)))
 
-  (setf (gemini-repl-session-total-tokens session)
+  (setf (sage-session-total-tokens session)
         (apply #'+
                (mapcar (lambda (msg)
-                         (gemini-repl-session--estimate-tokens
+                         (sage-session--estimate-tokens
                           (alist-get 'content msg)))
-                       (gemini-repl-session-messages session))))
+                       (sage-session-messages session))))
 
-  (setf (gemini-repl-session-updated-at session)
-        (gemini-repl-session--timestamp)))
+  (setf (sage-session-updated-at session)
+        (sage-session--timestamp)))
 
-(defun gemini-repl-session-new (name &optional model provider workspace)
+(defun sage-session-new (name &optional model provider workspace)
   "Create a new session with NAME.
 Optional MODEL, PROVIDER, and WORKSPACE can be specified."
   (interactive "sSession name: ")
-  (gemini-repl-session--ensure-directory)
+  (sage-session--ensure-directory)
 
-  (let ((session (gemini-repl-session--create
+  (let ((session (sage-session--create
                   :name name
                   :model (or model
-                             (when (fboundp 'gemini-repl--get-model)
-                               (gemini-repl--get-model))
+                             (when (fboundp 'sage--get-model)
+                               (sage--get-model))
                              "gemini-2.0-flash-exp")
                   :provider (or provider
-                                (when (boundp 'gemini-repl-provider)
-                                  gemini-repl-provider)
+                                (when (boundp 'sage-provider)
+                                  sage-provider)
                                 'gemini)
                   :messages nil
-                  :created-at (gemini-repl-session--timestamp)
-                  :updated-at (gemini-repl-session--timestamp)
+                  :created-at (sage-session--timestamp)
+                  :updated-at (sage-session--timestamp)
                   :message-count 0
                   :total-tokens 0
                   :workspace (or workspace
-                                 (when (fboundp 'gemini-repl--get-workspace)
-                                   (gemini-repl--get-workspace))
+                                 (when (fboundp 'sage--get-workspace)
+                                   (sage--get-workspace))
                                  default-directory))))
 
-    (setq gemini-repl-session--current session)
-    (gemini-repl-session--start-auto-save)
+    (setq sage-session--current session)
+    (sage-session--start-auto-save)
 
     (when (called-interactively-p 'any)
       (message "Created session: %s" name))
 
     session))
 
-(defun gemini-repl-session-add-message (role content)
+(defun sage-session-add-message (role content)
   "Add a message to current session with ROLE and CONTENT."
-  (when gemini-repl-session--current
+  (when sage-session--current
     (let ((message `((role . ,role)
                      (content . ,content)
-                     (timestamp . ,(gemini-repl-session--timestamp)))))
-      (push message (gemini-repl-session-messages gemini-repl-session--current))
-      (gemini-repl-session--update-stats gemini-repl-session--current))))
+                     (timestamp . ,(sage-session--timestamp)))))
+      (push message (sage-session-messages sage-session--current))
+      (sage-session--update-stats sage-session--current))))
 
-(defun gemini-repl-session--to-json (session)
+(defun sage-session--to-json (session)
   "Convert SESSION to JSON-encodable alist."
-  `((name . ,(gemini-repl-session-name session))
-    (model . ,(gemini-repl-session-model session))
-    (provider . ,(symbol-name (gemini-repl-session-provider session)))
-    (messages . ,(vconcat (reverse (gemini-repl-session-messages session))))
-    (created_at . ,(gemini-repl-session-created-at session))
-    (updated_at . ,(gemini-repl-session-updated-at session))
-    (message_count . ,(gemini-repl-session-message-count session))
-    (total_tokens . ,(gemini-repl-session-total-tokens session))
-    (workspace . ,(gemini-repl-session-workspace session))))
+  `((name . ,(sage-session-name session))
+    (model . ,(sage-session-model session))
+    (provider . ,(symbol-name (sage-session-provider session)))
+    (messages . ,(vconcat (reverse (sage-session-messages session))))
+    (created_at . ,(sage-session-created-at session))
+    (updated_at . ,(sage-session-updated-at session))
+    (message_count . ,(sage-session-message-count session))
+    (total_tokens . ,(sage-session-total-tokens session))
+    (workspace . ,(sage-session-workspace session))))
 
-(defun gemini-repl-session--from-json (data)
+(defun sage-session--from-json (data)
   "Convert JSON DATA to session structure."
-  (gemini-repl-session--create
+  (sage-session--create
    :name (alist-get 'name data)
    :model (alist-get 'model data)
    :provider (intern (or (alist-get 'provider data) "gemini"))
@@ -181,38 +181,38 @@ Optional MODEL, PROVIDER, and WORKSPACE can be specified."
    :total-tokens (or (alist-get 'total_tokens data) 0)
    :workspace (alist-get 'workspace data)))
 
-(defun gemini-repl-session-save (&optional session)
+(defun sage-session-save (&optional session)
   "Save SESSION (or current session) to file."
   (interactive)
-  (let ((sess (or session gemini-repl-session--current)))
+  (let ((sess (or session sage-session--current)))
     (unless sess
       (user-error "No active session to save"))
 
-    (gemini-repl-session--ensure-directory)
-    (gemini-repl-session--update-stats sess)
+    (sage-session--ensure-directory)
+    (sage-session--update-stats sess)
 
-    (let ((file (gemini-repl-session--session-file
-                 (gemini-repl-session-name sess)))
+    (let ((file (sage-session--session-file
+                 (sage-session-name sess)))
           (json-encoding-pretty-print t))
       (with-temp-file file
-        (insert (json-encode (gemini-repl-session--to-json sess))))
+        (insert (json-encode (sage-session--to-json sess))))
 
       (when (called-interactively-p 'any)
         (message "Saved session: %s (%d messages, ~%d tokens)"
-                 (gemini-repl-session-name sess)
-                 (gemini-repl-session-message-count sess)
-                 (gemini-repl-session-total-tokens sess)))
+                 (sage-session-name sess)
+                 (sage-session-message-count sess)
+                 (sage-session-total-tokens sess)))
 
       file)))
 
-(defun gemini-repl-session-load (name)
+(defun sage-session-load (name)
   "Load session from file by NAME."
   (interactive
    (list (completing-read "Load session: "
-                          (gemini-repl-session-list-names)
+                          (sage-session-list-names)
                           nil t)))
 
-  (let ((file (gemini-repl-session--session-file name)))
+  (let ((file (sage-session--session-file name)))
     (unless (file-exists-p file)
       (user-error "Session not found: %s" name))
 
@@ -223,57 +223,57 @@ Optional MODEL, PROVIDER, and WORKSPACE can be specified."
                    (insert-file-contents file)
                    (goto-char (point-min))
                    (json-read)))
-           (session (gemini-repl-session--from-json data)))
+           (session (sage-session--from-json data)))
 
-      (setq gemini-repl-session--current session)
-      (gemini-repl-session--start-auto-save)
+      (setq sage-session--current session)
+      (sage-session--start-auto-save)
 
       (when (called-interactively-p 'any)
         (message "Loaded session: %s (%d messages)"
-                 name (gemini-repl-session-message-count session)))
+                 name (sage-session-message-count session)))
 
       session)))
 
-(defun gemini-repl-session-list-names ()
+(defun sage-session-list-names ()
   "Return list of available session names."
-  (when (file-directory-p gemini-repl-session-directory)
+  (when (file-directory-p sage-session-directory)
     (mapcar (lambda (f)
               (file-name-sans-extension (file-name-nondirectory f)))
-            (directory-files gemini-repl-session-directory t "\\.json$"))))
+            (directory-files sage-session-directory t "\\.json$"))))
 
-(defun gemini-repl-session-list ()
+(defun sage-session-list ()
   "List all available sessions."
   (interactive)
-  (let ((sessions (gemini-repl-session-list-names)))
+  (let ((sessions (sage-session-list-names)))
     (if sessions
         (if (called-interactively-p 'any)
             (message "Available sessions: %s" (string-join sessions ", "))
           sessions)
       (message "No saved sessions found"))))
 
-(defun gemini-repl-session-delete (name)
+(defun sage-session-delete (name)
   "Delete session by NAME."
   (interactive
    (list (completing-read "Delete session: "
-                          (gemini-repl-session-list-names)
+                          (sage-session-list-names)
                           nil t)))
 
-  (let ((file (gemini-repl-session--session-file name)))
+  (let ((file (sage-session--session-file name)))
     (when (and (file-exists-p file)
                (yes-or-no-p (format "Delete session '%s'? " name)))
       (delete-file file)
       (message "Deleted session: %s" name))))
 
-(defun gemini-repl-session-rename (old-name new-name)
+(defun sage-session-rename (old-name new-name)
   "Rename session from OLD-NAME to NEW-NAME."
   (interactive
    (let ((old (completing-read "Rename session: "
-                               (gemini-repl-session-list-names)
+                               (sage-session-list-names)
                                nil t)))
      (list old (read-string "New name: " old))))
 
-  (let ((old-file (gemini-repl-session--session-file old-name))
-        (new-file (gemini-repl-session--session-file new-name)))
+  (let ((old-file (sage-session--session-file old-name))
+        (new-file (sage-session--session-file new-name)))
     (unless (file-exists-p old-file)
       (user-error "Session not found: %s" old-name))
     (when (file-exists-p new-file)
@@ -287,59 +287,59 @@ Optional MODEL, PROVIDER, and WORKSPACE can be specified."
                    (insert-file-contents old-file)
                    (goto-char (point-min))
                    (json-read)))
-           (session (gemini-repl-session--from-json data)))
+           (session (sage-session--from-json data)))
 
-      (setf (gemini-repl-session-name session) new-name)
+      (setf (sage-session-name session) new-name)
 
       (let ((json-encoding-pretty-print t))
         (with-temp-file new-file
-          (insert (json-encode (gemini-repl-session--to-json session)))))
+          (insert (json-encode (sage-session--to-json session)))))
 
       (delete-file old-file)
 
-      (when (and gemini-repl-session--current
-                 (string= (gemini-repl-session-name gemini-repl-session--current)
+      (when (and sage-session--current
+                 (string= (sage-session-name sage-session--current)
                           old-name))
-        (setq gemini-repl-session--current session))
+        (setq sage-session--current session))
 
       (message "Renamed session: %s -> %s" old-name new-name))))
 
 ;;; Export
 
-(defun gemini-repl-session-export-json (filename &optional session)
+(defun sage-session-export-json (filename &optional session)
   "Export SESSION (or current) to FILENAME as JSON."
   (interactive "FExport to JSON file: ")
-  (let ((sess (or session gemini-repl-session--current)))
+  (let ((sess (or session sage-session--current)))
     (unless sess
       (user-error "No active session to export"))
 
     (let ((json-encoding-pretty-print t))
       (with-temp-file filename
-        (insert (json-encode (gemini-repl-session--to-json sess))))
+        (insert (json-encode (sage-session--to-json sess))))
 
       (message "Exported session to: %s" filename))))
 
-(defun gemini-repl-session-export-markdown (filename &optional session)
+(defun sage-session-export-markdown (filename &optional session)
   "Export SESSION (or current) to FILENAME as Markdown."
   (interactive "FExport to Markdown file: ")
-  (let ((sess (or session gemini-repl-session--current)))
+  (let ((sess (or session sage-session--current)))
     (unless sess
       (user-error "No active session to export"))
 
     (with-temp-file filename
-      (insert (format "# Session: %s\n\n" (gemini-repl-session-name sess)))
-      (insert (format "- **Model**: %s\n" (gemini-repl-session-model sess)))
-      (insert (format "- **Provider**: %s\n" (gemini-repl-session-provider sess)))
-      (insert (format "- **Created**: %s\n" (gemini-repl-session-created-at sess)))
-      (insert (format "- **Updated**: %s\n" (gemini-repl-session-updated-at sess)))
-      (insert (format "- **Messages**: %d\n" (gemini-repl-session-message-count sess)))
-      (insert (format "- **Tokens**: ~%d\n" (gemini-repl-session-total-tokens sess)))
-      (when (gemini-repl-session-workspace sess)
-        (insert (format "- **Workspace**: %s\n" (gemini-repl-session-workspace sess))))
+      (insert (format "# Session: %s\n\n" (sage-session-name sess)))
+      (insert (format "- **Model**: %s\n" (sage-session-model sess)))
+      (insert (format "- **Provider**: %s\n" (sage-session-provider sess)))
+      (insert (format "- **Created**: %s\n" (sage-session-created-at sess)))
+      (insert (format "- **Updated**: %s\n" (sage-session-updated-at sess)))
+      (insert (format "- **Messages**: %d\n" (sage-session-message-count sess)))
+      (insert (format "- **Tokens**: ~%d\n" (sage-session-total-tokens sess)))
+      (when (sage-session-workspace sess)
+        (insert (format "- **Workspace**: %s\n" (sage-session-workspace sess))))
       (insert "\n---\n\n")
 
       (insert "## Conversation\n\n")
-      (dolist (msg (reverse (gemini-repl-session-messages sess)))
+      (dolist (msg (reverse (sage-session-messages sess)))
         (let ((role (alist-get 'role msg))
               (content (alist-get 'content msg))
               (timestamp (alist-get 'timestamp msg)))
@@ -354,22 +354,22 @@ Optional MODEL, PROVIDER, and WORKSPACE can be specified."
 
 ;;; Statistics
 
-(defun gemini-repl-session-stats (&optional session)
+(defun sage-session-stats (&optional session)
   "Display statistics for SESSION (or current)."
   (interactive)
-  (let ((sess (or session gemini-repl-session--current)))
+  (let ((sess (or session sage-session--current)))
     (unless sess
       (user-error "No active session"))
 
-    (gemini-repl-session--update-stats sess)
+    (sage-session--update-stats sess)
 
-    (let* ((messages (gemini-repl-session-messages sess))
+    (let* ((messages (sage-session-messages sess))
            (user-msgs (seq-count (lambda (m) (string= (alist-get 'role m) "user"))
                                  messages))
            (assistant-msgs (seq-count (lambda (m) (string= (alist-get 'role m) "assistant"))
                                       messages))
-           (created (gemini-repl-session-created-at sess))
-           (updated (gemini-repl-session-updated-at sess))
+           (created (sage-session-created-at sess))
+           (updated (sage-session-updated-at sess))
            (duration (if (and created updated)
                          (format-seconds "%h hours, %m minutes"
                                          (float-time
@@ -379,61 +379,61 @@ Optional MODEL, PROVIDER, and WORKSPACE can be specified."
                        "N/A")))
 
       (message "Session: %s | Model: %s | Messages: %d (user: %d, assistant: %d) | Tokens: ~%d | Duration: %s"
-               (gemini-repl-session-name sess)
-               (gemini-repl-session-model sess)
-               (gemini-repl-session-message-count sess)
+               (sage-session-name sess)
+               (sage-session-model sess)
+               (sage-session-message-count sess)
                user-msgs
                assistant-msgs
-               (gemini-repl-session-total-tokens sess)
+               (sage-session-total-tokens sess)
                duration))))
 
 ;;; Auto-save
 
-(defun gemini-repl-session--auto-save ()
+(defun sage-session--auto-save ()
   "Auto-save current session."
-  (when (and gemini-repl-session--current
-             gemini-repl-session-auto-save)
+  (when (and sage-session--current
+             sage-session-auto-save)
     (condition-case err
-        (gemini-repl-session-save gemini-repl-session--current)
+        (sage-session-save sage-session--current)
       (error
        (message "Auto-save failed: %s" (error-message-string err))))))
 
-(defun gemini-repl-session--start-auto-save ()
+(defun sage-session--start-auto-save ()
   "Start auto-save timer."
-  (when gemini-repl-session--auto-save-timer
-    (cancel-timer gemini-repl-session--auto-save-timer))
+  (when sage-session--auto-save-timer
+    (cancel-timer sage-session--auto-save-timer))
 
-  (when gemini-repl-session-auto-save
-    (setq gemini-repl-session--auto-save-timer
-          (run-with-timer gemini-repl-session-auto-save-interval
-                          gemini-repl-session-auto-save-interval
-                          #'gemini-repl-session--auto-save))))
+  (when sage-session-auto-save
+    (setq sage-session--auto-save-timer
+          (run-with-timer sage-session-auto-save-interval
+                          sage-session-auto-save-interval
+                          #'sage-session--auto-save))))
 
-(defun gemini-repl-session-stop-auto-save ()
+(defun sage-session-stop-auto-save ()
   "Stop auto-save timer."
   (interactive)
-  (when gemini-repl-session--auto-save-timer
-    (cancel-timer gemini-repl-session--auto-save-timer)
-    (setq gemini-repl-session--auto-save-timer nil)
+  (when sage-session--auto-save-timer
+    (cancel-timer sage-session--auto-save-timer)
+    (setq sage-session--auto-save-timer nil)
     (message "Auto-save stopped")))
 
 ;;; Integration Helpers
 
-(defun gemini-repl-session-current ()
+(defun sage-session-current ()
   "Return current session or nil."
-  gemini-repl-session--current)
+  sage-session--current)
 
-(defun gemini-repl-session-get-messages ()
+(defun sage-session-get-messages ()
   "Get messages from current session."
-  (when gemini-repl-session--current
-    (reverse (gemini-repl-session-messages gemini-repl-session--current))))
+  (when sage-session--current
+    (reverse (sage-session-messages sage-session--current))))
 
-(defun gemini-repl-session-set-messages (messages)
+(defun sage-session-set-messages (messages)
   "Set MESSAGES in current session."
-  (when gemini-repl-session--current
-    (setf (gemini-repl-session-messages gemini-repl-session--current)
+  (when sage-session--current
+    (setf (sage-session-messages sage-session--current)
           (reverse messages))
-    (gemini-repl-session--update-stats gemini-repl-session--current)))
+    (sage-session--update-stats sage-session--current)))
 
-(provide 'gemini-repl-session)
-;;; gemini-repl-session.el ends here
+(provide 'sage-session)
+;;; sage-session.el ends here

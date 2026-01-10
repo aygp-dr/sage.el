@@ -1,0 +1,335 @@
+* Context Management Guide
+
+This document provides detailed information about the context and token management features in `sage-context.el`.
+
+** Overview
+
+The context management module helps you:
+- Track token usage to avoid exceeding provider limits
+- Automatically compact conversations when they get too long
+- Monitor context usage in real-time
+- Choose between multiple compaction strategies
+
+** Quick Start
+
+#+begin_src elisp
+;; Load the context module
+(require 'sage-context)
+
+;; Configure thresholds
+(setq sage-context-warning-threshold 0.80)     ; Warn at 80%
+(setq sage-context-compaction-threshold 0.90)  ; Compact at 90%
+
+;; Enable auto-compaction
+(setq sage-context-auto-compact t)
+
+;; Choose strategy
+(setq sage-context-default-strategy 'sliding-window)
+#+end_src
+
+** Token Counting
+
+*** How It Works
+
+Token counting uses a simple heuristic: *characters ÷ 4 ≈ tokens*
+
+This is approximate but works well for English text and code. Actual tokenization varies by model:
+- GPT models: ~4 chars/token for English
+- Gemini models: Similar to GPT
+- Code: Often 2-3 chars/token (more dense)
+
+*** Functions
+
+#+begin_src elisp
+;; Estimate tokens for text
+(sage-context-estimate-tokens "Hello world")
+;; => 2
+
+;; Count tokens in messages
+(let* ((messages '(((role . "user") (content . "Hello"))
+                   ((role . "assistant") (content . "Hi there!"))))
+       (stats (sage-context-tokens messages)))
+  (alist-get 'total stats))
+;; => total token count
+
+;; Calculate usage percentage
+(sage-context-usage messages 8192)
+;; => 0.0153 (1.53%)
+#+end_src
+
+** Context Monitoring
+
+*** Automatic Warnings
+
+When context usage exceeds the warning threshold (default: 80%), you'll see:
+
+#+end_src
+Context usage at 82% (warning threshold: 80%)
+#+end_src
+
+*** Automatic Compaction
+
+When usage exceeds compaction threshold (default: 90%):
+
+#+end_src
+Context usage at 92%, compacting...
+#+end_src
+
+*** Manual Status Check
+
+#+begin_src elisp
+;; Interactive command
+M-x sage-context-show-status
+
+;; Programmatic
+(sage-context-status messages)
+#+end_src
+
+This displays:
+- Model and max tokens
+- Total messages and tokens
+- Usage percentage
+- Tokens by role (user, assistant, function)
+- Threshold status
+- Compaction count
+
+** Compaction Strategies
+
+*** 1. Sliding Window (Default)
+
+Keeps the N most recent messages, discarding older ones.
+
+*Pros:*
+- Fast and simple
+- No API calls needed
+- Preserves recent context exactly
+
+*Cons:*
+- Loses older context completely
+- No summary of what was removed
+
+*Configuration:*
+#+begin_src elisp
+(setq sage-context-default-strategy 'sliding-window)
+(setq sage-context-window-size 20)  ; Keep 20 messages
+#+end_src
+
+*How it works:*
+1. Preserves all system messages
+2. Keeps N most recent non-system messages
+3. Drops everything else
+
+*** 2. Summarization
+
+Uses the LLM to summarize old messages into a compact form.
+
+*Pros:*
+- Preserves information from old messages
+- Can maintain long-term context
+
+*Cons:*
+- Requires API call (costs tokens)
+- Slower than sliding window
+- Summary quality depends on LLM
+- Requires active sage session
+
+*Configuration:*
+#+begin_src elisp
+(setq sage-context-default-strategy 'summarization)
+(setq sage-context-summary-ratio 0.5)  ; Target 50% reduction
+#+end_src
+
+*How it works:*
+1. Identifies messages to summarize
+2. Sends to LLM with summarization prompt
+3. Replaces old messages with summary as system message
+4. Keeps recent messages intact
+
+*** 3. Hybrid
+
+Combines both strategies for best results.
+
+*Pros:*
+- Summarizes very old messages
+- Uses sliding window for recent history
+- Balances speed and context preservation
+
+*Cons:*
+- More complex
+- Still requires API call for summarization
+
+*Configuration:*
+#+begin_src elisp
+(setq sage-context-default-strategy 'hybrid)
+#+end_src
+
+*How it works:*
+1. Takes oldest 25% of messages
+2. Summarizes them with LLM
+3. Applies sliding window to remaining 75%
+4. Combines summary + recent messages
+
+** Provider Token Limits
+
+Pre-configured limits for common models:
+
+| Provider | Model | Max Tokens |
+|----------|-------|------------|
+| Google Gemini | gemini-1.5-pro | 1,000,000 |
+| Google Gemini | gemini-1.5-flash | 128,000 |
+| Google Gemini | gemini-2.0-flash-exp | 128,000 |
+| OpenAI | gpt-4o | 128,000 |
+| OpenAI | gpt-4o-mini | 128,000 |
+| OpenAI | gpt-4-turbo | 128,000 |
+| Ollama | llama3.2 | 8,192 |
+| Ollama | llama3.1 | 128,000 |
+| Ollama | mistral | 32,768 |
+
+Unknown models default to 8,192 tokens.
+
+** Session Tracking
+
+The module tracks token usage across your session:
+
+#+begin_src elisp
+;; Track a message
+(sage-context-track-message message)
+
+;; Check session stats
+sage-context-total-tokens        ; Total tokens used
+sage-context-message-count       ; Number of messages
+sage-context-tokens-by-role      ; Hash table by role
+sage-context-compaction-count    ; Times compacted
+
+;; Reset stats
+(sage-context-reset-stats)
+#+end_src
+
+** Integration with sage
+
+The context module integrates automatically:
+
+#+begin_src elisp
+;; Auto-check before sending
+(sage-context-maybe-compact sage-conversation)
+
+;; Check and warn
+(sage-context-check-and-warn sage-conversation)
+#+end_src
+
+** Interactive Commands
+
+- `M-x sage-context-show-status` - Display context status
+- `M-x sage-context-compact-now` - Manually compact conversation
+- `M-x sage-context-reset-stats` - Reset session statistics
+
+** Advanced Usage
+
+*** Custom Token Estimation
+
+If you want more accurate token counting:
+
+#+begin_src elisp
+;; Adjust chars-per-token based on your content
+(setq sage-context-chars-per-token 3)  ; For code-heavy conversations
+#+end_src
+
+*** Conditional Compaction
+
+#+begin_src elisp
+;; Only compact if usage > 95%
+(when (> (sage-context-usage messages) 0.95)
+  (setq messages (sage-context-compact messages)))
+#+end_src
+
+*** Custom Compaction Logic
+
+#+begin_src elisp
+(defun my-custom-compact (messages)
+  "Custom compaction: keep only user and assistant messages."
+  (seq-filter (lambda (msg)
+                (member (alist-get 'role msg) '("user" "assistant")))
+              messages))
+#+end_src
+
+** Best Practices
+
+1. *Monitor usage* - Check status occasionally with `sage-context-show-status`
+2. *Enable auto-compact* - Set `sage-context-auto-compact` to `t`
+3. *Choose right strategy*:
+   - Short sessions: sliding-window
+   - Long sessions with history: summarization or hybrid
+4. *Adjust thresholds* - Lower for smaller models (e.g., llama3.2)
+5. *Reset between projects* - Call `sage-context-reset-stats` when switching
+
+** Troubleshooting
+
+*** "Context usage at 100%"
+
+Your conversation has exceeded the model's limit.
+
+*Solutions:*
+1. Clear conversation: `M-x sage-clear`
+2. Manually compact: `M-x sage-context-compact-now`
+3. Enable auto-compact: `(setq sage-context-auto-compact t)`
+
+*** Compaction not working
+
+*Check:*
+1. Is `sage-context-auto-compact` enabled?
+2. Is threshold set correctly?
+3. For summarization: Is sage session active?
+
+*** Inaccurate token counts
+
+Token estimation is approximate. For precise counts:
+1. Check provider's actual usage in their dashboard
+2. Adjust `sage-context-chars-per-token` based on observations
+
+** Examples
+
+See `examples/context-example.el` for complete working examples.
+
+** API Reference
+
+*** Configuration Variables
+
+- `sage-context-warning-threshold` - Warning threshold (0.0-1.0)
+- `sage-context-compaction-threshold` - Compaction threshold (0.0-1.0)
+- `sage-context-auto-compact` - Enable auto-compaction
+- `sage-context-default-strategy` - Default compaction strategy
+- `sage-context-window-size` - Sliding window size
+- `sage-context-chars-per-token` - Characters per token estimate
+
+*** Functions
+
+** Token Counting
+- `(sage-context-estimate-tokens TEXT)` - Estimate tokens for text
+- `(sage-context-tokens MESSAGES)` - Count tokens in messages
+- `(sage-context-get-max-tokens &optional MODEL)` - Get max tokens for model
+
+** Usage Calculation
+- `(sage-context-usage MESSAGES &optional MAX-TOKENS)` - Calculate usage %
+- `(sage-context-needs-compaction-p MESSAGES)` - Check if compaction needed
+- `(sage-context-needs-warning-p MESSAGES)` - Check if warning needed
+
+** Compaction
+- `(sage-context-compact MESSAGES &optional STRATEGY)` - Compact messages
+- `(sage-context-compact-sliding-window MESSAGES)` - Sliding window
+- `(sage-context-compact-summarization MESSAGES)` - Summarization
+- `(sage-context-compact-hybrid MESSAGES)` - Hybrid
+
+** Monitoring
+- `(sage-context-status &optional MESSAGES)` - Display status
+- `(sage-context-check-and-warn MESSAGES)` - Check and warn if needed
+
+** Session Tracking
+- `(sage-context-track-message MESSAGE)` - Track message tokens
+- `(sage-context-reset-stats)` - Reset session stats
+
+** See Also
+
+- `README.org` - Main documentation
+- `sage-context.el` - Source code
+- `test/sage-context-test.el` - Test suite
+- `examples/context-example.el` - Usage examples
