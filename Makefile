@@ -1,4 +1,4 @@
-.PHONY: all test test-all clean compile lint checkdoc package-lint check-headers \
+.PHONY: all test test-all test-tools clean compile lint checkdoc package-lint check-headers \
         elisp-version elisp-load-test elisp-check-syntax elisp-http-inbox \
         check ci gh-status gh-failures gh-watch gh-logs
 
@@ -56,6 +56,9 @@ test-context:
 
 test-project:
 	$(EMACS_BATCH) -l ert -l sage-project.el -l test/sage-project-test.el -f ert-run-tests-batch-and-exit
+
+test-tools:
+	$(EMACS_BATCH) -l scripts/test-tools.el
 
 lint: checkdoc check-headers
 
