@@ -153,7 +153,7 @@ Applies unified diff patches to files."
       (shell-command-to-string
        (format "git diff %s %s"
                (if staged "--staged" "")
-               (or path ""))))))
+               (if path (shell-quote-argument path) ""))))))
 
 (defun sage--tool-git-log (args)
   "Get git log."
@@ -165,7 +165,9 @@ Applies unified diff patches to files."
           (magit-git-insert "log" "--oneline" (format "-n%d" count) path)
           (buffer-string))
       (shell-command-to-string
-       (format "git log --oneline -n %d %s" count (or path ""))))))
+       (format "git log --oneline -n %d %s"
+               count
+               (if path (shell-quote-argument path) ""))))))
 
 (defun sage--tool-git-branch (_args)
   "Get git branches."
@@ -187,7 +189,7 @@ Applies unified diff patches to files."
                   (with-temp-buffer
                     (magit-git-insert "blame" path)
                     (buffer-string))
-                (shell-command-to-string (format "git blame %s" path)))
+                (shell-command-to-string (format "git blame %s" (shell-quote-argument path))))
             (format "File not found: %s" path)))
       (format "Unsafe path: %s" path))))
 
@@ -200,12 +202,12 @@ Applies unified diff patches to files."
         (file-type (alist-get 'file_type args))
         (context (or (alist-get 'context args) 2)))
     (shell-command-to-string
-     (format "rg %s -C %d '%s' 2>/dev/null || grep -r -C %d '%s' . 2>/dev/null"
-             (if file-type (format "-t %s" file-type) "")
+     (format "rg %s -C %d %s 2>/dev/null || grep -r -C %d %s . 2>/dev/null"
+             (if file-type (format "-t %s" (shell-quote-argument file-type)) "")
              context
-             pattern
+             (shell-quote-argument pattern)
              context
-             pattern))))
+             (shell-quote-argument pattern)))))
 
 (defun sage--tool-glob-files (args)
   "Find files matching a glob pattern."
@@ -223,13 +225,13 @@ Applies unified diff patches to files."
         (context-lines (or (alist-get 'context_lines args) 3))
         (default-directory (sage-tools--get-workspace)))
     (shell-command-to-string
-     (format "rg -n -C %d %s '%s' 2>/dev/null || grep -rn -C %d %s '%s' . 2>/dev/null"
+     (format "rg -n -C %d %s %s 2>/dev/null || grep -rn -C %d %s %s . 2>/dev/null"
              context-lines
-             (if file-pattern (format "-g '%s'" file-pattern) "")
-             pattern
+             (if file-pattern (format "-g %s" (shell-quote-argument file-pattern)) "")
+             (shell-quote-argument pattern)
              context-lines
-             (if file-pattern (format "--include='%s'" file-pattern) "")
-             pattern))))
+             (if file-pattern (format "--include=%s" (shell-quote-argument file-pattern)) "")
+             (shell-quote-argument pattern)))))
 
 ;;; EMACS-SPECIFIC TOOLS
 

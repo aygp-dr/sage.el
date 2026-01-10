@@ -180,9 +180,8 @@ Keys are fact names, values are fact content.")
   "Get API endpoint for current provider."
   (pcase sage-provider
     ('gemini
-     (format "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s"
-             (sage--get-model)
-             (sage--get-api-key)))
+     (format "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent"
+             (sage--get-model)))
     ('ollama
      (format "%s/api/chat" sage-ollama-host))
     ('openai
@@ -322,8 +321,9 @@ CALLBACK receives the parsed response."
        (let* ((url-request-method "POST")
               (url-request-extra-headers
                `(("Content-Type" . "application/json")
-                 ,@(when (eq sage-provider 'openai)
-                     `(("Authorization" . ,(format "Bearer %s" (sage--get-api-key)))))))
+                 ,@(pcase sage-provider
+                     ('openai `(("Authorization" . ,(format "Bearer %s" (sage--get-api-key)))))
+                     ('gemini `(("x-goog-api-key" . ,(sage--get-api-key)))))))
               (url-request-data
                (encode-coding-string
                 (json-encode (sage--format-request messages tools))
