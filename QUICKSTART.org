@@ -1,0 +1,205 @@
+#+TITLE: sage.el Quickstart - Dogfooding Guide
+#+AUTHOR: Jason Walsh
+#+EMAIL: j@wal.sh
+
+* Quick Setup (5 minutes)
+
+** 1. Clone and Setup
+
+#+BEGIN_SRC bash
+# Clone the repo
+ghq get aygp-dr/sage.el
+# or
+git clone https://github.com/aygp-dr/sage.el.git
+
+cd sage.el  # or ~/ghq/github.com/aygp-dr/sage.el
+#+END_SRC
+
+** 2. Configure API Keys
+
+#+BEGIN_SRC bash
+# Copy the example env file
+cp .env.example .env
+
+# Edit with your API key
+# Get one at: https://aistudio.google.com/app/apikey
+$EDITOR .env
+#+END_SRC
+
+Your =.env= should look like:
+#+BEGIN_SRC sh
+GEMINI_API_KEY=AIza...your-key-here
+# Optional:
+# OPENAI_API_KEY=sk-...
+#+END_SRC
+
+** 3. Load in Emacs
+
+Add to your init file or evaluate directly:
+
+#+BEGIN_SRC elisp
+;; Add to load-path
+(add-to-list 'load-path "~/ghq/github.com/aygp-dr/sage.el")
+
+;; Load the package
+(require 'sage)
+
+;; Optional: Load additional modules
+(require 'sage-tools)    ; File/git tools
+(require 'sage-emacs)    ; Org-mode integration
+(require 'sage-memory)   ; Persistent memory
+(require 'sage-project)  ; Per-project conversations
+#+END_SRC
+
+** 4. Configure Provider
+
+#+BEGIN_SRC elisp
+;; Option A: Use Gemini (requires API key)
+(setq sage-provider 'gemini)
+(setq sage-model "gemini-2.0-flash")
+
+;; Option B: Use Ollama (free, local, no API key)
+(setq sage-provider 'ollama)
+(setq sage-model "llama3.2")
+;; Make sure Ollama is running: ollama serve
+
+;; Option C: Use OpenAI (requires API key)
+(setq sage-provider 'openai)
+(setq sage-model "gpt-4o-mini")
+#+END_SRC
+
+** 5. Start the REPL
+
+#+BEGIN_SRC elisp
+M-x sage
+#+END_SRC
+
+* Using sage.el
+
+** Basic REPL Commands
+
+| Key/Command | Action |
+|-------------+--------|
+| =RET= | Send message |
+| =C-c C-c= | Interrupt request |
+| =C-c C-k= | Clear conversation |
+| =q= | Quit REPL |
+
+** Slash Commands
+
+| Command | Description |
+|---------+-------------|
+| =/help= | Show available commands |
+| =/model NAME= | Switch model |
+| =/provider NAME= | Switch provider |
+| =/clear= | Clear conversation |
+| =/save FILE= | Save session |
+| =/load FILE= | Load session |
+
+** From Any Buffer
+
+#+BEGIN_SRC elisp
+;; Send region to sage
+M-x sage-send-region
+
+;; Send current buffer
+M-x sage-send-buffer
+
+;; Send current defun (function)
+M-x sage-send-defun
+
+;; Ask about code at point
+M-x sage-explain-code
+#+END_SRC
+
+** Org-mode Integration
+
+#+BEGIN_SRC elisp
+;; Send org subtree to sage
+M-x sage-org-send-subtree
+
+;; Send source block
+M-x sage-org-send-block
+#+END_SRC
+
+* Local Development with Ollama
+
+For free, private AI without API costs:
+
+#+BEGIN_SRC bash
+# Install Ollama
+# macOS: brew install ollama
+# Linux: curl -fsSL https://ollama.com/install.sh | sh
+
+# Pull a model
+ollama pull llama3.2
+
+# Start the server
+ollama serve
+#+END_SRC
+
+Then in Emacs:
+#+BEGIN_SRC elisp
+(setq sage-provider 'ollama)
+(setq sage-model "llama3.2")
+(sage)
+#+END_SRC
+
+* Running Tests
+
+#+BEGIN_SRC bash
+# Quick validation
+make elisp-version      # Show Emacs version
+make elisp-load-test    # Verify modules load
+make test               # Run core tests
+
+# Full test suite
+make test-all           # All 90 tests
+
+# Specific module tests
+make test-context
+make test-ratelimit
+make test-project
+#+END_SRC
+
+* Troubleshooting
+
+** "API key not found"
+
+#+BEGIN_SRC bash
+# Check your .env file
+cat .env
+
+# Ensure direnv is allowed
+direnv allow
+
+# Or set directly in Emacs:
+(setenv "GEMINI_API_KEY" "your-key")
+#+END_SRC
+
+** "Connection refused" (Ollama)
+
+#+BEGIN_SRC bash
+# Check if Ollama is running
+curl http://localhost:11434/api/tags
+
+# Start Ollama
+ollama serve
+#+END_SRC
+
+** Module load errors
+
+#+BEGIN_SRC elisp
+;; Check for byte-compile errors
+M-x byte-compile-file RET sage.el RET
+
+;; Ensure dependencies are installed
+(package-install 'request)
+#+END_SRC
+
+* Next Steps
+
+- Read [[file:README.org][README.org]] for full documentation
+- Check [[file:CONTRIBUTING.org][CONTRIBUTING.org]] for development guidelines
+- See [[file:API-REFERENCE.org][API-REFERENCE.org]] for function documentation
+- Browse [[file:EMACS-INTEGRATION.org][EMACS-INTEGRATION.org]] for advanced usage

@@ -1,14 +1,14 @@
-#+TITLE: Contributing to Sage 009
-#+AUTHOR: AYGP-DR
-#+DATE: 2025-07-26
+#+TITLE: Contributing to sage.el
+#+AUTHOR: Jason Walsh
+#+EMAIL: j@wal.sh
 
 * Contributing Guidelines
 
-Thank you for your interest in contributing to Sage 009! This document provides guidelines for contributing to the project.
+Thank you for your interest in contributing to sage.el! This document provides guidelines for contributing to the project.
 
 ** Code of Conduct
 
-By participating in this project, you agree to abide by our code of conduct:
+By participating in this project, you agree to:
 - Be respectful and inclusive
 - Welcome newcomers and help them get started
 - Focus on constructive criticism
@@ -19,202 +19,240 @@ By participating in this project, you agree to abide by our code of conduct:
 *** Reporting Issues
 
 1. Check existing issues to avoid duplicates
-2. Use issue templates when available
-3. Provide detailed information:
-   - Rust version (=rustc --version=)
+2. Provide detailed information:
+   - Emacs version (=M-x emacs-version=)
    - Operating system
    - Steps to reproduce
    - Expected vs actual behavior
-   - Error messages or logs
+   - Error messages (=*Messages*= buffer)
 
 *** Suggesting Features
 
-1. Open a discussion first for major features
+1. Open an issue or discussion first
 2. Explain the use case and benefits
-3. Consider implementation complexity
-4. Reference similar features in other sage versions
+3. Reference similar features in Claude Code or other tools
+4. Consider implementation complexity
 
-*** Submitting Code
+** Development Setup
 
-**** Setup Development Environment
+*** Prerequisites
+
+- Emacs 28.1+
+- =request.el= package
+- Git
+- Optional: Cask for dependency management
+
+*** Clone and Setup
 
 #+BEGIN_SRC bash
 # Clone the repository
-git clone https://github.com/aygp-dr/sage-009.git
-cd sage-009
+git clone https://github.com/aygp-dr/sage.el.git
+cd sage.el
 
-# Install Rust (if needed)
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+# Copy environment template
+cp .env.example .env
+# Edit .env with your API key
 
-# Set up pre-commit hooks
-cp scripts/pre-commit.sh .git/hooks/pre-commit
-chmod +x .git/hooks/pre-commit
-
-# Build and test
-cargo build
-cargo test
+# Run tests to verify setup
+make test
 #+END_SRC
 
-**** Development Workflow
+*** Load for Development
+
+#+BEGIN_SRC elisp
+;; Add to load-path (use actual path)
+(add-to-list 'load-path "/path/to/sage.el")
+
+;; Load with debugging
+(setq debug-on-error t)
+(require 'sage)
+#+END_SRC
+
+** Coding Standards
+
+*** Emacs Lisp Style
+
+- Use =lexical-binding: t= in all files
+- Follow Emacs Lisp conventions (use-hyphens, not CamelCase)
+- Prefix public functions with =sage-=
+- Prefix private functions with =sage--=
+- Use =cl-lib= for Common Lisp utilities
+- Document all public functions with docstrings
+- Keep lines under 80 characters
+
+*** Example Function
+
+#+BEGIN_SRC elisp
+(defun sage-example-function (arg1 arg2)
+  "Do something with ARG1 and ARG2.
+Returns the result of processing."
+  (let ((result (sage--internal-helper arg1)))
+    (when arg2
+      (setq result (concat result arg2)))
+    result))
+
+(defun sage--internal-helper (input)
+  "Private helper for processing INPUT."
+  (format "processed: %s" input))
+#+END_SRC
+
+*** Project Structure
+
+#+BEGIN_EXAMPLE
+sage.el              ; Main REPL and provider API
+sage-context.el      ; Token counting, context management
+sage-emacs.el        ; Org-mode, buffer integrations
+sage-memory.el       ; Persistent facts/memory
+sage-project.el      ; Per-project conversations
+sage-queue.el        ; File-based async queue
+sage-ratelimit.el    ; Rate limiting per model
+sage-session.el      ; Session save/restore
+sage-tools.el        ; File, git, search tools
+test/                ; ERT test files
+scripts/             ; Helper scripts
+#+END_EXAMPLE
+
+** Testing
+
+*** Run Tests
+
+#+BEGIN_SRC bash
+# Core tests (fast)
+make test
+
+# All tests (90 tests)
+make test-all
+
+# Specific module
+make test-context
+make test-ratelimit
+make test-project
+
+# Quick validation
+make elisp-load-test    # Verify modules load
+make elisp-check-syntax # Byte-compile warnings
+#+END_SRC
+
+*** Writing Tests
+
+#+BEGIN_SRC elisp
+;;; test/sage-example-test.el -*- lexical-binding: t; -*-
+
+(require 'ert)
+(require 'sage-example)
+
+(ert-deftest sage-example-test-basic ()
+  "Test basic functionality."
+  (should (equal (sage-example-function "a" "b") "processed: ab")))
+
+(ert-deftest sage-example-test-nil-arg ()
+  "Test with nil argument."
+  (should (equal (sage-example-function "a" nil) "processed: a")))
+
+(provide 'sage-example-test)
+#+END_SRC
+
+** Submitting Changes
+
+*** Commit Messages
+
+Use [[https://www.conventionalcommits.org/][Conventional Commits]]:
+
+| Prefix | Description |
+|--------+-------------|
+| =feat:= | New feature |
+| =fix:= | Bug fix |
+| =docs:= | Documentation |
+| =test:= | Tests |
+| =refactor:= | Code restructuring |
+| =chore:= | Maintenance |
+
+Examples:
+#+BEGIN_EXAMPLE
+feat: add /compact command for context summarization
+fix: handle nil response from Ollama
+docs: add dogfooding quickstart guide
+test: add tests for rate limiting edge cases
+#+END_EXAMPLE
+
+*** Pull Request Process
 
 1. Fork the repository
 2. Create a feature branch:
    #+BEGIN_SRC bash
-   git checkout -b feature/your-feature-name
+   git checkout -b feat/my-feature
    #+END_SRC
 
-3. Make your changes following our coding standards
-4. Write or update tests
-5. Ensure all tests pass:
+3. Make changes following coding standards
+4. Add/update tests
+5. Ensure tests pass:
    #+BEGIN_SRC bash
-   cargo test
-   cargo clippy -- -D warnings
-   cargo fmt -- --check
+   make test-all
    #+END_SRC
 
-6. Commit with descriptive messages:
+6. Commit with descriptive message:
    #+BEGIN_SRC bash
-   git commit -m "feat: add new command for X"
+   git commit -m "feat: add my feature" \
+       --trailer "Co-Authored-By: Your Name <email>"
    #+END_SRC
 
-7. Push to your fork and create a Pull Request
+7. Push and create PR
 
-*** Commit Message Convention
+*** PR Checklist
 
-We use [[https://www.conventionalcommits.org/][Conventional Commits]]:
+- [ ] Code follows Elisp style guidelines
+- [ ] All tests pass (=make test-all=)
+- [ ] New features have tests
+- [ ] Public functions have docstrings
+- [ ] No byte-compile warnings for new code
 
-- =feat:= New feature
-- =fix:= Bug fix
-- =docs:= Documentation changes
-- =style:= Formatting, missing semicolons, etc.
-- =refactor:= Code restructuring
-- =perf:= Performance improvements
-- =test:= Adding or modifying tests
-- =chore:= Maintenance tasks
+** Architecture Overview
 
-Examples:
-#+BEGIN_EXAMPLE
-feat: add /model command to switch models
-fix: handle rate limiting with exponential backoff
-docs: update installation instructions for Windows
-perf: optimize context pruning algorithm
-#+END_EXAMPLE
+*** Provider Abstraction
 
-** Coding Standards
-
-*** Rust Style Guide
-
-- Follow the official [[https://doc.rust-lang.org/1.0.0/style/][Rust Style Guide]]
-- Use =cargo fmt= for formatting
-- Use =cargo clippy= for linting
-- Prefer explicit error handling over =unwrap()=
-- Document public APIs with doc comments
-- Write unit tests for new functionality
-
-*** Project-Specific Conventions
-
-- Keep modules focused and single-purpose
-- Use descriptive variable names
-- Implement =Display= and =Debug= for custom types
-- Use =anyhow= for application errors
-- Use =thiserror= for library errors
-- Prefer =async/await= over raw futures
-
-*** Documentation
-
-- Update README.org for user-facing changes
-- Update CHANGELOG.org following Keep a Changelog
-- Add inline documentation for complex logic
-- Include examples in doc comments
-- Update org-mode source files if using literate programming
-
-** Testing
-
-*** Test Categories
-
-1. *Unit Tests*: Test individual functions
-   #+BEGIN_SRC rust
-   #[cfg(test)]
-   mod tests {
-       use super::*;
-       
-       #[test]
-       fn test_parse_command() {
-           assert_eq!(parse_command("/help"), Command::Help);
-       }
-   }
-   #+END_SRC
-
-2. *Integration Tests*: Test component interactions
-   - Located in =tests/= directory
-   - Test API client with mocked responses
-   - Test REPL command processing
-
-3. *End-to-End Tests*: Test full workflows
-   - Test actual API calls (with test API key)
-   - Test session management
-   - Test tool execution
-
-*** Running Tests
-
-#+BEGIN_SRC bash
-# Run all tests
-cargo test
-
-# Run specific test
-cargo test test_parse_command
-
-# Run tests with output
-cargo test -- --nocapture
-
-# Run benchmarks
-cargo bench
+#+BEGIN_SRC elisp
+;; Providers implement these functions:
+sage--format-request-TYPE    ; Format request for API
+sage--parse-response-TYPE    ; Parse API response
+sage--get-endpoint-TYPE      ; Return API endpoint
 #+END_SRC
 
-** Pull Request Process
+*** Adding a New Provider
 
-1. *Pre-submission Checklist*:
-   - [ ] Code follows style guidelines
-   - [ ] Tests pass locally
-   - [ ] Documentation is updated
-   - [ ] Changelog entry added
-   - [ ] No unnecessary dependencies added
+1. Add provider to =sage-providers= alist
+2. Implement format/parse/endpoint functions
+3. Add rate limits to =sage-ratelimit-default-limits=
+4. Add tests
+5. Update documentation
 
-2. *Review Process*:
-   - PRs require at least one review
-   - Address reviewer feedback
-   - Keep PRs focused and atomic
-   - Rebase on main if needed
+*** Tool System
 
-3. *Merge Criteria*:
-   - All CI checks pass
-   - No unresolved conversations
-   - Approved by maintainer
-   - Up to date with main branch
-
-** Release Process
-
-1. Update version in =Cargo.toml=
-2. Update CHANGELOG.org
-3. Create annotated tag:
-   #+BEGIN_SRC bash
-   git tag -a v0.2.0 -m "Release version 0.2.0"
-   #+END_SRC
-4. Push tag: =git push origin v0.2.0=
-5. GitHub Actions will build and create release
+#+BEGIN_SRC elisp
+;; Register a new tool
+(sage-register-tool
+ 'my-tool
+ (lambda (args)
+   "Tool implementation"
+   (let ((param (alist-get 'param args)))
+     (format "Result: %s" param)))
+ '((name . "my_tool")
+   (description . "Does something useful")
+   (parameters . ((type . "object")
+                  (properties . ((param . ((type . "string")))))))))
+#+END_SRC
 
 ** Getting Help
 
-- Open a discussion for questions
-- Join our community chat (if available)
-- Check existing issues and discussions
-- Read the documentation thoroughly
+- Open an issue for bugs
+- Start a discussion for questions
+- Check existing documentation in =*.org= files
+- Read the code - it's well-documented
 
 ** Recognition
 
-Contributors will be recognized in:
-- CHANGELOG.org for significant contributions
+Contributors are recognized in:
+- Git commit history
+- CHANGES.org for significant contributions
 - GitHub contributors page
-- Release notes
 
-Thank you for contributing to Sage 009! 🦀🤖
+Thank you for contributing to sage.el!
