@@ -1,4 +1,6 @@
-.PHONY: all test test-all clean compile lint
+.PHONY: all test test-all clean compile lint \
+        elisp-version elisp-load-test elisp-check-syntax elisp-http-inbox \
+        check ci
 
 EMACS ?= emacs
 EMACS_BATCH = $(EMACS) -Q --batch -L .
@@ -64,5 +66,59 @@ lint:
 clean:
 	rm -f $(ELC_FILES)
 	rm -f test/*.elc
+
+# === Quick validation targets ===
+
+# Show Emacs version
+elisp-version:
+	@$(EMACS_BATCH) --eval '(message "Emacs %s" emacs-version)'
+
+# Test that all modules load without errors
+elisp-load-test:
+	@echo "Testing module loading..."
+	@$(EMACS_BATCH) \
+		-l sage.el \
+		-l sage-context.el \
+		-l sage-emacs.el \
+		-l sage-memory.el \
+		-l sage-project.el \
+		-l sage-queue.el \
+		-l sage-ratelimit.el \
+		-l sage-session.el \
+		-l sage-tools.el \
+		--eval '(message "All modules loaded successfully")'
+
+# Byte-compile with strict warning checks (fails on warnings)
+elisp-check-syntax:
+	@echo "Checking syntax with strict byte-compilation..."
+	@$(EMACS_BATCH) \
+		--eval "(setq byte-compile-error-on-warn t)" \
+		-f batch-byte-compile $(EL_FILES) 2>&1 || \
+		(echo "Syntax check failed - see warnings above"; exit 1)
+
+# Test HTTP connectivity (requires running server)
+elisp-http-inbox:
+	@echo "Testing HTTP inbox fetch (Ollama)..."
+	@$(EMACS_BATCH) \
+		--eval "(require 'url)" \
+		--eval "(require 'json)" \
+		--eval "(condition-case err \
+		          (let ((buffer (url-retrieve-synchronously \"http://localhost:11434/api/tags\" nil t 5))) \
+		            (if buffer \
+		                (with-current-buffer buffer \
+		                  (goto-char (point-min)) \
+		                  (re-search-forward \"^$$\" nil t) \
+		                  (let ((data (json-read))) \
+		                    (message \"Ollama models: %s\" \
+		                             (mapcar (lambda (m) (cdr (assq (quote name) m))) \
+		                                     (cdr (assq (quote models) data)))))) \
+		              (message \"No response from Ollama\"))) \
+		          (error (message \"Ollama not running at localhost:11434\")))"
+
+# Combined check target for CI
+check: elisp-version elisp-load-test compile test
+
+# Full CI pipeline
+ci: check test-all
 
 .DEFAULT_GOAL := all

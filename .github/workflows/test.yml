@@ -22,29 +22,18 @@ jobs:
         with:
           version: ${{ matrix.emacs-version }}
 
+      - name: Show Emacs version
+        run: make elisp-version
+
       - name: Install dependencies
         run: |
-          emacs --version
           emacs -Q --batch -l package --eval "(package-initialize)" --eval "(package-refresh-contents)" --eval "(package-install 'request)"
 
+      - name: Test module loading
+        run: make elisp-load-test
+
       - name: Byte compile
-        run: |
-          emacs -Q --batch -L . -f batch-byte-compile sage.el
-          emacs -Q --batch -L . -f batch-byte-compile sage-context.el
-          emacs -Q --batch -L . -f batch-byte-compile sage-emacs.el
-          emacs -Q --batch -L . -f batch-byte-compile sage-memory.el
-          emacs -Q --batch -L . -f batch-byte-compile sage-project.el
-          emacs -Q --batch -L . -f batch-byte-compile sage-queue.el
-          emacs -Q --batch -L . -f batch-byte-compile sage-ratelimit.el
-          emacs -Q --batch -L . -f batch-byte-compile sage-session.el
-          emacs -Q --batch -L . -f batch-byte-compile sage-tools.el
+        run: make compile
 
       - name: Run tests
-        run: |
-          emacs -Q --batch -L . -l ert -l test/sage-test.el -f ert-run-tests-batch-and-exit
-          emacs -Q --batch -L . -l ert -l sage-project.el -l test/sage-project-test.el -f ert-run-tests-batch-and-exit
-          emacs -Q --batch -L . -l ert -l sage-context.el -l test/sage-context-test.el -f ert-run-tests-batch-and-exit
-          emacs -Q --batch -L . -l ert -l sage-ratelimit.el -l test/sage-ratelimit-test.el -f ert-run-tests-batch-and-exit
-          emacs -Q --batch -L . -l ert -l sage-memory.el -l test/sage-memory-test.el -f ert-run-tests-batch-and-exit
-          emacs -Q --batch -L . -l ert -l sage-emacs.el -l test/sage-emacs-test.el -f ert-run-tests-batch-and-exit
-          emacs -Q --batch -L . -l ert -l sage-queue.el -l test/sage-queue-test.el -f ert-run-tests-batch-and-exit
+        run: make test-all
