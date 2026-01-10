@@ -97,9 +97,10 @@ Returns nil for unlimited models."
   "Remove requests older than the rate limit window from HISTORY.
 NOW is the current time as a float."
   (let ((cutoff (- now sage-ratelimit-window)))
+    ;; Ring index 0 is newest, last index is oldest
     (while (and (not (ring-empty-p history))
-                (< (ring-ref history 0) cutoff))
-      (ring-remove history 0))))
+                (< (ring-ref history (1- (ring-length history))) cutoff))
+      (ring-remove history (1- (ring-length history))))))
 
 (defun sage-ratelimit--count-recent-requests (model)
   "Count requests for MODEL in the current time window."

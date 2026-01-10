@@ -173,10 +173,11 @@ Returns float between 0.0 and 1.0."
          (total (alist-get 'total stats)))
     (/ (float total) max)))
 
-(defun sage-context-needs-compaction-p (messages)
+(defun sage-context-needs-compaction-p (messages &optional max-tokens)
   "Check if MESSAGES exceed compaction threshold.
+MAX-TOKENS overrides model-based detection.
 Returns non-nil if compaction is needed."
-  (>= (sage-context-usage messages)
+  (>= (sage-context-usage messages max-tokens)
       sage-context-compaction-threshold))
 
 (defun sage-context-needs-warning-p (messages)

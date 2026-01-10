@@ -169,19 +169,18 @@
 
 (ert-deftest sage-queue-test-handler-registration ()
   "Test custom handler registration."
-  (let ((handler-called nil)
-        (test-handler (lambda (req)
-                       (setq handler-called t)
-                       (cons 'success "custom response"))))
-    (sage-queue-register-handler 'custom test-handler)
-
-    (let ((request `((id . "test")
-                    (type . "custom")
-                    (content . "test"))))
-      (let ((result (funcall (gethash "custom" sage-queue--request-handlers) request)))
-        (should handler-called)
-        (should (eq (car result) 'success))
-        (should (string= (cdr result) "custom response"))))))
+  (let ((handler-called nil))
+    (let ((test-handler (lambda (req)
+                          (setq handler-called t)
+                          (cons 'success "custom response"))))
+      (sage-queue-register-handler 'custom test-handler)
+      (let ((request `((id . "test")
+                       (type . "custom")
+                       (content . "test"))))
+        (let ((result (funcall (gethash "custom" sage-queue--request-handlers) request)))
+          (should handler-called)
+          (should (eq (car result) 'success))
+          (should (string= (cdr result) "custom response")))))))
 
 (provide 'sage-queue-test)
 ;;; sage-queue-test.el ends here

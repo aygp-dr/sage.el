@@ -56,13 +56,13 @@
 
 (ert-deftest sage-context-test-needs-compaction ()
   "Test compaction threshold detection."
-  ;; With very small max, should need compaction
+  ;; With very small max tokens, should need compaction
   (should (sage-context-needs-compaction-p
-           sage-context-test-messages))
+           sage-context-test-messages 10))
   ;; With huge max, should not need compaction
   (let ((sage-context-compaction-threshold 0.90))
     (should-not (sage-context-needs-compaction-p
-                 '(((role . "user") (content . "hi")))))))
+                 '(((role . "user") (content . "hi"))) 100000))))
 
 ;;; Compaction Tests
 
