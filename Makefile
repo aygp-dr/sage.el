@@ -1,4 +1,4 @@
-.PHONY: all test test-all clean compile lint \
+.PHONY: all test test-all clean compile lint checkdoc package-lint check-headers \
         elisp-version elisp-load-test elisp-check-syntax elisp-http-inbox \
         check ci
 
@@ -57,11 +57,49 @@ test-context:
 test-project:
 	$(EMACS_BATCH) -l ert -l sage-project.el -l test/sage-project-test.el -f ert-run-tests-batch-and-exit
 
-lint:
-	$(EMACS_BATCH) --eval "(require 'package)" \
+lint: checkdoc check-headers
+
+# Check documentation strings
+checkdoc:
+	@echo "Running checkdoc..."
+	@for f in $(EL_FILES); do \
+		echo "  Checking $$f..."; \
+		$(EMACS_BATCH) --eval "(require 'checkdoc)" \
+			--eval "(setq checkdoc-spellcheck-documentation-flag nil)" \
+			--eval "(with-current-buffer (find-file-noselect \"$$f\") \
+			         (checkdoc-current-buffer t))" 2>&1 || true; \
+	done
+
+# Check package headers and conventions (requires package-lint)
+package-lint:
+	@echo "Running package-lint..."
+	@$(EMACS_BATCH) \
+		--eval "(require 'package)" \
 		--eval "(package-initialize)" \
-		--eval "(require 'checkdoc)" \
-		-f checkdoc-file $(EL_FILES)
+		--eval "(unless (package-installed-p 'package-lint) \
+		         (package-refresh-contents) \
+		         (package-install 'package-lint))" \
+		--eval "(require 'package-lint)" \
+		-f package-lint-batch-and-exit $(EL_FILES)
+
+# Check for lexical-binding and standard headers
+check-headers:
+	@echo "Checking file headers..."
+	@failed=0; \
+	for f in $(EL_FILES); do \
+		if ! head -1 "$$f" | grep -q "lexical-binding: t"; then \
+			echo "ERROR: $$f missing lexical-binding: t"; \
+			failed=1; \
+		fi; \
+		if ! grep -q "^;; Author:" "$$f"; then \
+			echo "WARNING: $$f missing Author header"; \
+		fi; \
+		if ! grep -q "^;; URL:" "$$f"; then \
+			echo "WARNING: $$f missing URL header"; \
+		fi; \
+	done; \
+	if [ $$failed -eq 1 ]; then exit 1; fi
+	@echo "All headers OK"
 
 clean:
 	rm -f $(ELC_FILES)
@@ -102,9 +140,9 @@ elisp-http-inbox:
 	@$(EMACS_BATCH) -l scripts/check-ollama.el
 
 # Combined check target for CI
-check: elisp-version elisp-load-test compile test
+check: elisp-version elisp-load-test check-headers compile test
 
 # Full CI pipeline
-ci: check test-all
+ci: check test-all lint
 
 .DEFAULT_GOAL := all

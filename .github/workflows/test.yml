@@ -29,6 +29,9 @@ jobs:
         run: |
           emacs -Q --batch -l package --eval "(package-initialize)" --eval "(package-refresh-contents)" --eval "(package-install 'request)"
 
+      - name: Check headers
+        run: make check-headers
+
       - name: Test module loading
         run: make elisp-load-test
 
@@ -37,3 +40,29 @@ jobs:
 
       - name: Run tests
         run: make test-all
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Emacs
+        uses: purcell/setup-emacs@master
+        with:
+          version: '29.4'
+
+      - name: Install dependencies
+        run: |
+          emacs -Q --batch -l package --eval "(package-initialize)" --eval "(package-refresh-contents)" --eval "(package-install 'request)" --eval "(package-install 'package-lint)"
+
+      - name: Check headers
+        run: make check-headers
+
+      - name: Run checkdoc
+        run: make checkdoc
+        continue-on-error: true
+
+      - name: Run package-lint
+        run: make package-lint
+        continue-on-error: true
