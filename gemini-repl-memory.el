@@ -131,8 +131,8 @@ Defaults to general."
                             nil t nil nil "general"))))
      (list key value category)))
   (gemini-repl-memory--ensure-loaded)
-  (let ((category (or category 'general))
-        (fact (gemini-repl-memory--create-fact key value category)))
+  (let* ((category (or category 'general))
+         (fact (gemini-repl-memory--create-fact key value category)))
     ;; Remove existing fact with same key if present
     (setq gemini-repl-memory--facts
           (assoc-delete-all key gemini-repl-memory--facts))

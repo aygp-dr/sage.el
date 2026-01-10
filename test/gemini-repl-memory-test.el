@@ -21,6 +21,7 @@
   (setq gemini-repl-memory-file gemini-repl-memory-test-file
         gemini-repl-memory--facts nil
         gemini-repl-memory--loaded nil
+        gemini-repl-memory-auto-load nil
         gemini-repl-memory-auto-save nil))
 
 (defun gemini-repl-memory-test-teardown ()
