@@ -83,10 +83,10 @@
 
 (ert-deftest test-customization-defaults ()
   "Test default values for customizations."
-  (should (eq gemini-repl-emacs-org-ai-block-type "ai"))
-  (should (eq gemini-repl-emacs-insert-as-comment nil))
-  (should (eq gemini-repl-emacs-context-lines 5))
-  (should (eq gemini-repl-emacs-auto-format-response t)))
+  (should (string= gemini-repl-emacs-org-ai-block-type "ai"))
+  (should (null gemini-repl-emacs-insert-as-comment))
+  (should (= gemini-repl-emacs-context-lines 5))
+  (should gemini-repl-emacs-auto-format-response))
 
 ;;; Response Capture Tests
 
