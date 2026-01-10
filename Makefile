@@ -1,6 +1,6 @@
 .PHONY: all test test-all clean compile lint checkdoc package-lint check-headers \
         elisp-version elisp-load-test elisp-check-syntax elisp-http-inbox \
-        check ci
+        check ci gh-status gh-failures gh-watch gh-logs
 
 EMACS ?= emacs
 EMACS_BATCH = $(EMACS) -Q --batch -L .
@@ -144,5 +144,35 @@ check: elisp-version elisp-load-test check-headers compile test
 
 # Full CI pipeline
 ci: check test-all lint
+
+# === GitHub Actions targets ===
+
+# Show recent workflow runs
+gh-status:
+	@echo "=== Recent GitHub Actions Runs ==="
+	@gh run list --limit 10
+
+# Show failed runs with details
+gh-failures:
+	@echo "=== Failed GitHub Actions Runs ==="
+	@gh run list --status failure --limit 5
+	@echo ""
+	@echo "To view details: gh run view <run-id>"
+	@echo "To view logs: gh run view <run-id> --log-failed"
+
+# Watch current/latest run
+gh-watch:
+	@echo "Watching latest run..."
+	@gh run watch
+
+# View logs from latest failed run
+gh-logs:
+	@latest=$$(gh run list --status failure --limit 1 --json databaseId -q '.[0].databaseId'); \
+	if [ -n "$$latest" ]; then \
+		echo "=== Logs from run $$latest ==="; \
+		gh run view $$latest --log-failed; \
+	else \
+		echo "No failed runs found"; \
+	fi
 
 .DEFAULT_GOAL := all
