@@ -99,21 +99,7 @@ elisp-check-syntax:
 # Test HTTP connectivity (requires running server)
 elisp-http-inbox:
 	@echo "Testing HTTP inbox fetch (Ollama)..."
-	@$(EMACS_BATCH) \
-		--eval "(require 'url)" \
-		--eval "(require 'json)" \
-		--eval "(condition-case err \
-		          (let ((buffer (url-retrieve-synchronously \"http://localhost:11434/api/tags\" nil t 5))) \
-		            (if buffer \
-		                (with-current-buffer buffer \
-		                  (goto-char (point-min)) \
-		                  (re-search-forward \"^$$\" nil t) \
-		                  (let ((data (json-read))) \
-		                    (message \"Ollama models: %s\" \
-		                             (mapcar (lambda (m) (cdr (assq (quote name) m))) \
-		                                     (cdr (assq (quote models) data)))))) \
-		              (message \"No response from Ollama\"))) \
-		          (error (message \"Ollama not running at localhost:11434\")))"
+	@$(EMACS_BATCH) -l scripts/check-ollama.el
 
 # Combined check target for CI
 check: elisp-version elisp-load-test compile test
