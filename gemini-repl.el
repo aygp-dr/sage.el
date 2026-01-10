@@ -383,7 +383,7 @@ Returns t if allowed, nil if denied."
 
 (defun gemini-repl--execute-tool (name args)
   "Execute tool NAME with ARGS."
-  (if-let ((tool (seq-find (lambda (t) (string= (alist-get 'name t) name))
+  (if-let ((tool (seq-find (lambda (tl) (string= (alist-get 'name tl) name))
                            gemini-repl-tools)))
       (if (gemini-repl--check-permission name args)
           (condition-case err
