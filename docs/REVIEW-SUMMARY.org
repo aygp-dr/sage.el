@@ -1,0 +1,155 @@
+#+TITLE: RFC Review Summary: Session Storage
+#+DATE: 2026-01-11
+#+OPTIONS: toc:2 num:nil
+
+* Review Status
+
+| Reviewer | Verdict | Critical Issues |
+|----------|---------|-----------------|
+| L7 (API/Protocol) | CONCERN | UUID collision, no file locking |
+| CTO (Architecture) | CONDITIONAL PASS | Memory for 24MB+ sessions |
+| Elisp Developer | PASS (with concerns) | Blocking I/O, missing UUID fn |
+| MELPA | FAIL | 72 package-lint errors, 28 byte-compile warnings |
+
+* L7 Review Findings
+
+** UUID Collision Resistance: CONCERN
+- Current format: =YYYYMMDD-HHMMSS-XXXXXXXX= (32 bits randomness)
+- Birthday paradox: ~50% collision after 65,000 UUIDs
+- *Recommendation*: Use UUIDv4 (128 bits) or increase to 64+ bits
+
+** Concurrent Access: FAIL
+- No file locking on =append-to-file=
+- Multiple Emacs instances can corrupt JSONL
+- *Recommendation*: Implement =flock= or lock file protocol
+
+** Session Handoff: FAIL
+- No ownership tracking (PID, heartbeat)
+- No stale session detection
+- *Recommendation*: Add =owner_pid=, =last_heartbeat= to sessions.json
+
+** Rate Limiting: CONCERN
+- Every append triggers disk I/O
+- No write batching
+- *Recommendation*: Batch writes with =run-with-idle-timer=
+
+** Claude Code Compatibility: CONCERN
+- Different message format (flat vs nested)
+- Different UUID format
+- *Recommendation*: Add =sage-project-format-version= option
+
+* CTO Review Findings
+
+** Storage Scalability: CONCERN
+- Sessions can reach 24MB+
+- Current impl loads entire file into memory
+- *Recommendation*: Implement lazy loading, file size limits
+
+** Migration Path: PASS
+- Phased approach (Phase 1-4) is sound
+- Wrapper functions maintain backward compatibility
+- Storage presets allow gradual adoption
+
+** Cross-TCA Interoperability: PASS
+- TCA-SESSION-SCHEMA.org is comprehensive
+- =claude-shared= preset enables sharing
+- Strategic value for ecosystem
+
+** Resource Usage: CONCERN
+- Unbounded in-memory list growth
+- Tool results embedded inline (can be huge)
+- *Recommendation*: Externalize tool results, add memory budget
+
+** Cloud Sync: NOT ADDRESSED
+- No conflict resolution strategy
+- No encryption for sensitive data
+- *Recommendation*: Add sequence numbers, document future direction
+
+* Elisp Developer Review Findings
+
+** Emacs Conventions: PASS
+- Proper =lexical-binding: t=
+- Correct prefix convention (=sage-project-=, =sage-project--=)
+- Good docstrings on public functions
+
+** defcustom Usage: PASS
+- Proper =:type= declarations
+- =:set= function for storage preset
+- Good =:group= organization
+
+** Blocking I/O: CONCERN
+- =insert-file-contents= is synchronous
+- Large files cause UI freeze
+- *Recommendation*: Use =make-thread= or idle timers
+
+** Graceful Degradation: PASS
+- =condition-case= around file operations
+- Malformed JSON lines skipped with warning
+- Directories created automatically
+
+** project.el Integration: PASS
+- Optional dependency with soft require
+- Projectile support via =fboundp= check
+- Git root fallback
+
+* MELPA Review Findings
+
+** Package Dependencies: CONCERN
+- =request= listed but may be unused (code uses =url.el=)
+- *Recommendation*: Verify and remove if unused
+
+** Byte-Compilation: FAIL (28 warnings)
+- Free variable: =url-http-end-of-headers=
+- Unknown functions: =org-back-to-heading=, =projectile-project-files=
+- *Fix*: Add =defvar= and =declare-function= statements
+
+** Checkdoc: FAIL
+- Wrong quote escaping (=' should be =\\='=)
+- Docstrings wider than 80 characters
+- *Fix*: Escape quotes, wrap long lines
+
+** Package-lint: FAIL (72 errors)
+- Function naming violations (wrong prefix)
+- Missing URL headers in 4 files
+- Private function autoloaded
+- *Fix*: Rename functions, add headers
+
+* Test Results
+
+#+begin_example
+Tests: 99 passed, 0 failed
+Warnings: 28 byte-compile warnings
+
+By module:
+- sage-test.el: 9/9 passed
+- sage-context-test.el: 12/12 passed
+- sage-emacs-test.el: 9/9 passed
+- sage-memory-test.el: 18/18 passed
+- sage-project-test.el: 18/18 passed
+- sage-queue-test.el: 11/11 passed
+- sage-ratelimit-test.el: 22/22 passed
+#+end_example
+
+* Priority Action Items
+
+** P0 (Blockers)
+1. [ ] Add =defvar url-http-end-of-headers=
+2. [ ] Add =declare-function= for optional deps
+3. [ ] Fix function naming (package-lint)
+4. [ ] Add URL headers to all files
+
+** P1 (Should Fix)
+1. [ ] Implement file locking
+2. [ ] Increase UUID entropy to 64+ bits
+3. [ ] Add lazy loading for large sessions
+4. [ ] Externalize tool results to separate files
+
+** P2 (Nice to Have)
+1. [ ] Write batching with idle timer
+2. [ ] Session ownership tracking
+3. [ ] Claude Code format compatibility mode
+
+* Bead
+
+Issue: =gemini-repl-010-5uh=
+PR: https://github.com/aygp-dr/sage.el/pull/10

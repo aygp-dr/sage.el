@@ -5,7 +5,7 @@
         check ci gh-status gh-failures gh-watch gh-logs \
         demo demo-batch demo-quick demo-screencast \
         metrics metrics-history metrics-compare test-count test-scenarios \
-        batch-todos
+        batch-todos test-session
 
 EMACS ?= emacs
 EMACS_BATCH = $(EMACS) -Q --batch -L .
@@ -305,5 +305,10 @@ demo-reflect:
 batch-todos:
 	@echo "=== Batch Org Todo Demo ==="
 	$(EMACS_BATCH) -l scripts/batch-org-todos.el
+
+# Session storage tests
+test-session:
+	@echo "=== Running Session Tests ==="
+	$(EMACS_BATCH) -l ert -l sage-project.el -l test/sage-session-test.el -f ert-run-tests-batch-and-exit
 
 .DEFAULT_GOAL := all
