@@ -205,18 +205,50 @@ Applies unified diff patches to files."
 ;;; SEARCH TOOLS
 
 (defun sage--tool-code-search (args)
-  "Search code using ripgrep or grep."
-  (let ((default-directory (sage-tools--get-workspace))
-        (pattern (alist-get 'pattern args))
-        (file-type (alist-get 'file_type args))
-        (context (or (alist-get 'context args) 2)))
-    (shell-command-to-string
-     (format "rg %s -C %d %s 2>/dev/null || grep -r -C %d %s . 2>/dev/null"
-             (if file-type (format "-t %s" (shell-quote-argument file-type)) "")
-             context
-             (shell-quote-argument pattern)
-             context
-             (shell-quote-argument pattern)))))
+  "Search code using Emacs primitives.
+Uses `directory-files-recursively' and `string-match' for portable search."
+  (let* ((workspace (sage-tools--get-workspace))
+         (pattern (alist-get 'pattern args))
+         (file-ext (alist-get 'file_type args))  ; e.g., "el", "py", "clj"
+         ;; Note: context lines not yet implemented in pure elisp version
+         ;; Convert file type to regex (e.g., "el" -> "\\.el$")
+         (file-regexp (if file-ext
+                          (format "\\.%s$" (regexp-quote file-ext))
+                        nil))
+         (files (directory-files-recursively
+                 workspace
+                 (or file-regexp ".*")
+                 nil  ; don't include directories
+                 (lambda (dir) ; predicate to skip hidden dirs
+                   (not (string-match-p "/\\." dir)))))
+         (results '()))
+    ;; Search each file
+    (dolist (file (seq-take files 100))  ; Limit to 100 files
+      (when (and (file-readable-p file)
+                 (not (file-directory-p file))
+                 ;; Skip binary files
+                 (not (string-match-p "\\.\\(png\\|jpg\\|gif\\|pdf\\|zip\\|tar\\|gz\\)$" file)))
+        (condition-case nil
+            (with-temp-buffer
+              (insert-file-contents file)
+              (goto-char (point-min))
+              (let ((line-num 0))
+                (while (not (eobp))
+                  (setq line-num (1+ line-num))
+                  (let ((line (buffer-substring-no-properties
+                               (line-beginning-position)
+                               (line-end-position))))
+                    (when (string-match-p pattern line)
+                      (push (format "%s:%d:%s"
+                                    (file-relative-name file workspace)
+                                    line-num
+                                    line)
+                            results)))
+                  (forward-line 1))))
+          (error nil))))
+    (if results
+        (mapconcat #'identity (nreverse (seq-take results 50)) "\n")
+      (format "No matches found for: %s" pattern))))
 
 (defun sage--tool-glob-files (args)
   "Find files matching a glob pattern."
@@ -228,19 +260,49 @@ Applies unified diff patches to files."
                "\n")))
 
 (defun sage--tool-search-preview (args)
-  "Search with context preview."
-  (let ((pattern (alist-get 'pattern args))
-        (file-pattern (alist-get 'file_pattern args))
-        (context-lines (or (alist-get 'context_lines args) 3))
-        (default-directory (sage-tools--get-workspace)))
-    (shell-command-to-string
-     (format "rg -n -C %d %s %s 2>/dev/null || grep -rn -C %d %s %s . 2>/dev/null"
-             context-lines
-             (if file-pattern (format "-g %s" (shell-quote-argument file-pattern)) "")
-             (shell-quote-argument pattern)
-             context-lines
-             (if file-pattern (format "--include=%s" (shell-quote-argument file-pattern)) "")
-             (shell-quote-argument pattern)))))
+  "Search with context preview using Emacs primitives."
+  (let* ((workspace (sage-tools--get-workspace))
+         (pattern (alist-get 'pattern args))
+         (file-pattern (alist-get 'file_pattern args))  ; e.g., "*.el"
+         (context-lines (or (alist-get 'context_lines args) 3))
+         ;; Convert glob to regex (e.g., "*.el" -> "\\.el$")
+         (file-regexp (when file-pattern
+                        (concat (regexp-quote
+                                 (replace-regexp-in-string "\\*" "" file-pattern))
+                                "$")))
+         (files (directory-files-recursively
+                 workspace
+                 (or file-regexp ".*")
+                 nil
+                 (lambda (dir) (not (string-match-p "/\\." dir)))))
+         (results '()))
+    (dolist (file (seq-take files 50))
+      (when (and (file-readable-p file)
+                 (not (string-match-p "\\.\\(png\\|jpg\\|gif\\|pdf\\|zip\\|tar\\|gz\\)$" file)))
+        (condition-case nil
+            (with-temp-buffer
+              (insert-file-contents file)
+              (goto-char (point-min))
+              (let ((lines (split-string (buffer-string) "\n"))
+                    (rel-file (file-relative-name file workspace)))
+                (cl-loop for line in lines
+                         for line-num from 1
+                         when (string-match-p pattern line)
+                         do (let ((start (max 0 (- line-num context-lines 1)))
+                                  (end (min (length lines) (+ line-num context-lines))))
+                              (push (format "--\n%s:"
+                                            rel-file)
+                                    results)
+                              (cl-loop for i from start below end
+                                       do (push (format "%d%s%s"
+                                                        (1+ i)
+                                                        (if (= (1+ i) line-num) ":" "-")
+                                                        (nth i lines))
+                                                results))))))
+          (error nil))))
+    (if results
+        (mapconcat #'identity (nreverse (seq-take results 100)) "\n")
+      (format "No matches found for: %s" pattern))))
 
 ;;; EMACS-SPECIFIC TOOLS
 
