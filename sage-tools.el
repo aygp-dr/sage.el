@@ -39,6 +39,7 @@
 (declare-function org-entry-get "org" (pom property &optional inherit literal-nil))
 (declare-function org-get-tags "org" (&optional pos local))
 (declare-function org-todo "org" (&optional arg))
+(declare-function org-archive-subtree "org-archive" (&optional find-done))
 
 ;;; Tool Registry Variables
 
@@ -144,71 +145,69 @@ Applies unified diff patches to files."
       (format "Unsafe path: %s" path))))
 
 ;;; GIT TOOLS
+;;
+;; All git tools require magit. No shell fallback.
+;; Install magit: M-x package-install RET magit RET
 
-(defun sage--use-magit-p ()
-  "Check if magit is available and should be used."
-  (and (featurep 'magit) (fboundp 'magit-status)))
+(defconst sage-git-requires-magit-error
+  "Git tools require magit. Install with: M-x package-install RET magit RET"
+  "Error message when magit is not available.")
+
+(defun sage--require-magit ()
+  "Ensure magit is available, error otherwise."
+  (unless (and (require 'magit nil t)
+               (fboundp 'magit-git-insert))
+    (error sage-git-requires-magit-error)))
 
 (defun sage--tool-git-status (_args)
-  "Get git status."
+  "Get git status using magit."
+  (sage--require-magit)
   (let ((default-directory (sage-tools--get-workspace)))
-    (if (sage--use-magit-p)
-        (with-temp-buffer
-          (magit-git-insert "status" "--porcelain")
-          (buffer-string))
-      (shell-command-to-string "git status --porcelain"))))
+    (with-temp-buffer
+      (magit-git-insert "status" "--porcelain")
+      (buffer-string))))
 
 (defun sage--tool-git-diff (args)
-  "Get git diff."
+  "Get git diff using magit."
+  (sage--require-magit)
   (let ((default-directory (sage-tools--get-workspace))
         (staged (alist-get 'staged args))
         (path (alist-get 'path args)))
-    (if (sage--use-magit-p)
-        (with-temp-buffer
-          (if staged
-              (magit-git-insert "diff" "--staged" path)
-            (magit-git-insert "diff" path))
-          (buffer-string))
-      (shell-command-to-string
-       (format "git diff %s %s"
-               (if staged "--staged" "")
-               (if path (shell-quote-argument path) ""))))))
+    (with-temp-buffer
+      (if staged
+          (magit-git-insert "diff" "--staged" path)
+        (magit-git-insert "diff" path))
+      (buffer-string))))
 
 (defun sage--tool-git-log (args)
-  "Get git log."
+  "Get git log using magit."
+  (sage--require-magit)
   (let ((default-directory (sage-tools--get-workspace))
         (count (or (alist-get 'count args) 10))
         (path (alist-get 'path args)))
-    (if (sage--use-magit-p)
-        (with-temp-buffer
-          (magit-git-insert "log" "--oneline" (format "-n%d" count) path)
-          (buffer-string))
-      (shell-command-to-string
-       (format "git log --oneline -n %d %s"
-               count
-               (if path (shell-quote-argument path) ""))))))
+    (with-temp-buffer
+      (magit-git-insert "log" "--oneline" (format "-n%d" count) path)
+      (buffer-string))))
 
 (defun sage--tool-git-branch (_args)
-  "Get git branches."
+  "Get git branches using magit."
+  (sage--require-magit)
   (let ((default-directory (sage-tools--get-workspace)))
-    (if (sage--use-magit-p)
-        (with-temp-buffer
-          (magit-git-insert "branch" "-a")
-          (buffer-string))
-      (shell-command-to-string "git branch -a"))))
+    (with-temp-buffer
+      (magit-git-insert "branch" "-a")
+      (buffer-string))))
 
 (defun sage--tool-git-blame (args)
-  "Get git blame for a file."
+  "Get git blame for a file using magit."
+  (sage--require-magit)
   (let ((path (alist-get 'path args))
         (default-directory (sage-tools--get-workspace)))
     (if (sage-tools--safe-path-p path)
         (let ((full-path (expand-file-name path (sage-tools--get-workspace))))
           (if (file-exists-p full-path)
-              (if (sage--use-magit-p)
-                  (with-temp-buffer
-                    (magit-git-insert "blame" path)
-                    (buffer-string))
-                (shell-command-to-string (format "git blame %s" (shell-quote-argument path))))
+              (with-temp-buffer
+                (magit-git-insert "blame" path)
+                (buffer-string))
             (format "File not found: %s" path)))
       (format "Unsafe path: %s" path))))
 
@@ -400,11 +399,24 @@ Uses `directory-files-recursively' and `string-match' for portable search."
       (format "Inserted %d chars at point" (length text)))))
 
 ;;; ORG-MODE TOOLS
+;;
+;; All org tools require org-mode. No fallback.
+;; org-mode is built into Emacs but may need explicit loading.
+
+(defconst sage-org-requires-org-error
+  "Org tools require org-mode. Ensure org is loaded: (require 'org)"
+  "Error message when org-mode is not available.")
+
+(defun sage--require-org ()
+  "Ensure org-mode is available, error otherwise."
+  (unless (and (require 'org nil t)
+               (fboundp 'org-mode))
+    (error sage-org-requires-org-error)))
 
 (defun sage--tool-org-todo-list (args)
   "List todos from an org file or agenda files.
-Uses org-mode's native functionality."
-  (require 'org nil t)
+Requires org-mode."
+  (sage--require-org)
   (let ((file (alist-get 'file args)))
     (if file
         ;; List todos from specific file
@@ -420,7 +432,7 @@ Uses org-mode's native functionality."
                      (let ((heading (org-get-heading t t t t))
                            (state (org-get-todo-state))
                            (priority (when (org-entry-get nil "PRIORITY")
-                                      (string-to-char (org-entry-get nil "PRIORITY"))))
+                                       (string-to-char (org-entry-get nil "PRIORITY"))))
                            (tags (org-get-tags)))
                        (when state
                          (push (format "[%s] %s%s%s"
@@ -458,7 +470,9 @@ Uses org-mode's native functionality."
         "No org-agenda-files configured"))))
 
 (defun sage--tool-org-add-todo (args)
-  "Add a TODO item to an org file."
+  "Add a TODO item to an org file.
+Requires org-mode."
+  (sage--require-org)
   (let ((file (alist-get 'file args))
         (heading (alist-get 'heading args))
         (state (or (alist-get 'state args) "TODO"))
@@ -466,6 +480,7 @@ Uses org-mode's native functionality."
     (if (sage-tools--safe-path-p file)
         (let ((full-path (expand-file-name file (sage-tools--get-workspace))))
           (with-current-buffer (find-file-noselect full-path)
+            (org-mode)
             (goto-char (point-max))
             (unless (bolp) (insert "\n"))
             (insert (format "* %s%s %s\n"
@@ -477,7 +492,9 @@ Uses org-mode's native functionality."
       (format "Unsafe path: %s" file))))
 
 (defun sage--tool-org-set-todo-state (args)
-  "Change the TODO state of an item."
+  "Change the TODO state of an item.
+Requires org-mode."
+  (sage--require-org)
   (let ((file (alist-get 'file args))
         (heading (alist-get 'heading args))
         (new-state (alist-get 'state args)))
@@ -485,8 +502,9 @@ Uses org-mode's native functionality."
         (let ((full-path (expand-file-name file (sage-tools--get-workspace))))
           (if (file-exists-p full-path)
               (with-current-buffer (find-file-noselect full-path)
+                (org-mode)
                 (goto-char (point-min))
-                (if (re-search-forward (format "^\\*+ \\(TODO\\|DONE\\|IN-PROGRESS\\) %s"
+                (if (re-search-forward (format "^\\*+ \\(TODO\\|DONE\\|IN-PROGRESS\\|WAITING\\|CANCELLED\\) %s"
                                                (regexp-quote heading))
                                        nil t)
                     (progn
@@ -494,6 +512,52 @@ Uses org-mode's native functionality."
                       (save-buffer)
                       (format "Changed state to %s: %s" new-state heading))
                   (format "Heading not found: %s" heading)))
+            (format "File not found: %s" file)))
+      (format "Unsafe path: %s" file))))
+
+(defun sage--tool-org-close-todo (args)
+  "Mark a TODO item as DONE.
+Requires org-mode."
+  (sage--require-org)
+  (let ((file (alist-get 'file args))
+        (heading (alist-get 'heading args)))
+    (if (sage-tools--safe-path-p file)
+        (let ((full-path (expand-file-name file (sage-tools--get-workspace))))
+          (if (file-exists-p full-path)
+              (with-current-buffer (find-file-noselect full-path)
+                (org-mode)
+                (goto-char (point-min))
+                (if (re-search-forward (format "^\\*+ \\(TODO\\|IN-PROGRESS\\|WAITING\\) %s"
+                                               (regexp-quote heading))
+                                       nil t)
+                    (progn
+                      (org-todo "DONE")
+                      (save-buffer)
+                      (format "Closed TODO: %s" heading))
+                  (format "Open TODO not found: %s" heading)))
+            (format "File not found: %s" file)))
+      (format "Unsafe path: %s" file))))
+
+(defun sage--tool-org-archive-todo (args)
+  "Archive a DONE item to archive file.
+Requires org-mode."
+  (sage--require-org)
+  (let ((file (alist-get 'file args))
+        (heading (alist-get 'heading args)))
+    (if (sage-tools--safe-path-p file)
+        (let ((full-path (expand-file-name file (sage-tools--get-workspace))))
+          (if (file-exists-p full-path)
+              (with-current-buffer (find-file-noselect full-path)
+                (org-mode)
+                (goto-char (point-min))
+                (if (re-search-forward (format "^\\*+ DONE %s"
+                                               (regexp-quote heading))
+                                       nil t)
+                    (progn
+                      (org-archive-subtree)
+                      (save-buffer)
+                      (format "Archived: %s" heading))
+                  (format "DONE item not found: %s" heading)))
             (format "File not found: %s" file)))
       (format "Unsafe path: %s" file))))
 
@@ -893,6 +957,28 @@ EXECUTE-FN is called with arguments and returns result."
                              (description . "New TODO state")))))
      (required . ["file" "heading" "state"]))
    #'sage--tool-org-set-todo-state)
+
+  (sage-tools--register
+   "org_close_todo"
+   "Mark a TODO item as DONE"
+   '((type . "object")
+     (properties . ((file . ((type . "string")
+                             (description . "Org file path")))
+                    (heading . ((type . "string")
+                               (description . "TODO heading to close")))))
+     (required . ["file" "heading"]))
+   #'sage--tool-org-close-todo)
+
+  (sage-tools--register
+   "org_archive_todo"
+   "Archive a DONE item to archive file"
+   '((type . "object")
+     (properties . ((file . ((type . "string")
+                             (description . "Org file path")))
+                    (heading . ((type . "string")
+                               (description . "DONE heading to archive")))))
+     (required . ["file" "heading"]))
+   #'sage--tool-org-archive-todo)
 
   ;; WEB TOOLS
   (sage-tools--register

@@ -11,29 +11,34 @@ Audit of tool implementations in sage-tools.el, checking for:
 
 * Tool Audit Summary
 
-| Tool               | Implementation    | Shell Fallback? | Status      |
-|--------------------+-------------------+-----------------+-------------|
-| read_file          | Emacs native      | No              | ✅ Good     |
-| write_file         | Emacs native      | No              | ✅ Good     |
-| list_files         | Emacs native      | No              | ✅ Good     |
-| edit_file          | Emacs native      | No              | ✅ Good     |
-| git_status         | magit → shell     | Yes             | ⚠️ Fallback |
-| git_diff           | magit → shell     | Yes             | ⚠️ Fallback |
-| git_log            | magit → shell     | Yes             | ⚠️ Fallback |
-| git_branch         | magit → shell     | Yes             | ⚠️ Fallback |
-| git_blame          | magit → shell     | Yes             | ⚠️ Fallback |
-| code_search        | Emacs native      | No              | ✅ Good     |
-| glob_files         | Emacs native      | No              | ✅ Good     |
-| search_preview     | Emacs native      | No              | ✅ Good     |
-| eval_elisp         | Emacs native      | No              | ✅ Good     |
-| describe_function  | Emacs native      | No              | ✅ Good     |
-| describe_variable  | Emacs native      | No              | ✅ Good     |
-| find_definition    | Emacs native      | No              | ✅ Good     |
-| list_buffers       | Emacs native      | No              | ✅ Good     |
-| switch_buffer      | Emacs native      | No              | ✅ Good     |
-| insert_at_point    | Emacs native      | No              | ✅ Good     |
-| project_map        | Emacs native      | No              | ✅ Good     |
-| get_capabilities   | Emacs native      | No              | ✅ Good     |
+| Tool               | Implementation    | Shell Fallback? | Status          |
+|--------------------+-------------------+-----------------+-----------------|
+| read_file          | Emacs native      | No              | ✅ Good         |
+| write_file         | Emacs native      | No              | ✅ Good         |
+| list_files         | Emacs native      | No              | ✅ Good         |
+| edit_file          | Emacs native      | No              | ✅ Good         |
+| git_status         | magit (required)  | No              | ✅ Magit only   |
+| git_diff           | magit (required)  | No              | ✅ Magit only   |
+| git_log            | magit (required)  | No              | ✅ Magit only   |
+| git_branch         | magit (required)  | No              | ✅ Magit only   |
+| git_blame          | magit (required)  | No              | ✅ Magit only   |
+| code_search        | Emacs native      | No              | ✅ Good         |
+| glob_files         | Emacs native      | No              | ✅ Good         |
+| search_preview     | Emacs native      | No              | ✅ Good         |
+| eval_elisp         | Emacs native      | No              | ✅ Good         |
+| describe_function  | Emacs native      | No              | ✅ Good         |
+| describe_variable  | Emacs native      | No              | ✅ Good         |
+| find_definition    | Emacs native      | No              | ✅ Good         |
+| list_buffers       | Emacs native      | No              | ✅ Good         |
+| switch_buffer      | Emacs native      | No              | ✅ Good         |
+| insert_at_point    | Emacs native      | No              | ✅ Good         |
+| project_map        | Emacs native      | No              | ✅ Good         |
+| get_capabilities   | Emacs native      | No              | ✅ Good         |
+| org_todo_list      | Emacs native      | No              | ✅ Good         |
+| org_add_todo       | Emacs native      | No              | ✅ Good         |
+| org_set_todo_state | Emacs native      | No              | ✅ Good         |
+| web_fetch          | Emacs native      | No              | ✅ Good         |
+| web_search         | Emacs native      | No              | ✅ Good         |
 
 * Detailed Analysis
 
