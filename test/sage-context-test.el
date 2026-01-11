@@ -33,9 +33,23 @@
   (should (= (sage-context-estimate-tokens "") 0))
   (should (= (sage-context-estimate-tokens nil) 0)))
 
-(ert-deftest sage-context-test-tokens ()
-  "Test message token counting."
-  (let* ((stats (sage-context-tokens sage-context-test-messages))
+(ert-deftest sage-context-test-tokens-returns-number ()
+  "Test that sage-context-tokens returns a number, not a struct."
+  (let ((result (sage-context-tokens sage-context-test-messages)))
+    ;; Must be an integer
+    (should (integerp result))
+    ;; Must be positive for non-empty messages
+    (should (> result 0))))
+
+(ert-deftest sage-context-test-tokens-empty-messages ()
+  "Test sage-context-tokens with empty message list."
+  (let ((result (sage-context-tokens nil)))
+    (should (integerp result))
+    (should (= result 0))))
+
+(ert-deftest sage-context-test-tokens-detailed ()
+  "Test detailed message token counting."
+  (let* ((stats (sage-context-tokens-detailed sage-context-test-messages))
          (total (alist-get 'total stats))
          (count (alist-get 'count stats))
          (by-role (alist-get 'by-role stats)))
