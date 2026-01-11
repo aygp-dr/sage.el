@@ -183,6 +183,43 @@
   (should (= (sage-ratelimit--count-recent-requests "model-a") 0))
   (should (= (sage-ratelimit--count-recent-requests "model-b") 0)))
 
+;;; Status Display Tests
+
+(ert-deftest test-ratelimit-status-returns-string ()
+  "Test that sage-ratelimit-status returns without error for limited models.
+Regression test for format string bug where message interpreted % as format spec."
+  (clrhash sage-ratelimit--history)
+  ;; Test with a limited model - this was causing the bug
+  (let ((result nil))
+    (should (progn
+              (setq result (sage-ratelimit-status "gemini-1.5-flash"))
+              t))
+    ;; Result should be a string (the message returns its argument)
+    (should (stringp result))
+    ;; Should contain the model name
+    (should (string-match-p "gemini-1.5-flash" result))
+    ;; Should contain percentage sign (this is what triggered the bug)
+    (should (string-match-p "%" result))))
+
+(ert-deftest test-ratelimit-status-unlimited-model ()
+  "Test that sage-ratelimit-status works for unlimited models."
+  (clrhash sage-ratelimit--history)
+  (let ((result (sage-ratelimit-status "ollama")))
+    (should (stringp result))
+    (should (string-match-p "ollama" result))
+    (should (string-match-p "Unlimited" result))))
+
+(ert-deftest test-ratelimit-status-with-requests ()
+  "Test status display when there are recorded requests."
+  (clrhash sage-ratelimit--history)
+  ;; Record some requests
+  (dotimes (_ 5)
+    (sage-ratelimit-record "gemini-1.5-flash"))
+  (let ((result (sage-ratelimit-status "gemini-1.5-flash")))
+    (should (stringp result))
+    ;; Should show 5 requests
+    (should (string-match-p "5/" result))))
+
 ;;; Custom Limit Configuration Tests
 
 (ert-deftest test-ratelimit-configure-custom-limit ()
