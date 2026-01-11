@@ -1,17 +1,18 @@
-#+TITLE: Gemini REPL Emacs Integration - Usage Guide
+#+TITLE: Sage - AI REPL for Emacs - Usage Guide
 #+AUTHOR: Jason Walsh
 #+EMAIL: j@wal.sh
 
 * Introduction
 
-This guide demonstrates practical usage patterns for =gemini-repl-emacs.el=, showing how to integrate AI assistance into your Emacs workflow.
+This guide demonstrates practical usage patterns for =sage.el= and =sage-emacs.el=, showing how to integrate AI assistance into your Emacs workflow.
 
 * Quick Start
 
 1. Load the package:
    #+begin_src elisp
-   (require 'gemini-repl-emacs)
-   (global-gemini-repl-mode 1)
+   (require 'sage)
+   (require 'sage-emacs)
+   (global-sage-mode 1)
    #+end_src
 
 2. Set your API key:
@@ -20,7 +21,7 @@ This guide demonstrates practical usage patterns for =gemini-repl-emacs.el=, sho
    #+end_src
 
 3. Start the REPL:
-   =M-x gemini-repl= or =C-c C-g r=
+   =M-x sage= or =C-c C-g r=
 
 * Common Workflows
 
@@ -85,7 +86,7 @@ Explain the Actor model and how it relates to Erlang
 #+end_ai
 #+end_example
 
-Then run =M-x gemini-repl-org-process-ai-blocks= to process all AI blocks.
+Then run =M-x sage-org-process-ai-blocks= to process all AI blocks.
 
 *** Research Notes
 1. Create org subtree with research topic
@@ -135,16 +136,16 @@ Then run =M-x gemini-repl-org-process-ai-blocks= to process all AI blocks.
 *** Building Context
 #+begin_src elisp
 ;; First, give AI context about the project
-(defun my-gemini-set-project-context ()
+(defun my-sage-set-project-context ()
   "Set project context for AI."
   (interactive)
-  (gemini-repl)
-  (with-current-buffer gemini-repl-buffer-name
+  (sage)
+  (with-current-buffer sage-buffer-name
     (insert "I'm working on a ")
     (insert (read-string "Project type: "))
     (insert " project. The main files are:\n")
     (insert (shell-command-to-string "find . -name '*.el' -o -name '*.py' | head -20"))
-    (gemini-repl-send-input)))
+    (sage-send-input)))
 #+end_src
 
 *** Multi-Step Analysis
@@ -157,36 +158,36 @@ Then run =M-x gemini-repl-org-process-ai-blocks= to process all AI blocks.
 
 *** Code Review Workflow
 #+begin_src elisp
-(defun my-gemini-review-changes ()
+(defun my-sage-review-changes ()
   "Review git changes with AI."
   (interactive)
-  (gemini-repl)
-  (with-current-buffer gemini-repl-buffer-name
+  (sage)
+  (with-current-buffer sage-buffer-name
     (insert "Review my recent changes:\n\n")
     (insert (shell-command-to-string "git diff HEAD~1"))
     (insert "\n\nProvide:\n")
     (insert "1. Summary of changes\n")
     (insert "2. Potential issues\n")
     (insert "3. Test suggestions\n")
-    (gemini-repl-send-input)))
+    (sage-send-input)))
 #+end_src
 
 *** Documentation Generation
 #+begin_src elisp
-(defun my-gemini-document-buffer ()
+(defun my-sage-document-buffer ()
   "Generate documentation for current buffer."
   (interactive)
   (let ((code (buffer-substring-no-properties (point-min) (point-max)))
         (mode (symbol-name major-mode)))
-    (gemini-repl)
-    (with-current-buffer gemini-repl-buffer-name
+    (sage)
+    (with-current-buffer sage-buffer-name
       (insert (format "Generate documentation for this %s code:\n\n" mode))
       (insert "```\n" code "\n```\n\n")
       (insert "Include:\n")
       (insert "- Module/file overview\n")
       (insert "- Function/class documentation\n")
       (insert "- Usage examples\n")
-      (gemini-repl-send-input))))
+      (sage-send-input))))
 #+end_src
 
 ** Learning and Exploration
@@ -257,7 +258,7 @@ when handling concurrent requests. [Send code]
 ** Security Considerations
 
 *** Review Tool Permissions
-- Keep =gemini-repl-yolo-mode= off in production
+- Keep =sage-yolo-mode= off in production
 - Review file write operations
 - Check git operations before allowing
 
@@ -270,43 +271,43 @@ when handling concurrent requests. [Send code]
 
 ** With Magit
 #+begin_src elisp
-(defun my-gemini-review-commit ()
+(defun my-sage-review-commit ()
   "Review current commit with AI."
   (interactive)
   (when (derived-mode-p 'magit-mode)
     (let ((commit (magit-commit-at-point)))
-      (gemini-repl)
-      (with-current-buffer gemini-repl-buffer-name
+      (sage)
+      (with-current-buffer sage-buffer-name
         (insert "Review this commit:\n\n")
         (insert (magit-git-string "show" commit))
-        (gemini-repl-send-input)))))
+        (sage-send-input)))))
 #+end_src
 
 ** With LSP Mode
 #+begin_src elisp
-(defun my-gemini-explain-diagnostic ()
+(defun my-sage-explain-diagnostic ()
   "Explain LSP diagnostic at point."
   (interactive)
   (when-let ((diagnostic (lsp-diagnostics-at-point)))
-    (gemini-repl)
-    (with-current-buffer gemini-repl-buffer-name
+    (sage)
+    (with-current-buffer sage-buffer-name
       (insert "Explain this error and suggest fixes:\n\n")
       (insert (lsp-diagnostic-message diagnostic))
-      (gemini-repl-send-input))))
+      (sage-send-input))))
 #+end_src
 
 ** With Projectile
 #+begin_src elisp
-(defun my-gemini-project-overview ()
+(defun my-sage-project-overview ()
   "Get AI overview of projectile project."
   (interactive)
   (when (projectile-project-p)
     (let ((files (projectile-current-project-files)))
-      (gemini-repl)
-      (with-current-buffer gemini-repl-buffer-name
+      (sage)
+      (with-current-buffer sage-buffer-name
         (insert "Analyze this project structure:\n\n")
         (insert (mapconcat #'identity (seq-take files 50) "\n"))
-        (gemini-repl-send-input)))))
+        (sage-send-input)))))
 #+end_src
 
 * Troubleshooting
