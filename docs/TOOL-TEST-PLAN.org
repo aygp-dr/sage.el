@@ -252,14 +252,162 @@ emacs --batch -L . -l ert -l sage-tools.el \
 - [ ] Performance: file limits
 - [ ] Performance: timeout handling
 
+* Stress Test Scenarios (test/sage-stress-test.el)
+
+** SCENARIO 1: Large File Handling
+- [X] Read 10MB file → should truncate/handle gracefully
+- [X] Write 1MB file → should complete successfully
+- [ ] Read file with very long lines (10K+ chars)
+- [ ] Read file with many small lines (100K lines)
+
+** SCENARIO 2: Many Files
+- [X] List directory with 1000 files → should complete
+- [X] Code search across 500 files → should find matches
+- [ ] Glob with 10K files → performance check
+- [ ] Recursive search in 100+ directories
+
+** SCENARIO 3: Security Boundary Tests
+- [X] Path traversal variants (../, ..\, %2e, etc.)
+- [X] Write path traversal attacks
+- [ ] Command injection in filenames
+- [ ] Symlink escapes
+- [ ] Race condition (TOCTOU)
+
+** SCENARIO 4: Special Characters
+- [X] Unicode filenames (Japanese, Cyrillic)
+- [X] Special chars in content (null, CR, LF, tab)
+- [ ] Emoji in filenames and content
+- [ ] Non-UTF8 byte sequences
+
+** SCENARIO 5: Nested Structures
+- [X] Deep nesting (10 levels) → should work
+- [ ] Very long paths (approaching OS limits)
+- [ ] Mixed absolute/relative paths
+
+** SCENARIO 6: Concurrent Operations
+- [X] 100 rapid sequential read/write operations
+- [ ] Interleaved read/write on same file
+- [ ] Multiple code_search calls
+
+** SCENARIO 7: Edit Edge Cases
+- [X] Edit first line of file
+- [X] Edit last line of file
+- [X] Edit with empty strings
+- [X] Edit multiline text blocks
+- [ ] Edit text that appears multiple times
+- [ ] Edit text spanning the entire file
+
+** SCENARIO 8: Glob Edge Cases
+- [X] Hidden files (.hidden)
+- [X] Recursive patterns (**/*)
+- [ ] Negation patterns
+- [ ] Character classes [a-z]
+
+** SCENARIO 9: Tool Call Counting
+- [X] Count tool invocations in test suite
+- [ ] Verify all 26 tools are tested
+- [ ] Track coverage per tool
+
+** SCENARIO 10: Error Recovery
+- [X] Multiple errors don't corrupt state
+- [ ] Partial writes rollback
+- [ ] Interrupted operations cleanup
+
+** Performance Benchmarks
+- [X] Read benchmark: 100 ops in <5s
+- [X] Write benchmark: 50 ops in <5s
+- [ ] Search benchmark: 1000 files in <10s
+- [ ] Edit benchmark: 100 ops in <5s
+
+* Logging Integration (feat-logging branch)
+
+** Log Event Types
+The =sage-log.el= module tracks:
+
+| Event Type | Level | Data Fields |
+|------------+-------+-------------|
+| request    | info  | provider, model, prompt |
+| response   | info  | provider, model, response, tokens, duration |
+| tool_call  | info  | tool, args, result, error |
+| error      | error | message, context, backtrace |
+| warning    | warn  | message, context |
+
+** Log Analysis Queries
+
+#+begin_src bash
+# Count tool calls by type
+cat ~/.emacs.d/sage/logs/sage.log | \
+  jq -r 'select(.event == "tool_call") | .data.tool' | \
+  sort | uniq -c | sort -rn
+
+# Find slow operations (>1s)
+cat ~/.emacs.d/sage/logs/sage.log | \
+  jq 'select(.event == "response" and .data.duration_ms > 1000)'
+
+# Count errors
+cat ~/.emacs.d/sage/logs/sage.log | \
+  jq -r 'select(.level == "error") | .data.message' | \
+  sort | uniq -c
+
+# Tool usage over time
+cat ~/.emacs.d/sage/logs/sage.log | \
+  jq -r 'select(.event == "tool_call") | "\(.timestamp) \(.data.tool)"'
+#+end_src
+
+** Expected Tool Call Distribution (based on Claude Code analysis)
+
+| Tool Category | Approx % | Primary Tools |
+|--------------+---------+---------------|
+| Bash/Shell    | 53%      | eval_elisp (proxy) |
+| Read          | 18%      | read_file, org_todo_list |
+| Edit          | 16%      | edit_file, write_file |
+| Search        | 8%       | code_search, glob_files |
+| Git           | 3%       | git_status, git_diff |
+| Other         | 2%       | web_fetch, describe_* |
+
 * Future Tests
 
 ** Integration Tests
 - Live Ollama testing (test/sage-integration-test.el)
 - Live Gemini testing
 - Real web fetch testing
+- Project session persistence
+- Rate limiting behavior
 
 ** Property-based Tests
 - Random file paths → safe-path-p
 - Random search patterns → code_search
 - Random org content → org tools
+- Random edit positions → edit_file
+
+** Coverage Goals
+
+| Module | Target | Current |
+|--------+--------+---------|
+| sage-tools.el | 90% | ~75% |
+| sage-context.el | 80% | ~60% |
+| sage-ratelimit.el | 85% | ~70% |
+| sage-project.el | 80% | ~50% |
+| sage-memory.el | 85% | ~65% |
+| sage-session.el | 80% | ~55% |
+
+** Missing Tool Tests
+
+Tools not yet in test suite:
+- [ ] org_close_todo
+- [ ] org_archive_todo
+- [ ] search_preview
+- [ ] git_status
+- [ ] git_diff
+- [ ] git_log
+- [ ] git_branch
+- [ ] git_blame
+- [ ] eval_elisp
+- [ ] describe_function
+- [ ] describe_variable
+- [ ] find_definition
+- [ ] list_buffers
+- [ ] switch_buffer
+- [ ] insert_at_point
+- [ ] project_map
+- [ ] get_capabilities

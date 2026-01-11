@@ -1,4 +1,5 @@
-.PHONY: all test test-all test-tools test-integration test-ollama clean compile lint checkdoc package-lint check-headers \
+.PHONY: all test test-all test-tools test-tools-unit test-stress test-integration test-ollama \
+        clean compile lint checkdoc package-lint check-headers \
         elisp-version elisp-load-test elisp-check-syntax elisp-http-inbox \
         check ci gh-status gh-failures gh-watch gh-logs \
         demo demo-batch demo-quick demo-screencast
@@ -58,6 +59,15 @@ test-context:
 
 test-project:
 	$(EMACS_BATCH) -l ert -l sage-project.el -l test/sage-project-test.el -f ert-run-tests-batch-and-exit
+
+# Stress tests (intensive, edge cases)
+test-stress:
+	@echo "=== Running stress tests (may take longer) ==="
+	$(EMACS_BATCH) -l ert -l sage-tools.el -l test/sage-stress-test.el -f ert-run-tests-batch-and-exit
+
+# Tool-specific tests
+test-tools-unit:
+	$(EMACS_BATCH) -l ert -l sage-tools.el -l test/sage-tools-test.el -f ert-run-tests-batch-and-exit
 
 test-tools:
 	$(EMACS_BATCH) -l scripts/test-tools.el
