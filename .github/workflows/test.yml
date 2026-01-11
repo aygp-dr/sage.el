@@ -41,6 +41,13 @@ jobs:
       - name: Run tests
         run: make test-all
 
+      - name: Report test count
+        if: always()
+        run: |
+          echo "=== Test Count Summary ==="
+          make test-count
+          echo "EMACS_VERSION=${{ matrix.emacs-version }}"
+
   lint:
     runs-on: ubuntu-latest
     steps:

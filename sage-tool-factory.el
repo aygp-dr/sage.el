@@ -85,7 +85,7 @@ BODY is a list form that will be evaluated with `args` bound."
               (eval `(let ((args ',args)) ,@body) t))))
     ;; Store in custom tools list (for persistence)
     (let ((existing (cl-find name sage-custom-tools
-                             :key (lambda (t) (alist-get 'name t))
+                             :key (lambda (tool) (alist-get 'name tool))
                              :test #'string=)))
       (if existing
           (setf (alist-get 'body existing) body
@@ -145,16 +145,16 @@ ARGS should contain:
   "Delete a custom tool."
   (let ((name (alist-get 'name args)))
     (unless name (error "Tool name is required"))
-    (let ((tool (cl-find name sage-custom-tools
-                         :key (lambda (t) (alist-get 'name t))
+    (let ((found-tool (cl-find name sage-custom-tools
+                         :key (lambda (tl) (alist-get 'name tl))
                          :test #'string=)))
-      (if tool
+      (if found-tool
           (progn
-            (setq sage-custom-tools (cl-remove tool sage-custom-tools))
+            (setq sage-custom-tools (cl-remove found-tool sage-custom-tools))
             ;; Remove from sage-tools
             (when (boundp 'sage-tools)
               (setq sage-tools
-                    (cl-remove-if (lambda (t) (string= (alist-get 'name t) name))
+                    (cl-remove-if (lambda (tl) (string= (alist-get 'name tl) name))
                                   sage-tools)))
             (sage-tool-factory--save-tools)
             (format "Deleted tool: %s" name))

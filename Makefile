@@ -1,8 +1,10 @@
 .PHONY: all test test-all test-tools test-tools-unit test-stress test-integration test-ollama \
+        test-coverage coverage-summary \
         clean compile lint checkdoc package-lint check-headers \
         elisp-version elisp-load-test elisp-check-syntax elisp-http-inbox \
         check ci gh-status gh-failures gh-watch gh-logs \
-        demo demo-batch demo-quick demo-screencast
+        demo demo-batch demo-quick demo-screencast \
+        metrics metrics-history metrics-compare test-count test-scenarios
 
 EMACS ?= emacs
 EMACS_BATCH = $(EMACS) -Q --batch -L .
@@ -16,6 +18,7 @@ EL_FILES = sage.el \
            sage-project.el \
            sage-queue.el \
            sage-ratelimit.el \
+           sage-reflect.el \
            sage-session.el \
            sage-tools.el \
            sage-tool-factory.el
@@ -54,6 +57,39 @@ test-all: compile
 
 test-ratelimit:
 	$(EMACS_BATCH) -l ert -l sage-ratelimit.el -l test/sage-ratelimit-test.el -f ert-run-tests-batch-and-exit
+
+# Run tests with coverage (requires undercover.el)
+test-coverage:
+	@echo "=== Running tests with coverage ==="
+	@mkdir -p coverage
+	$(EMACS_BATCH) \
+		--eval "(package-initialize)" \
+		--eval "(unless (package-installed-p 'undercover) (package-refresh-contents) (package-install 'undercover))" \
+		-l test/test-helper.el \
+		-l ert \
+		-l test/sage-test.el \
+		-l test/sage-context-test.el \
+		-l test/sage-memory-test.el \
+		-l test/sage-project-test.el \
+		-l test/sage-ratelimit-test.el \
+		-f ert-run-tests-batch-and-exit
+	@echo "Coverage report: coverage/lcov.info"
+
+# View coverage summary
+coverage-summary:
+	@if [ -f coverage/lcov.info ]; then \
+		echo "=== Coverage Summary ==="; \
+		total=$$(grep -c "^DA:" coverage/lcov.info 2>/dev/null || echo 0); \
+		covered=$$(grep "^DA:" coverage/lcov.info 2>/dev/null | grep -v ",0$$" | wc -l); \
+		if [ "$$total" -gt 0 ]; then \
+			pct=$$((covered * 100 / total)); \
+			echo "Lines: $$covered/$$total ($$pct%%)"; \
+		else \
+			echo "No coverage data found"; \
+		fi; \
+	else \
+		echo "No coverage file. Run 'make test-coverage' first."; \
+	fi
 
 test-context:
 	$(EMACS_BATCH) -l ert -l sage-context.el -l test/sage-context-test.el -f ert-run-tests-batch-and-exit
@@ -220,5 +256,34 @@ demo-quick:
 # Run interactive screencast demo (step-by-step)
 demo-screencast:
 	$(EMACS) -Q -L . -l examples/screencast-demo.el -f screencast-demo-all
+
+# === Metrics targets ===
+
+# Show latest test metrics from GitHub Actions
+metrics:
+	@./scripts/gh-test-metrics.sh latest
+
+# Show test run history
+metrics-history:
+	@./scripts/gh-test-metrics.sh history
+
+# Compare main vs current branch
+metrics-compare:
+	@./scripts/gh-test-metrics.sh compare
+
+# Count tests locally
+test-count:
+	@echo "=== Local Test Count ==="
+	@for f in $(TEST_FILES); do \
+		count=$$(grep -c "^(ert-deftest" "$$f" 2>/dev/null || echo 0); \
+		printf "%-40s %3d tests\n" "$$f" "$$count"; \
+	done
+	@echo "---"
+	@total=$$(grep -ch "^(ert-deftest" $(TEST_FILES) 2>/dev/null | awk '{s+=$$1} END {print s}'); \
+	echo "Total: $$total tests"
+
+# Run 100 tool scenarios
+test-scenarios:
+	$(EMACS_BATCH) -l sage-tools.el -l sage-project.el -l scripts/run-100-scenarios.el
 
 .DEFAULT_GOAL := all
