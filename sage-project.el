@@ -53,9 +53,37 @@
   :group 'sage
   :prefix "sage-project-")
 
+(defcustom sage-project-storage-preset 'emacs-native
+  "Storage location preset for project conversations.
+Available presets:
+  - `emacs-native': ~/.emacs.d/sage/projects/ (default)
+  - `standalone': ~/.sage/projects/
+  - `claude-shared': ~/.claude/projects/ (share with Claude Code)
+  - `custom': Use `sage-project-directory' directly"
+  :type '(choice (const :tag "Emacs Native (~/.emacs.d/sage/projects/)" emacs-native)
+                 (const :tag "Standalone (~/.sage/projects/)" standalone)
+                 (const :tag "Share with Claude (~/.claude/projects/)" claude-shared)
+                 (const :tag "Custom directory" custom))
+  :group 'sage-project
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (boundp 'sage-project-directory)
+           (setq sage-project-directory (sage-project--resolve-directory val)))))
+
+(defun sage-project--resolve-directory (preset)
+  "Resolve storage directory from PRESET."
+  (pcase preset
+    ('emacs-native (expand-file-name "sage/projects" user-emacs-directory))
+    ('standalone (expand-file-name ".sage/projects" (getenv "HOME")))
+    ('claude-shared (expand-file-name ".claude/projects" (getenv "HOME")))
+    ('custom sage-project-directory)
+    (_ (expand-file-name "sage/projects" user-emacs-directory))))
+
 (defcustom sage-project-directory
-  (expand-file-name "sage/projects" user-emacs-directory)
-  "Directory to store project-based conversations."
+  (sage-project--resolve-directory 'emacs-native)
+  "Directory to store project-based conversations.
+This is automatically set based on `sage-project-storage-preset'.
+Only used directly when preset is `custom'."
   :type 'directory
   :group 'sage-project)
 
@@ -93,11 +121,20 @@ When exceeded, oldest messages are automatically archived."
 
 ;;; Path Encoding
 
+(defcustom sage-project-encode-dots t
+  "When non-nil, encode dots as dashes in path encoding.
+Set to t to match Claude Code conventions (recommended for `claude-shared' preset).
+Set to nil to preserve dots (legacy behavior)."
+  :type 'boolean
+  :group 'sage-project)
+
 (defun sage-project-encode-path (path)
   "Encode PATH for use as directory name.
-Replaces '/' with '-' (like Claude Code does)."
-  (let ((expanded (expand-file-name path)))
-    (replace-regexp-in-string "/" "-" expanded)))
+Replaces '/' with '-'. When `sage-project-encode-dots' is non-nil,
+also replaces '.' with '-' (matching Claude Code conventions)."
+  (let* ((expanded (expand-file-name path))
+         (pattern (if sage-project-encode-dots "[/.]" "/")))
+    (replace-regexp-in-string pattern "-" expanded)))
 
 (defun sage-project--storage-dir (project-dir)
   "Return storage directory for PROJECT-DIR."
