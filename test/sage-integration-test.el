@@ -79,11 +79,14 @@
            (url (concat sage-ollama-host "/api/chat"))
            (url-request-method "POST")
            (url-request-extra-headers '(("Content-Type" . "application/json")))
-           (url-request-data (encode-coding-string (json-encode body) 'utf-8)))
-      (with-current-buffer (url-retrieve-synchronously url t nil 30)
-        (goto-char (point-min))
-        (when (search-forward "\n\n" nil t)
-          (setq result (buffer-substring-no-properties (point) (point-max))))))
+           (url-request-data (encode-coding-string (json-encode body) 'utf-8))
+           (response-buffer (url-retrieve-synchronously url t nil 60)))
+      (when response-buffer
+        (with-current-buffer response-buffer
+          (goto-char (point-min))
+          (when (search-forward "\n\n" nil t)
+            (setq result (buffer-substring-no-properties (point) (point-max))))
+          (kill-buffer))))
     (should result)
     (should (stringp result))
     ;; Response should contain "4" somewhere
