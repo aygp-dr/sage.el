@@ -171,20 +171,19 @@ Shows countdown if configured to do so."
                           (mapcar #'car sage-ratelimit--limits)
                           nil nil)))
   (let* ((limit (sage-ratelimit--get-limit model))
-         (raw-limit (alist-get model sage-ratelimit--limits nil nil #'string=))
          (count (sage-ratelimit--count-recent-requests model))
          (wait (sage-ratelimit--time-until-allowed model))
          (can-request (zerop wait)))
-    (message
-     (if limit
-         (format "%s: %d/%d requests used (%.0f%% limit, safety margin: %.0f%%). %s"
-                 model count limit
-                 (* 100 (/ (float count) limit))
-                 (* 100 sage-ratelimit-safety-margin)
-                 (if can-request
-                     "Ready"
-                   (format "Wait %.1fs" wait)))
-       (format "%s: Unlimited (local model)" model)))))
+    (message "%s"
+             (if limit
+                 (format "%s: %d/%d requests used (%.0f%% limit, safety margin: %.0f%%). %s"
+                         model count limit
+                         (* 100 (/ (float count) limit))
+                         (* 100 sage-ratelimit-safety-margin)
+                         (if can-request
+                             "Ready"
+                           (format "Wait %.1fs" wait)))
+               (format "%s: Unlimited (local model)" model)))))
 
 ;;;###autoload
 (defun sage-ratelimit-reset (model)
