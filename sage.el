@@ -54,6 +54,11 @@
 (require 'sage-session)
 (require 'sage-context)
 
+;;; Version
+
+(defconst sage-version "0.1.0"
+  "Version of sage.el.")
+
 ;;; Customization
 
 (defgroup sage nil
@@ -563,7 +568,8 @@ Returns t if allowed, nil if denied."
    "  /model                - Show model info\n"
    "  /stats                - Show statistics\n"
    "  /tokens               - Token usage\n"
-   "  /context              - Context usage info\n\n"
+   "  /context              - Context usage info\n"
+   "  /version              - Show version info\n\n"
    "EMACS-SPECIFIC:\n"
    "  /region               - Send region to AI\n"
    "  /buffer               - Send buffer to AI\n"
@@ -738,6 +744,14 @@ and compaction status."
      (format "Auto-compact: %s\n" (if sage-context-auto-compact "enabled" "disabled"))
      (format "Strategy: %s" sage-context-default-strategy))))
 
+(defun sage--command-version ()
+  "Show version information."
+  (format "sage.el version: %s\nEmacs version: %s\nProvider: %s\nModel: %s"
+          sage-version
+          emacs-version
+          sage-provider
+          (sage--get-model)))
+
 (defun sage--command-region ()
   "Send current region to AI."
   (if (use-region-p)
@@ -827,6 +841,7 @@ Returns result string if command was handled, nil otherwise."
         ("stats" (sage--command-stats))
         ("tokens" (sage--command-tokens))
         ("context" (sage--command-context))
+        ("version" (sage--command-version))
 
         ;; EMACS-SPECIFIC
         ("region" (sage--command-region))
