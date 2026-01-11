@@ -1,0 +1,265 @@
+#+TITLE: sage-tools.el Test Plan
+#+AUTHOR: sage.el Team
+#+DATE: 2026-01-11
+
+* Overview
+
+Comprehensive test plan for all tools in sage-tools.el.
+Each tool is tested in isolation with mocked dependencies.
+
+* Test Categories
+
+** Unit Tests (test/sage-tools-test.el)
+
+All 22 tests pass as of 2026-01-11.
+
+| Test Category        | Count | Status |
+|----------------------+-------+--------|
+| File Tools           |     5 | ✅      |
+| Search Tools         |     4 | ✅      |
+| Org-mode Tools       |     4 | ✅      |
+| Web Tools            |     5 | ✅      |
+| Tool Init            |     1 | ✅      |
+| Edge Cases           |     2 | ✅      |
+| Safe Tools           |     1 | ✅      |
+
+** Test Fixtures
+
+#+begin_src elisp
+;; Temporary workspace setup
+(defun sage-tools-test--setup ()
+  (setq sage-tools-test--temp-dir (make-temp-file "sage-tools-test-" t))
+  (setq sage-workspace sage-tools-test--temp-dir))
+
+;; URL mocking for web tools
+(defmacro sage-tools-test--with-mock-url (url-responses &rest body)
+  "Execute BODY with mocked URL responses."
+  ...)
+#+end_src
+
+* Tool-by-Tool Test Plan
+
+** FILE TOOLS
+
+*** read_file
+- [X] Read existing file → returns contents
+- [X] Read non-existent file → returns error message
+- [ ] Read binary file → handled gracefully
+- [ ] Read large file → truncates or streams
+
+*** write_file
+- [X] Write new file → creates file with content
+- [ ] Overwrite existing → replaces content
+- [ ] Write to read-only location → returns error
+
+*** list_files
+- [X] List with glob pattern → filters correctly
+- [ ] List empty directory → returns empty
+- [ ] List non-existent directory → returns error
+
+*** edit_file
+- [X] Replace existing text → modifies file
+- [ ] Text not found → returns error message
+- [ ] Multiple matches → only replaces first
+
+** SEARCH TOOLS
+
+*** code_search
+- [X] Search with file type filter → finds matches
+- [X] Search without file type → searches all files
+- [X] No matches → returns "No matches" message
+- [X] Binary files → skipped automatically
+- [ ] Regex patterns → work correctly
+- [ ] Large repositories → respects file limit (100)
+
+*** glob_files
+- [X] Glob pattern → returns matching files
+- [ ] Recursive patterns (**/) → work correctly
+
+*** search_preview
+- [ ] Context lines → shows surrounding context
+- [ ] Multiple matches in file → shows all
+
+** GIT TOOLS
+
+*** git_status
+- [ ] Clean repo → empty result
+- [ ] Modified files → shows status
+- [ ] Uses magit if available → falls back to shell
+
+*** git_diff
+- [ ] Staged changes → shows diff
+- [ ] Unstaged changes → shows diff
+- [ ] Path filter → limits to file
+
+*** git_log
+- [ ] Default count → returns 10 commits
+- [ ] Custom count → returns specified number
+- [ ] Path filter → shows file history
+
+*** git_branch
+- [ ] All branches → lists local and remote
+
+*** git_blame
+- [ ] Valid file → shows blame
+- [ ] Invalid file → returns error
+
+** ORG-MODE TOOLS
+
+*** org_todo_list
+- [X] List from file → extracts TODOs with state
+- [X] File not found → returns error
+- [ ] Agenda files → aggregates from multiple files
+- [ ] Priority parsing → shows [#A], [#B], [#C]
+- [ ] Tags → includes in output
+
+*** org_add_todo
+- [X] Add TODO → appends to file
+- [X] Unsafe path → rejected
+- [ ] With priority → includes priority
+- [ ] Custom state → uses specified state
+
+*** org_set_todo_state
+- [ ] Change state → updates file
+- [ ] Heading not found → returns error
+
+** WEB TOOLS
+
+*** web_fetch
+- [X] Valid URL → returns content
+- [X] Invalid URL → returns error
+- [X] HTML entities → decoded
+- [X] Script tags → removed
+- [ ] Timeout → respected
+- [ ] Redirect → followed
+
+*** web_search
+- [X] Valid query → returns results
+- [X] No query → returns error
+- [ ] Max results → limits output
+- [ ] Special characters → URL-encoded
+
+** EMACS-SPECIFIC TOOLS
+
+*** eval_elisp
+- [ ] Valid code → returns result
+- [ ] Error in code → returns error message
+- [ ] Security → sandbox considerations
+
+*** describe_function
+- [ ] Known function → returns documentation
+- [ ] Unknown function → returns error
+
+*** describe_variable
+- [ ] Known variable → returns documentation
+- [ ] Unknown variable → returns error
+
+*** find_definition
+- [ ] Symbol found → returns location
+- [ ] Symbol not found → returns error
+
+*** list_buffers
+- [ ] Multiple buffers → lists all
+
+*** switch_buffer
+- [ ] Existing buffer → switches
+- [ ] Non-existent → returns error
+
+*** insert_at_point
+- [ ] Current buffer → inserts text
+- [ ] Named buffer → inserts in specified
+
+** SELF-AWARENESS TOOLS
+
+*** project_map
+- [ ] In project → returns structure
+- [ ] Not in project → returns message
+
+*** get_capabilities
+- [ ] Lists all tools → complete list
+- [ ] Shows features → magit, xref, etc.
+
+* Mock Dependencies
+
+** URL Mocking
+
+#+begin_src elisp
+(defvar sage-tools-test--url-responses nil)
+
+(defun sage-tools-test--mock-url-retrieve (url &rest _args)
+  "Mock url-retrieve-synchronously."
+  (let ((response (alist-get url sage-tools-test--url-responses ...)))
+    (when response
+      (let ((buf (generate-new-buffer " *mock-url*")))
+        (with-current-buffer buf
+          (insert "HTTP/1.1 200 OK\n\n")
+          (insert response))
+        buf))))
+#+end_src
+
+** Org-mode Mocking
+
+Tests use real org-mode when available (=skip-unless=).
+Org functions tested:
+- =org-map-entries=
+- =org-get-heading=
+- =org-get-todo-state=
+- =org-entry-get=
+- =org-get-tags=
+- =org-todo=
+
+* Running Tests
+
+#+begin_src bash
+# All tool tests
+emacs --batch -L . -l ert -l sage-tools.el \
+  -l test/sage-tools-test.el \
+  -f ert-run-tests-batch-and-exit
+
+# Single test
+emacs --batch -L . -l ert -l sage-tools.el \
+  -l test/sage-tools-test.el \
+  --eval "(ert-run-tests-batch-and-exit 'sage-tools-test-read-file)"
+
+# Pattern match
+emacs --batch -L . -l ert -l sage-tools.el \
+  -l test/sage-tools-test.el \
+  --eval "(ert-run-tests-batch-and-exit \"web\")"
+#+end_src
+
+* Code Review Checklist
+
+** Emacs Master Review
+- [ ] Elisp conventions followed
+- [ ] Proper use of =cl-lib= functions
+- [ ] =lexical-binding= throughout
+- [ ] Declare functions for optional deps
+- [ ] No byte-compile warnings
+- [ ] Buffer/file handling best practices
+
+** L7/Terminal Agent Review
+- [ ] Tool schemas match MCP spec
+- [ ] Error messages actionable for LLM
+- [ ] Tool descriptions clear for model
+- [ ] Safe tools list correct
+- [ ] Confirmation flow appropriate
+
+** CTO Review
+- [ ] Security: path traversal prevention
+- [ ] Security: no code injection
+- [ ] Architecture: extensibility
+- [ ] Architecture: modular design
+- [ ] Performance: file limits
+- [ ] Performance: timeout handling
+
+* Future Tests
+
+** Integration Tests
+- Live Ollama testing (test/sage-integration-test.el)
+- Live Gemini testing
+- Real web fetch testing
+
+** Property-based Tests
+- Random file paths → safe-path-p
+- Random search patterns → code_search
+- Random org content → org tools
