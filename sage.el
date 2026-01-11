@@ -157,6 +157,9 @@ Keys are fact names, values are fact content.")
 (defvar sage-request-count 0
   "Number of requests in current session.")
 
+(defconst sage-version "0.1.0"
+  "Version of sage.el.")
+
 ;;; Provider API
 
 (defun sage--get-api-key ()
@@ -556,7 +559,8 @@ Returns t if allowed, nil if denied."
    "  /tools                - List tools\n"
    "  /model                - Show model info\n"
    "  /stats                - Show statistics\n"
-   "  /tokens               - Token usage\n\n"
+   "  /tokens               - Token usage\n"
+   "  /version              - Show version info\n\n"
    "EMACS-SPECIFIC:\n"
    "  /region               - Send region to AI\n"
    "  /buffer               - Send buffer to AI\n"
@@ -698,6 +702,14 @@ Returns t if allowed, nil if denied."
               0
             (/ sage-token-count (length sage-conversation)))))
 
+(defun sage--command-version ()
+  "Show version information."
+  (format "sage.el version: %s\nEmacs version: %s\nProvider: %s\nModel: %s"
+          sage-version
+          emacs-version
+          sage-provider
+          (sage--get-model)))
+
 (defun sage--command-region ()
   "Send current region to AI."
   (if (use-region-p)
@@ -786,6 +798,7 @@ Returns result string if command was handled, nil otherwise."
         ("model" (sage--command-model))
         ("stats" (sage--command-stats))
         ("tokens" (sage--command-tokens))
+        ("version" (sage--command-version))
 
         ;; EMACS-SPECIFIC
         ("region" (sage--command-region))
