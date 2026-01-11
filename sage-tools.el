@@ -59,10 +59,14 @@
   "Check if PATH is safe (within workspace, no traversal)."
   (if (fboundp 'sage--safe-path-p)
       (sage--safe-path-p path)
-    (let ((workspace (sage-tools--get-workspace))
-          (expanded (expand-file-name path (sage-tools--get-workspace))))
+    (let* ((workspace (sage-tools--get-workspace))
+           (expanded (expand-file-name path workspace))
+           ;; Normalize both paths by removing trailing slashes for comparison
+           (norm-workspace (directory-file-name (expand-file-name workspace)))
+           (norm-expanded (directory-file-name expanded)))
       (and (not (string-match-p "\\.\\." path))
-           (string-prefix-p (expand-file-name workspace) expanded)
+           (or (string= norm-workspace norm-expanded)  ; "." case
+               (string-prefix-p (file-name-as-directory norm-workspace) norm-expanded))
            (not (string-match-p "\\(\\.env\\|\\.git/\\|\\.ssh\\|\\.gnupg\\)" path))))))
 
 ;;; FILE TOOLS
@@ -91,15 +95,20 @@
       (format "Unsafe path: %s" path))))
 
 (defun sage--tool-list-files (args)
-  "List files in a directory."
+  "List files in a directory.
+PATTERN uses glob syntax (e.g., *.el, *.org) not regex."
   (let ((path (or (alist-get 'path args) "."))
         (pattern (or (alist-get 'pattern args) "*")))
     (if (sage-tools--safe-path-p path)
-        (let ((full-path (expand-file-name path (sage-tools--get-workspace))))
+        (let* ((full-path (expand-file-name path (sage-tools--get-workspace)))
+               (glob-pattern (expand-file-name pattern full-path)))
           (if (file-directory-p full-path)
-              (mapconcat #'identity
-                         (directory-files full-path nil pattern)
-                         "\n")
+              (let ((files (file-expand-wildcards glob-pattern)))
+                (if files
+                    (mapconcat (lambda (f) (file-name-nondirectory f))
+                               files
+                               "\n")
+                  ""))
             (format "Not a directory: %s" path)))
       (format "Unsafe path: %s" path))))
 
