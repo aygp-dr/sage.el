@@ -205,9 +205,14 @@ TOOLS is the list of available tools."
                             `((role . ,(if (string= (alist-get 'role msg) "user")
                                           "user" "model"))
                               (parts . [((text . ,(alist-get 'content msg)))])))
-                          messages)))
-    `((contents . ,(vconcat contents))
-      (tools . [((function_declarations . ,(vconcat (mapcar #'sage--tool-to-gemini tools))))]))))
+                          messages))
+        (result nil))
+    (setq result `((contents . ,(vconcat contents))))
+    ;; Only add tools if we have a non-empty list
+    (when (and tools (> (length tools) 0))
+      (setq result (append result
+                           `((tools . [((functionDeclarations . ,(vconcat (mapcar #'sage--tool-to-gemini tools))))])))))
+    result))
 
 (defun sage--tool-to-gemini (tool)
   "Convert TOOL to Gemini function declaration format."
