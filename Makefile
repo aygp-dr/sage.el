@@ -1,4 +1,4 @@
-.PHONY: all test test-all test-tools clean compile lint checkdoc package-lint check-headers \
+.PHONY: all test test-all test-tools test-integration test-ollama clean compile lint checkdoc package-lint check-headers \
         elisp-version elisp-load-test elisp-check-syntax elisp-http-inbox \
         check ci gh-status gh-failures gh-watch gh-logs
 
@@ -59,6 +59,17 @@ test-project:
 
 test-tools:
 	$(EMACS_BATCH) -l scripts/test-tools.el
+
+# Integration tests (requires live Ollama on localhost:11434)
+test-integration:
+	@echo "=== Running integration tests (requires Ollama) ==="
+	@curl -s http://localhost:11434/api/tags > /dev/null || (echo "ERROR: Ollama not running on localhost:11434" && exit 1)
+	$(EMACS_BATCH) -l ert -l test/sage-integration-test.el -f ert-run-tests-batch-and-exit
+
+# Quick Ollama smoke test
+test-ollama:
+	@echo "Testing Ollama connection..."
+	@curl -s http://localhost:11434/api/tags | grep -q models && echo "Ollama OK" || echo "Ollama not available"
 
 lint: checkdoc check-headers
 
