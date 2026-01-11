@@ -338,7 +338,7 @@ HANDLER-FN should accept a request alist and return (status . content)."
   "Process all pending requests."
   (let ((files (sage-queue--list-requests sage-queue--input-dir)))
     (dolist (file files)
-      (when-let ((request (sage-queue--read-json file)))
+      (when-let* ((request (sage-queue--read-json file)))
         (sage-queue--process-request request)))))
 
 ;;; File Watching
@@ -351,7 +351,7 @@ HANDLER-FN should accept a request alist and return (status . content)."
                (string-suffix-p ".json" file)
                (not (string-suffix-p ".tmp" file))
                sage-queue-auto-process)
-      (when-let ((request (sage-queue--read-json file)))
+      (when-let* ((request (sage-queue--read-json file)))
         (message "Queue: Processing new request %s" (alist-get 'id request))
         (sage-queue--process-request request)))))
 

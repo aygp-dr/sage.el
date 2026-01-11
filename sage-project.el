@@ -573,7 +573,7 @@ FORMAT can be 'json or 'markdown (default: 'json)."
          (dolist (msg msgs)
            (insert (format "## %s\n\n"
                           (capitalize (plist-get msg :role))))
-           (when-let ((timestamp (plist-get msg :timestamp)))
+           (when-let* ((timestamp (plist-get msg :timestamp)))
              (insert (format "_%s_\n\n" timestamp)))
            (insert (plist-get msg :content))
            (insert "\n\n")))

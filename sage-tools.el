@@ -319,7 +319,7 @@ Applies unified diff patches to files."
   (let ((text (alist-get 'text args))
         (buffer-name (alist-get 'buffer_name args)))
     (if buffer-name
-        (if-let ((buf (get-buffer buffer-name)))
+        (if-let* ((buf (get-buffer buffer-name)))
             (with-current-buffer buf
               (insert text)
               (format "Inserted %d chars into %s" (length text) buffer-name))
@@ -342,7 +342,7 @@ Applies unified diff patches to files."
                              "\n"))
         "Not in a project")))
    ((and (require 'project nil t) (fboundp 'project-current))
-    (if-let ((proj (project-current)))
+    (if-let* ((proj (project-current)))
         (let ((root (project-root proj)))
           (format "Project: %s\nFiles:\n%s"
                   root

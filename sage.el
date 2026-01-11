@@ -272,7 +272,7 @@ TOOLS is the list of available tools."
          (content (alist-get 'content (aref candidates 0)))
          (parts (alist-get 'parts content))
          (part (aref parts 0)))
-    (if-let ((function-call (alist-get 'functionCall part)))
+    (if-let* ((function-call (alist-get 'functionCall part)))
         `((type . function_call)
           (name . ,(alist-get 'name function-call))
           (arguments . ,(alist-get 'args function-call)))
@@ -331,7 +331,7 @@ CALLBACK receives the parsed response."
          (url-retrieve
           (sage--get-endpoint)
           (lambda (status)
-            (if-let ((err (plist-get status :error)))
+            (if-let* ((err (plist-get status :error)))
                 (funcall callback nil (format "Request failed: %s" err))
               (goto-char url-http-end-of-headers)
               (condition-case err
@@ -383,7 +383,7 @@ Returns t if allowed, nil if denied."
 
 (defun sage--execute-tool (name args)
   "Execute tool NAME with ARGS."
-  (if-let ((tool (seq-find (lambda (tl) (string= (alist-get 'name tl) name))
+  (if-let* ((tool (seq-find (lambda (tl) (string= (alist-get 'name tl) name))
                            sage-tools)))
       (if (sage--check-permission name args)
           (condition-case err
@@ -574,7 +574,7 @@ Returns t if allowed, nil if denied."
 
 (defun sage--command-load (name)
   "Load conversation from session NAME."
-  (if-let ((session (gethash name sage-sessions)))
+  (if-let* ((session (gethash name sage-sessions)))
       (progn
         (setq sage-conversation (copy-sequence session))
         (setq sage-current-session name)
@@ -856,7 +856,7 @@ Allows text input and sends messages on RET."
     (when (string-match-p "[^ \t\n]" input)
       (sage--insert "\n")
       ;; Check for slash commands first
-      (if-let ((result (sage--dispatch-command input)))
+      (if-let* ((result (sage--dispatch-command input)))
           (progn
             (sage--insert (format "[Command] %s\n\n" input) 'font-lock-keyword-face)
             (sage--insert (format "%s\n" result) 'font-lock-comment-face)
@@ -870,7 +870,7 @@ Allows text input and sends messages on RET."
   (when (and sage-use-memory
              (or (null sage-conversation)
                  (= (length sage-conversation) 0)))
-    (when-let ((memory-context (sage-memory-to-context)))
+    (when-let* ((memory-context (sage-memory-to-context)))
       (unless (string-empty-p memory-context)
         (push `((role . "system") (content . ,memory-context))
               sage-conversation))))

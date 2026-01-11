@@ -250,7 +250,7 @@ Returns a formatted string suitable for including in LLM context."
         (insert "The following facts have been learned about the user and their environment:\n\n")
 
         (dolist (category sage-memory-categories)
-          (when-let ((facts (gethash category categories)))
+          (when-let* ((facts (gethash category categories)))
             (insert (format "## %s\n\n"
                           (capitalize (symbol-name category))))
             (dolist (fact (nreverse facts))
