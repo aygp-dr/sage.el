@@ -128,6 +128,16 @@ This is a rough approximation - actual tokenization varies by model."
 (defun sage-context-tokens (messages)
   "Count total tokens in MESSAGES.
 MESSAGES is a list of message alists with 'role and 'content keys.
+Returns an integer representing the total token count."
+  (let ((total 0))
+    (dolist (msg messages)
+      (let ((content (alist-get 'content msg)))
+        (cl-incf total (sage-context-estimate-tokens content))))
+    total))
+
+(defun sage-context-tokens-detailed (messages)
+  "Count tokens in MESSAGES with detailed breakdown.
+MESSAGES is a list of message alists with 'role and 'content keys.
 Returns alist with:
   - total: total token count
   - by-role: hash table of tokens per role
@@ -169,8 +179,7 @@ Returns token limit from `sage-context-provider-limits'."
 MAX-TOKENS defaults to current provider's limit.
 Returns float between 0.0 and 1.0."
   (let* ((max (or max-tokens (sage-context-get-max-tokens)))
-         (stats (sage-context-tokens messages))
-         (total (alist-get 'total stats)))
+         (total (sage-context-tokens messages)))
     (/ (float total) max)))
 
 (defun sage-context-needs-compaction-p (messages &optional max-tokens)
@@ -336,7 +345,7 @@ If MESSAGES is nil, uses current conversation."
                    (and (boundp 'sage-conversation)
                         sage-conversation)
                    '()))
-         (stats (sage-context-tokens msgs))
+         (stats (sage-context-tokens-detailed msgs))
          (total (alist-get 'total stats))
          (by-role (alist-get 'by-role stats))
          (count (alist-get 'count stats))
