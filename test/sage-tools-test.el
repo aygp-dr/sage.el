@@ -291,6 +291,35 @@ URL-RESPONSES is an alist of (URL . RESPONSE-CONTENT)."
 
 ;;; TOOL INITIALIZATION TESTS
 
+(ert-deftest sage-tools-test-tools-registered-on-require ()
+  "Test that tools are registered automatically when module is loaded.
+This is the critical test for batch mode - ensures (require 'sage-tools)
+populates sage-tools without needing to call sage--init-default-tools.
+
+Bug: gemini-repl-010-ac4 - Tools not registered in batch mode."
+  ;; Note: This test runs after (require 'sage-tools) at the top of this file.
+  ;; If tools are properly registered on load, sage-tools will be populated.
+  ;; If not, sage-tools will be nil or void.
+
+  ;; First verify the variable exists and is bound
+  (should (boundp 'sage-tools))
+
+  ;; Critical assertion: sage-tools should have tools registered
+  ;; This fails if sage--init-default-tools is not called during load
+  (should-not (null sage-tools))
+
+  ;; Verify it's a proper list with content
+  (should (listp sage-tools))
+  (should (> (length sage-tools) 0))
+
+  ;; Verify at least one tool is present with correct structure
+  (let ((read-file-tool (cl-find "read_file" sage-tools
+                                  :key (lambda (tool) (alist-get 'name tool))
+                                  :test #'string=)))
+    (should read-file-tool)
+    (should (alist-get 'description read-file-tool))
+    (should (alist-get 'execute read-file-tool))))
+
 (ert-deftest sage-tools-test-init-registers-all-tools ()
   "Test that initialization registers all expected tools."
   ;; Ensure sage-tools is defined as a dynamic variable

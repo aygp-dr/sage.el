@@ -716,7 +716,7 @@ Returns t if allowed, nil if denied."
 Displays token count, max tokens, usage percentage, message count,
 and compaction status."
   (let* ((model (sage--get-model))
-         (stats (sage-context-tokens sage-conversation))
+         (stats (sage-context-tokens-detailed sage-conversation))
          (total-tokens (alist-get 'total stats))
          (msg-count (alist-get 'count stats))
          (max-tokens (sage-context-get-max-tokens model))

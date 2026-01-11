@@ -525,6 +525,13 @@ Replaces current conversation with archived one."
 Returns list of messages in chronological order."
   (reverse sage-project--current-conversation))
 
+;;;###autoload
+(defun sage-project-get-conversation ()
+  "Get current project conversation.
+Returns list of messages in chronological order.
+This is the public API for retrieving conversation history."
+  (sage-project--get-conversation))
+
 (defun sage-project--set-conversation (messages)
   "Set current project conversation to MESSAGES.
 MESSAGES should be in chronological order."

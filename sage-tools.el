@@ -43,7 +43,9 @@
 
 ;;; Tool Registry Variables
 
-(defvar sage-tools)
+(defvar sage-tools nil
+  "List of registered tools.
+Each tool is an alist with keys: name, description, parameters, execute.")
 (defvar sage-workspace)
 (defvar sage-yolo-mode)
 (defvar sage-confirm-safe-tools)
@@ -1021,6 +1023,10 @@ EXECUTE-FN is called with arguments and returns result."
    #'sage--tool-get-capabilities)
 
   (message "Initialized %d sage tools" (length sage-tools)))
+
+;; Auto-initialize tools when module is loaded
+;; This ensures tools are available in batch mode without explicit init
+(sage--init-default-tools)
 
 (provide 'sage-tools)
 ;;; sage-tools.el ends here
