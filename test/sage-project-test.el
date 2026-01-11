@@ -13,18 +13,42 @@
 
 (ert-deftest test-encode-path-simple ()
   "Test simple path encoding."
-  (should (string= (sage-project-encode-path "/home/user/project")
-                   "-home-user-project")))
+  (let ((sage-project-encode-dots nil))
+    (should (string= (sage-project-encode-path "/home/user/project")
+                     "-home-user-project"))))
 
 (ert-deftest test-encode-path-complex ()
   "Test complex path encoding."
-  (should (string= (sage-project-encode-path "/home/user/my-project/src")
-                   "-home-user-my-project-src")))
+  (let ((sage-project-encode-dots nil))
+    (should (string= (sage-project-encode-path "/home/user/my-project/src")
+                     "-home-user-my-project-src"))))
 
 (ert-deftest test-encode-path-root ()
   "Test root path encoding."
-  (should (string= (sage-project-encode-path "/")
-                   "-")))
+  (let ((sage-project-encode-dots nil))
+    (should (string= (sage-project-encode-path "/")
+                     "-"))))
+
+(ert-deftest test-encode-path-with-dots ()
+  "Test path encoding with dots (Claude Code compatible)."
+  (let ((sage-project-encode-dots t))
+    (should (string= (sage-project-encode-path "/home/user/github.com/repo")
+                     "-home-user-github-com-repo"))))
+
+(ert-deftest test-encode-path-preserve-dots ()
+  "Test path encoding preserving dots (legacy)."
+  (let ((sage-project-encode-dots nil))
+    (should (string= (sage-project-encode-path "/home/user/github.com/repo")
+                     "-home-user-github.com-repo"))))
+
+(ert-deftest test-storage-preset-resolution ()
+  "Test storage preset resolution."
+  (should (string-match-p "sage/projects$"
+                         (sage-project--resolve-directory 'emacs-native)))
+  (should (string-match-p "\\.sage/projects$"
+                         (sage-project--resolve-directory 'standalone)))
+  (should (string-match-p "\\.claude/projects$"
+                         (sage-project--resolve-directory 'claude-shared))))
 
 ;;; Message Creation Tests
 
