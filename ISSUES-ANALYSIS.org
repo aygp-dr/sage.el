@@ -19,7 +19,7 @@ This document summarizes the analysis of 200+ issues across all sage repositorie
 | sage-006 | 26 | 25 | 1 | CLI design, release management |
 | sage-007 | 30 | 28 | 2 | Design patterns, experiments |
 | sage-008 | 0 | 0 | 0 | No issues filed |
-| sage-009 | 0 | 0 | 0 | Just created |
+| gemini-repl-009 | 0 | 0 | 0 | Just created |
 
 * Critical Issues to Address
 
@@ -184,7 +184,7 @@ Adding 2 more covers 80-85%:
 6. **Tool Dispatch is Tricky**: AI needs clear guidance
 7. **Testing Prevents Regression**: Same bugs appeared across versions
 
-* Recommendations for sage-009
+* Recommendations for gemini-repl-009
 
 1. Start with security-first design
 2. Implement only the minimal tool set initially

@@ -495,6 +495,6 @@ GPL-3.0 (to be compatible with Emacs)
 
 * See Also
 
-- [[https://github.com/aygp-dr/sage-009][sage-009]] - Rust implementation
+- [[https://github.com/aygp-dr/gemini-repl-009][gemini-repl-009]] - Rust implementation
 - [[https://github.com/steveyegge/efrit][Efrit]] - AI-Powered Emacs Coding Assistant
 - [[https://aider.chat][Aider]] - AI Pair Programming

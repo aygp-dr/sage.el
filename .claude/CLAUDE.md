@@ -4,7 +4,7 @@
 
 Elisp implementation of Sage (version 010), providing an AI coding assistant for Emacs with multi-provider support and tool calling.
 
-This is the Emacs/Elisp counterpart to sage-009 (Rust).
+This is the Emacs/Elisp counterpart to gemini-repl-009 (Rust).
 
 ## Code Style
 
