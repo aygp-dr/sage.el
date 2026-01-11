@@ -22,7 +22,7 @@
                     ((role . "user")
                      (content . "I need to write a function in Emacs Lisp that processes a list.")))))
     ;; Count tokens
-    (let* ((stats (sage-context-tokens messages))
+    (let* ((stats (sage-context-tokens-detailed messages))
            (total (alist-get 'total stats))
            (by-role (alist-get 'by-role stats))
            (count (alist-get 'count stats)))
