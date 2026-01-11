@@ -11,6 +11,7 @@ EMACS_BATCH = $(EMACS) -Q --batch -L .
 EL_FILES = sage.el \
            sage-context.el \
            sage-emacs.el \
+           sage-log.el \
            sage-memory.el \
            sage-project.el \
            sage-queue.el \
@@ -144,6 +145,7 @@ elisp-load-test:
 		-l sage.el \
 		-l sage-context.el \
 		-l sage-emacs.el \
+		-l sage-log.el \
 		-l sage-memory.el \
 		-l sage-project.el \
 		-l sage-queue.el \
