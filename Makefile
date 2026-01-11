@@ -286,4 +286,14 @@ test-count:
 test-scenarios:
 	$(EMACS_BATCH) -l sage-tools.el -l sage-project.el -l scripts/run-100-scenarios.el
 
+# Run feature checklist (README verification)
+feature-check:
+	@echo "=== Running Feature Checklist ==="
+	$(EMACS_BATCH) -l scripts/feature-checklist.el
+
+# Demo reflection summary
+demo-reflect:
+	@echo "=== Reflection Demo ==="
+	$(EMACS_BATCH) -l scripts/demo-reflect.el
+
 .DEFAULT_GOAL := all

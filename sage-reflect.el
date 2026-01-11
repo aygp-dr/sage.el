@@ -257,7 +257,7 @@ Returns insights about tool usage."
     ;; Performance insights
     (when slow-tools
       (push (format "Slow tools detected: %s - consider caching or optimization"
-                    (mapconcat (lambda (tl) (symbol-name (car tl))) slow-tools ", "))
+                    (mapconcat (lambda (tl) (format "%s" (car tl))) slow-tools ", "))
             insights))
 
     ;; Reliability insights
