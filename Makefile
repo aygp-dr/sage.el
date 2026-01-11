@@ -1,6 +1,7 @@
 .PHONY: all test test-all test-tools test-integration test-ollama clean compile lint checkdoc package-lint check-headers \
         elisp-version elisp-load-test elisp-check-syntax elisp-http-inbox \
-        check ci gh-status gh-failures gh-watch gh-logs
+        check ci gh-status gh-failures gh-watch gh-logs \
+        demo demo-batch demo-quick demo-screencast
 
 EMACS ?= emacs
 EMACS_BATCH = $(EMACS) -Q --batch -L .
@@ -14,7 +15,8 @@ EL_FILES = sage.el \
            sage-queue.el \
            sage-ratelimit.el \
            sage-session.el \
-           sage-tools.el
+           sage-tools.el \
+           sage-tool-factory.el
 
 ELC_FILES = $(EL_FILES:.el=.elc)
 
@@ -188,5 +190,23 @@ gh-logs:
 	else \
 		echo "No failed runs found"; \
 	fi
+
+# === Demo targets ===
+
+# Run interactive demo (GUI)
+demo:
+	$(EMACS) -Q -L . -l examples/tool-demos.el -f sage-tools-demo-all
+
+# Run demo in batch mode (terminal output)
+demo-batch:
+	$(EMACS_BATCH) -l examples/tool-demos.el -f sage-tools-demo-all
+
+# Run quick screencast demo (non-interactive)
+demo-quick:
+	$(EMACS) -Q -L . -l examples/screencast-demo.el -f screencast-demo-quick
+
+# Run interactive screencast demo (step-by-step)
+demo-screencast:
+	$(EMACS) -Q -L . -l examples/screencast-demo.el -f screencast-demo-all
 
 .DEFAULT_GOAL := all

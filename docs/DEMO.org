@@ -1,0 +1,334 @@
+#+TITLE: Sage: Self-Extending AI Tools for Emacs
+#+AUTHOR: Jason Walsh
+#+DATE: 2026-01-11
+#+OPTIONS: toc:2 num:nil ^:nil
+#+PROPERTY: header-args:elisp :results output :exports both
+
+* Introduction
+
+Sage is an AI coding assistant for Emacs that uses native Emacs primitives
+for all operations. Unlike shell-based tools, sage leverages magit, org-mode,
+and built-in Elisp functions for maximum integration.
+
+** Key Features
+
+- *28 built-in tools* - file operations, git, org-mode, web, and more
+- *Self-extending* - sage can create new tools that persist across sessions
+- *Pure Emacs* - no shell fallbacks, uses magit and org-mode directly
+- *Tool Factory* - dynamic tool creation with elisp code
+
+* Screenshots
+
+#+CAPTION: Sage REPL running on Raspberry Pi
+[[file:images/emacs-sage-pi.png]]
+
+#+CAPTION: Interactive REPL session
+[[file:images/sage-repl-pi.png]]
+
+#+CAPTION: Tool demo results
+[[file:images/sage-tools-demo-pi.png]]
+
+* Quick Start
+
+** Installation
+
+#+begin_src elisp :eval no
+;; Add to load-path
+(add-to-list 'load-path "/path/to/gemini-repl-010")
+
+;; Load sage
+(require 'sage)
+(require 'sage-tools)
+(require 'sage-tool-factory)
+
+;; Initialize
+(sage--init-default-tools)
+(sage-tool-factory-init)
+#+end_src
+
+** Starting a Session
+
+#+begin_example
+M-x sage-repl
+#+end_example
+
+* Tool Demonstrations
+
+** File Operations
+
+*** Read a File
+
+#+begin_src elisp :eval no
+;; Tool: read_file
+(sage--tool-read-file '((path . "README.org")))
+#+end_src
+
+*** Write a File
+
+#+begin_src elisp :eval no
+;; Tool: write_file
+(sage--tool-write-file '((path . "test.txt")
+                         (content . "Hello from sage!")))
+#+end_src
+
+*** List Files
+
+#+begin_src elisp :eval no
+;; Tool: list_files
+(sage--tool-list-files '((path . ".")
+                         (pattern . "*.el")))
+#+end_src
+
+** Git Operations (requires magit)
+
+*** Git Status
+
+#+begin_src elisp :eval no
+;; Tool: git_status
+(sage--tool-git-status nil)
+#+end_src
+
+*** Git Log
+
+#+begin_src elisp :eval no
+;; Tool: git_log
+(sage--tool-git-log '((count . 5)))
+#+end_src
+
+*** Git Diff
+
+#+begin_src elisp :eval no
+;; Tool: git_diff
+(sage--tool-git-diff '((staged . nil)))
+#+end_src
+
+** Org-Mode Operations
+
+*** List TODOs
+
+#+begin_src elisp :eval no
+;; Tool: org_todo_list
+(sage--tool-org-todo-list '((file . "tasks.org")))
+#+end_src
+
+*** Add a TODO
+
+#+begin_src elisp :eval no
+;; Tool: org_add_todo
+(sage--tool-org-add-todo '((file . "tasks.org")
+                           (heading . "Review sage documentation")
+                           (state . "TODO")
+                           (priority . "A")))
+#+end_src
+
+*** Close a TODO
+
+#+begin_src elisp :eval no
+;; Tool: org_close_todo
+(sage--tool-org-close-todo '((file . "tasks.org")
+                             (heading . "Review sage documentation")))
+#+end_src
+
+** Web Operations
+
+*** Fetch URL
+
+#+begin_src elisp :eval no
+;; Tool: web_fetch
+(sage--tool-web-fetch '((url . "https://example.com")
+                        (timeout . 10)))
+#+end_src
+
+** Emacs Introspection
+
+*** Describe Function
+
+#+begin_src elisp :eval no
+;; Tool: describe_function
+(sage--tool-describe-function '((function . "mapcar")))
+#+end_src
+
+*** Describe Variable
+
+#+begin_src elisp :eval no
+;; Tool: describe-variable
+(sage--tool-describe-variable '((variable . "version-control")))
+#+end_src
+
+*** Evaluate Elisp
+
+#+begin_src elisp :eval no
+;; Tool: eval_elisp
+(sage--tool-eval-elisp '((code . "(+ 1 2 3)")))
+#+end_src
+
+* Self-Extending Tool Factory
+
+Sage can create new tools dynamically that persist across sessions.
+
+** Creating a Custom Tool
+
+#+begin_src elisp :eval no
+;; Tool: create_tool
+(sage--tool-create-tool
+ '((name . "count_lines")
+   (description . "Count lines in a file")
+   (parameters . ((type . "object")
+                  (properties . ((path . ((type . "string")
+                                          (description . "File path")))))
+                  (required . ["path"])))
+   (code . "(with-temp-buffer
+              (insert-file-contents (alist-get 'path args))
+              (format \"Lines: %d\" (count-lines (point-min) (point-max))))")))
+#+end_src
+
+** Built-in Custom Tools
+
+*** Hacker News Summary
+
+#+begin_src elisp :eval no
+;; Tool: hackernews_summary
+;; Fetches top stories from HN API
+(funcall (alist-get 'execute
+           (cl-find "hackernews_summary" sage-tools
+                    :key (lambda (t) (alist-get 'name t))
+                    :test #'string=))
+         '((count . 5)))
+#+end_src
+
+Example output:
+#+begin_example
+Hacker News Top Stories
+
+0. The struggle of resizing windows on macOS Tahoe
+   https://noheger.at/blog/2026/01/11/...
+   145 points | 37 comments
+
+1. Show HN: I built a terminal-based IDE
+   https://github.com/...
+   89 points | 23 comments
+#+end_example
+
+*** Weather
+
+#+begin_src elisp :eval no
+;; Tool: weather
+(funcall (alist-get 'execute
+           (cl-find "weather" sage-tools
+                    :key (lambda (t) (alist-get 'name t))
+                    :test #'string=))
+         '((location . "San Francisco")))
+#+end_src
+
+*** Generate UUID
+
+#+begin_src elisp :eval no
+;; Tool: generate_uuid
+(funcall (alist-get 'execute
+           (cl-find "generate_uuid" sage-tools
+                    :key (lambda (t) (alist-get 'name t))
+                    :test #'string=))
+         nil)
+;; => "a1b2c3d4-e5f6-4789-abcd-ef1234567890"
+#+end_src
+
+*** Timestamp
+
+#+begin_src elisp :eval no
+;; Tool: timestamp
+(funcall (alist-get 'execute
+           (cl-find "timestamp" sage-tools
+                    :key (lambda (t) (alist-get 'name t))
+                    :test #'string=))
+         '((format . "iso")))
+;; => "2026-01-11T22:00:00Z"
+#+end_src
+
+* Running the Demo
+
+** Interactive Demo
+
+#+begin_src shell :eval no
+cd /path/to/gemini-repl-010
+emacs -Q -L . -l examples/tool-demos.el -f sage-tools-demo-all
+#+end_src
+
+** Batch Mode Demo
+
+#+begin_src shell :eval no
+emacs --batch -Q -L . -l examples/tool-demos.el -f sage-tools-demo-all
+#+end_src
+
+** Demo on Remote Machine (e.g., Raspberry Pi)
+
+#+begin_src shell :eval no
+ssh pi.lan "cd ~/ghq/github.com/aygp-dr/gemini-repl-010 && \
+  emacs -Q -L . -l examples/tool-demos.el -f sage-tools-demo-all"
+#+end_src
+
+* Architecture
+
+#+begin_example
+sage.el
+├── Provider API
+│   ├── gemini (Google)
+│   ├── openai
+│   └── anthropic
+├── sage-tools.el (28 tools)
+│   ├── File Tools (read, write, edit, list, glob)
+│   ├── Search Tools (code_search, search_preview)
+│   ├── Git Tools (status, log, diff, branch) [magit]
+│   ├── Org Tools (todo_list, add, close, archive) [org-mode]
+│   ├── Web Tools (fetch, search)
+│   └── Emacs Tools (describe, eval, buffers)
+└── sage-tool-factory.el
+    ├── create_tool
+    ├── list_custom_tools
+    ├── delete_tool
+    └── reload_tools
+#+end_example
+
+* Tool Reference
+
+| Tool                | Category | Description                    |
+|---------------------+----------+--------------------------------|
+| read_file           | File     | Read file contents             |
+| write_file          | File     | Write content to file          |
+| edit_file           | File     | Search/replace in file         |
+| list_files          | File     | List directory contents        |
+| glob_files          | File     | Find files by pattern          |
+| code_search         | Search   | Search code with regex         |
+| search_preview      | Search   | Search with context lines      |
+| git_status          | Git      | Show working tree status       |
+| git_log             | Git      | Show commit history            |
+| git_diff            | Git      | Show changes                   |
+| git_branch          | Git      | List/manage branches           |
+| org_todo_list       | Org      | List TODO items                |
+| org_add_todo        | Org      | Add new TODO                   |
+| org_set_todo_state  | Org      | Change TODO state              |
+| org_close_todo      | Org      | Mark TODO as DONE              |
+| org_archive_todo    | Org      | Archive completed items        |
+| web_fetch           | Web      | Fetch URL content              |
+| web_search          | Web      | Search DuckDuckGo              |
+| describe_function   | Emacs    | Get function documentation     |
+| describe_variable   | Emacs    | Get variable documentation     |
+| eval_elisp          | Emacs    | Evaluate elisp code            |
+| list_buffers        | Emacs    | List open buffers              |
+| find_definition     | Emacs    | Find symbol definition         |
+| project_map         | Emacs    | Map project structure          |
+| get_capabilities    | Emacs    | List available tools           |
+| create_tool         | Factory  | Create new tool                |
+| list_custom_tools   | Factory  | List custom tools              |
+| delete_tool         | Factory  | Delete custom tool             |
+| reload_tools        | Factory  | Reload from disk               |
+| hackernews_summary  | Custom   | Fetch HN top stories           |
+| weather             | Custom   | Get weather for location       |
+| generate_uuid       | Custom   | Generate random UUID           |
+| timestamp           | Custom   | Format current timestamp       |
+
+* Links
+
+- Repository: https://github.com/aygp-dr/gemini-repl-010
+- Gemini API: https://ai.google.dev/
+- Magit: https://magit.vc/
+- Org-mode: https://orgmode.org/

@@ -1,0 +1,56 @@
+#!/bin/bash
+# run-demo - Run sage-tools demonstration
+#
+# Usage:
+#   ./bin/run-demo           # Interactive mode
+#   ./bin/run-demo --batch   # Batch mode (no GUI)
+#   ./bin/run-demo --remote  # Run on pi.lan
+#
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
+case "${1:-}" in
+  --batch)
+    echo "Running demo in batch mode..."
+    emacs --batch -Q \
+      -L "$PROJECT_DIR" \
+      -l "$PROJECT_DIR/examples/tool-demos.el" \
+      -f sage-tools-demo-all \
+      2>&1
+    ;;
+  --remote)
+    HOST="${2:-pi.lan}"
+    echo "Running demo on $HOST..."
+    ssh "$HOST" "cd ~/ghq/github.com/aygp-dr/gemini-repl-010 && \
+      emacs -Q -L . -l examples/tool-demos.el -f sage-tools-demo-all"
+    ;;
+  --screenshot)
+    HOST="${2:-pi.lan}"
+    echo "Running demo on $HOST and capturing screenshot..."
+    ssh "$HOST" "cd ~/ghq/github.com/aygp-dr/gemini-repl-010 && \
+      emacs -Q -L . -l examples/tool-demos.el -f sage-tools-demo-all &"
+    sleep 5
+    ssh "$HOST" "import -window root ~/demo-screenshot.png"
+    scp "$HOST:~/demo-screenshot.png" "$PROJECT_DIR/docs/images/"
+    echo "Screenshot saved to docs/images/demo-screenshot.png"
+    ;;
+  --help|-h)
+    echo "Usage: $0 [--batch|--remote [host]|--screenshot [host]|--help]"
+    echo ""
+    echo "Options:"
+    echo "  (none)       Interactive mode with GUI"
+    echo "  --batch      Batch mode, output to terminal"
+    echo "  --remote     Run on remote host (default: pi.lan)"
+    echo "  --screenshot Run on remote host and capture screenshot"
+    echo "  --help       Show this help"
+    ;;
+  *)
+    echo "Running demo in interactive mode..."
+    emacs -Q \
+      -L "$PROJECT_DIR" \
+      -l "$PROJECT_DIR/examples/tool-demos.el" \
+      -f sage-tools-demo-all
+    ;;
+esac
