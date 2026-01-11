@@ -1,0 +1,167 @@
+#+TITLE: sage-tools.el Implementation Audit
+#+AUTHOR: sage.el Team
+#+DATE: 2026-01-11
+
+* Overview
+
+Audit of tool implementations in sage-tools.el, checking for:
+- Use of Emacs primitives vs shell commands
+- Portability across platforms
+- Security considerations
+
+* Tool Audit Summary
+
+| Tool               | Implementation    | Shell Fallback? | Status      |
+|--------------------+-------------------+-----------------+-------------|
+| read_file          | Emacs native      | No              | ✅ Good     |
+| write_file         | Emacs native      | No              | ✅ Good     |
+| list_files         | Emacs native      | No              | ✅ Good     |
+| edit_file          | Emacs native      | No              | ✅ Good     |
+| git_status         | magit → shell     | Yes             | ⚠️ Fallback |
+| git_diff           | magit → shell     | Yes             | ⚠️ Fallback |
+| git_log            | magit → shell     | Yes             | ⚠️ Fallback |
+| git_branch         | magit → shell     | Yes             | ⚠️ Fallback |
+| git_blame          | magit → shell     | Yes             | ⚠️ Fallback |
+| code_search        | Emacs native      | No              | ✅ Good     |
+| glob_files         | Emacs native      | No              | ✅ Good     |
+| search_preview     | Emacs native      | No              | ✅ Good     |
+| eval_elisp         | Emacs native      | No              | ✅ Good     |
+| describe_function  | Emacs native      | No              | ✅ Good     |
+| describe_variable  | Emacs native      | No              | ✅ Good     |
+| find_definition    | Emacs native      | No              | ✅ Good     |
+| list_buffers       | Emacs native      | No              | ✅ Good     |
+| switch_buffer      | Emacs native      | No              | ✅ Good     |
+| insert_at_point    | Emacs native      | No              | ✅ Good     |
+| project_map        | Emacs native      | No              | ✅ Good     |
+| get_capabilities   | Emacs native      | No              | ✅ Good     |
+
+* Detailed Analysis
+
+** FILE TOOLS - All Native ✅
+
+#+begin_src elisp
+;; Uses:
+;; - insert-file-contents (read)
+;; - write-region (write)
+;; - file-expand-wildcards (list)
+;; - search-forward + replace-match (edit)
+#+end_src
+
+** GIT TOOLS - magit with shell fallback ⚠️
+
+Current implementation uses magit when available:
+
+#+begin_src elisp
+(defun sage--use-magit-p ()
+  "Check if magit is available and should be used."
+  (and (featurep 'magit) (fboundp 'magit-status)))
+#+end_src
+
+Fallback options for Emacs-native git:
+1. =vc-git-*= functions (built-in)
+2. =process-file= with git (portable)
+3. =magit-git-insert= (magit)
+4. =shell-command-to-string= (current fallback)
+
+Recommendation: Add vc-git intermediate fallback:
+
+#+begin_src elisp
+(defun sage--tool-git-status (_args)
+  (let ((default-directory (sage-tools--get-workspace)))
+    (cond
+     ;; Prefer magit
+     ((sage--use-magit-p)
+      (with-temp-buffer
+        (magit-git-insert "status" "--porcelain")
+        (buffer-string)))
+     ;; Try vc-git
+     ((and (require 'vc-git nil t) (fboundp 'vc-git-command))
+      (with-temp-buffer
+        (vc-git-command t nil nil "status" "--porcelain")
+        (buffer-string)))
+     ;; Shell fallback
+     (t (shell-command-to-string "git status --porcelain")))))
+#+end_src
+
+** SEARCH TOOLS - Now Native ✅
+
+Fixed in 2026-01-11 commit to use:
+- =directory-files-recursively= for file discovery
+- =string-match-p= for pattern matching
+- Pure Elisp implementation, no rg/grep dependency
+
+** EMACS-SPECIFIC TOOLS - All Native ✅
+
+#+begin_src elisp
+;; Uses:
+;; - describe-function/variable (help system)
+;; - xref-backend-definitions (code navigation)
+;; - buffer-list, switch-to-buffer (buffer management)
+;; - project-files, projectile-project-files (project)
+#+end_src
+
+* Issues Found
+
+** FIXED: code_search using rg with unknown file types
+
+Before:
+#+begin_src elisp
+(shell-command-to-string
+ (format "rg %s -C %d %s" ...))  ; Failed for .clj files
+#+end_src
+
+After:
+#+begin_src elisp
+(directory-files-recursively workspace file-regexp)
+(string-match-p pattern line)  ; Works for any file type
+#+end_src
+
+** TODO: Add vc-git fallback for git tools
+
+Git tools work when:
+- magit is installed (best)
+- shell git is available (current fallback)
+
+Should also work when:
+- Only built-in vc-git is available
+
+* Recommendations
+
+1. [X] Fix code_search and search_preview (DONE)
+2. [ ] Add vc-git intermediate fallback
+3. [ ] Consider adding web_fetch using url-retrieve
+4. [ ] Add info-lookup tool for documentation
+
+* Audit Function
+
+To check tool implementations programmatically:
+
+#+begin_src elisp
+(defun sage-audit-tools ()
+  "Audit tool implementations for shell command usage."
+  (interactive)
+  (let ((shell-patterns '(shell-command-to-string
+                          call-process
+                          start-process
+                          process-file))
+        (results '()))
+    (dolist (tool sage-tools)
+      (let* ((name (alist-get 'name tool))
+             (fn (alist-get 'execute tool))
+             (fn-def (when (symbolp fn)
+                       (symbol-function fn)))
+             (uses-shell nil))
+        (when (and fn-def (listp fn-def))
+          (dolist (pattern shell-patterns)
+            (when (cl-tree-search pattern fn-def)
+              (setq uses-shell t))))
+        (push (list name (if uses-shell "⚠️ shell" "✅ native"))
+              results)))
+    (with-current-buffer (get-buffer-create "*Sage Tool Audit*")
+      (erase-buffer)
+      (insert "Tool Implementation Audit\n")
+      (insert "=========================\n\n")
+      (dolist (r (nreverse results))
+        (insert (format "%-20s %s\n" (car r) (cadr r))))
+      (display-buffer (current-buffer)))))
+#+end_src

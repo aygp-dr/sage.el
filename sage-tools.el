@@ -31,6 +31,15 @@
 (declare-function magit-diff "magit-diff" (&optional rev-or-range))
 (declare-function magit-log "magit-log" (&optional revs args files))
 
+;; Declare org-mode functions
+(declare-function org-mode "org" ())
+(declare-function org-map-entries "org" (func &optional match scope &rest skip))
+(declare-function org-get-heading "org" (&optional no-tags no-todo no-priority no-comment))
+(declare-function org-get-todo-state "org" ())
+(declare-function org-get-priority "org" (&optional s))
+(declare-function org-get-tags "org" (&optional pos local))
+(declare-function org-todo "org" (&optional arg))
+
 ;;; Tool Registry Variables
 
 (defvar sage-tools)
@@ -43,7 +52,8 @@
   '("read_file" "list_files" "git_status" "git_diff" "git_log"
     "git_branch" "git_blame" "code_search" "glob_files" "search_preview"
     "describe_function" "describe_variable" "find_definition"
-    "list_buffers" "project_map" "get_capabilities")
+    "list_buffers" "project_map" "get_capabilities"
+    "org_todo_list" "web_fetch" "web_search")
   "Tools that are safe (read-only) and don't require confirmation.")
 
 ;;; Helper Functions
@@ -389,6 +399,200 @@ Uses `directory-files-recursively' and `string-match' for portable search."
       (insert text)
       (format "Inserted %d chars at point" (length text)))))
 
+;;; ORG-MODE TOOLS
+
+(defun sage--tool-org-todo-list (args)
+  "List todos from an org file or agenda files.
+Uses org-mode's native functionality."
+  (require 'org nil t)
+  (let ((file (alist-get 'file args)))
+    (if file
+        ;; List todos from specific file
+        (let ((full-path (expand-file-name file (sage-tools--get-workspace))))
+          (if (and (file-exists-p full-path)
+                   (string-match-p "\\.org$" full-path))
+              (with-temp-buffer
+                (insert-file-contents full-path)
+                (org-mode)
+                (let ((todos '()))
+                  (org-map-entries
+                   (lambda ()
+                     (let ((heading (org-get-heading t t t t))
+                           (state (org-get-todo-state))
+                           (priority (org-get-priority))
+                           (tags (org-get-tags)))
+                       (when state
+                         (push (format "[%s] %s%s %s"
+                                       state
+                                       (if (> priority 0)
+                                           (format "[#%c] " (+ ?A (/ priority 1000)))
+                                         "")
+                                       heading
+                                       (if tags (format " :%s:" (string-join tags ":")) ""))
+                               todos)))))
+                  (if todos
+                      (mapconcat #'identity (nreverse todos) "\n")
+                    "No TODOs found")))
+            (format "File not found or not .org: %s" file)))
+      ;; List from agenda files
+      (if (and (boundp 'org-agenda-files) org-agenda-files)
+          (let ((results '()))
+            (dolist (afile org-agenda-files)
+              (when (file-exists-p afile)
+                (with-temp-buffer
+                  (insert-file-contents afile)
+                  (org-mode)
+                  (org-map-entries
+                   (lambda ()
+                     (let ((state (org-get-todo-state)))
+                       (when state
+                         (push (format "%s: [%s] %s"
+                                       (file-name-nondirectory afile)
+                                       state
+                                       (org-get-heading t t t t))
+                               results))))))))
+            (if results
+                (mapconcat #'identity (nreverse results) "\n")
+              "No TODOs found"))
+        "No org-agenda-files configured"))))
+
+(defun sage--tool-org-add-todo (args)
+  "Add a TODO item to an org file."
+  (let ((file (alist-get 'file args))
+        (heading (alist-get 'heading args))
+        (state (or (alist-get 'state args) "TODO"))
+        (priority (alist-get 'priority args)))
+    (if (sage-tools--safe-path-p file)
+        (let ((full-path (expand-file-name file (sage-tools--get-workspace))))
+          (with-current-buffer (find-file-noselect full-path)
+            (goto-char (point-max))
+            (unless (bolp) (insert "\n"))
+            (insert (format "* %s%s %s\n"
+                            state
+                            (if priority (format " [#%s]" priority) "")
+                            heading))
+            (save-buffer)
+            (format "Added TODO: %s %s in %s" state heading file)))
+      (format "Unsafe path: %s" file))))
+
+(defun sage--tool-org-set-todo-state (args)
+  "Change the TODO state of an item."
+  (let ((file (alist-get 'file args))
+        (heading (alist-get 'heading args))
+        (new-state (alist-get 'state args)))
+    (if (sage-tools--safe-path-p file)
+        (let ((full-path (expand-file-name file (sage-tools--get-workspace))))
+          (if (file-exists-p full-path)
+              (with-current-buffer (find-file-noselect full-path)
+                (goto-char (point-min))
+                (if (re-search-forward (format "^\\*+ \\(TODO\\|DONE\\|IN-PROGRESS\\) %s"
+                                               (regexp-quote heading))
+                                       nil t)
+                    (progn
+                      (org-todo new-state)
+                      (save-buffer)
+                      (format "Changed state to %s: %s" new-state heading))
+                  (format "Heading not found: %s" heading)))
+            (format "File not found: %s" file)))
+      (format "Unsafe path: %s" file))))
+
+;;; WEB TOOLS
+
+(defun sage--tool-web-fetch (args)
+  "Fetch content from a URL using Emacs url-retrieve.
+Returns the page content as text."
+  (require 'url nil t)
+  (let ((url (alist-get 'url args))
+        (timeout (or (alist-get 'timeout args) 30)))
+    (if (and url (string-match-p "^https?://" url))
+        (condition-case err
+            (let ((buffer (url-retrieve-synchronously url t nil timeout)))
+              (if buffer
+                  (with-current-buffer buffer
+                    (goto-char (point-min))
+                    ;; Skip HTTP headers
+                    (when (re-search-forward "\n\n" nil t)
+                      (let ((content (buffer-substring-no-properties
+                                      (point) (point-max))))
+                        (kill-buffer buffer)
+                        ;; Basic HTML to text conversion
+                        (with-temp-buffer
+                          (insert content)
+                          ;; Remove scripts and style
+                          (goto-char (point-min))
+                          (while (re-search-forward
+                                  "<\\(script\\|style\\)[^>]*>.*?</\\1>" nil t)
+                            (replace-match ""))
+                          ;; Remove HTML tags
+                          (goto-char (point-min))
+                          (while (re-search-forward "<[^>]+>" nil t)
+                            (replace-match " "))
+                          ;; Clean up whitespace
+                          (goto-char (point-min))
+                          (while (re-search-forward "[ \t]+" nil t)
+                            (replace-match " "))
+                          (goto-char (point-min))
+                          (while (re-search-forward "\n\\s-*\n+" nil t)
+                            (replace-match "\n\n"))
+                          ;; Decode HTML entities
+                          (goto-char (point-min))
+                          (while (re-search-forward "&amp;" nil t)
+                            (replace-match "&"))
+                          (goto-char (point-min))
+                          (while (re-search-forward "&lt;" nil t)
+                            (replace-match "<"))
+                          (goto-char (point-min))
+                          (while (re-search-forward "&gt;" nil t)
+                            (replace-match ">"))
+                          (goto-char (point-min))
+                          (while (re-search-forward "&quot;" nil t)
+                            (replace-match "\""))
+                          (goto-char (point-min))
+                          (while (re-search-forward "&nbsp;" nil t)
+                            (replace-match " "))
+                          (string-trim (buffer-string))))))
+                "Failed to fetch URL"))
+          (error (format "Error fetching %s: %s" url (error-message-string err))))
+      (format "Invalid URL: %s (must be http:// or https://)" url))))
+
+(defun sage--tool-web-search (args)
+  "Search the web using DuckDuckGo HTML interface.
+Returns search results as text."
+  (require 'url nil t)
+  (let* ((query (alist-get 'query args))
+         (max-results (or (alist-get 'max_results args) 5))
+         (encoded-query (url-hexify-string query))
+         (url (format "https://html.duckduckgo.com/html/?q=%s" encoded-query)))
+    (if query
+        (condition-case err
+            (let ((buffer (url-retrieve-synchronously url t nil 30)))
+              (if buffer
+                  (with-current-buffer buffer
+                    (goto-char (point-min))
+                    (when (re-search-forward "\n\n" nil t)
+                      (let ((results '())
+                            (count 0))
+                        ;; Parse DuckDuckGo results
+                        (while (and (< count max-results)
+                                    (re-search-forward
+                                     "class=\"result__a\"[^>]*href=\"\\([^\"]+\\)\"[^>]*>\\([^<]+\\)"
+                                     nil t))
+                          (let ((link (match-string 1))
+                                (title (match-string 2)))
+                            (push (format "%d. %s\n   %s"
+                                          (1+ count)
+                                          (string-trim title)
+                                          link)
+                                  results)
+                            (setq count (1+ count))))
+                        (kill-buffer buffer)
+                        (if results
+                            (mapconcat #'identity (nreverse results) "\n\n")
+                          "No results found"))))
+                "Search failed"))
+          (error (format "Search error: %s" (error-message-string err))))
+      "No search query provided")))
+
 ;;; SELF-AWARENESS TOOLS
 
 (defun sage--tool-project-map (_args)
@@ -650,6 +854,67 @@ EXECUTE-FN is called with arguments and returns result."
                                    (description . "Optional buffer name (current if not specified)")))))
      (required . ["text"]))
    #'sage--tool-insert-at-point)
+
+  ;; ORG-MODE TOOLS
+  (sage-tools--register
+   "org_todo_list"
+   "List TODO items from an org file or agenda files"
+   '((type . "object")
+     (properties . ((file . ((type . "string")
+                             (description . "Org file path (optional, uses agenda if not specified)")))))
+     (required . []))
+   #'sage--tool-org-todo-list)
+
+  (sage-tools--register
+   "org_add_todo"
+   "Add a TODO item to an org file"
+   '((type . "object")
+     (properties . ((file . ((type . "string")
+                             (description . "Org file path")))
+                    (heading . ((type . "string")
+                               (description . "TODO heading text")))
+                    (state . ((type . "string")
+                             (description . "TODO state (default: TODO)")))
+                    (priority . ((type . "string")
+                                (description . "Priority A, B, or C (optional)")))))
+     (required . ["file" "heading"]))
+   #'sage--tool-org-add-todo)
+
+  (sage-tools--register
+   "org_set_todo_state"
+   "Change the state of a TODO item"
+   '((type . "object")
+     (properties . ((file . ((type . "string")
+                             (description . "Org file path")))
+                    (heading . ((type . "string")
+                               (description . "TODO heading to find")))
+                    (state . ((type . "string")
+                             (description . "New TODO state")))))
+     (required . ["file" "heading" "state"]))
+   #'sage--tool-org-set-todo-state)
+
+  ;; WEB TOOLS
+  (sage-tools--register
+   "web_fetch"
+   "Fetch content from a URL and return as text"
+   '((type . "object")
+     (properties . ((url . ((type . "string")
+                            (description . "URL to fetch (http or https)")))
+                    (timeout . ((type . "integer")
+                               (description . "Timeout in seconds (default 30)")))))
+     (required . ["url"]))
+   #'sage--tool-web-fetch)
+
+  (sage-tools--register
+   "web_search"
+   "Search the web using DuckDuckGo"
+   '((type . "object")
+     (properties . ((query . ((type . "string")
+                              (description . "Search query")))
+                    (max_results . ((type . "integer")
+                                   (description . "Max results to return (default 5)")))))
+     (required . ["query"]))
+   #'sage--tool-web-search)
 
   ;; SELF-AWARENESS TOOLS
   (sage-tools--register
