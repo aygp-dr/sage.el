@@ -118,6 +118,24 @@
         (should (string= (plist-get (car retrieved) :content) "Hello"))
         (should (string= (plist-get (cadr retrieved) :content) "Hi"))))))
 
+(ert-deftest test-sage-project-get-conversation-public ()
+  "Test public sage-project-get-conversation function exists and works."
+  (let ((sage-project--current-dir "/tmp/test-project")
+        (sage-project-directory "/tmp/test-storage")
+        (sage-project-auto-save nil)
+        (sage-project--current-conversation nil))
+    ;; Verify function exists
+    (should (fboundp 'sage-project-get-conversation))
+    ;; Add some messages
+    (sage-project-append '(:role "user" :content "First"))
+    (sage-project-append '(:role "assistant" :content "Second"))
+    ;; Verify get-conversation returns messages in chronological order
+    (let ((conv (sage-project-get-conversation)))
+      (should (= (length conv) 2))
+      ;; First message should be "First" (chronological order)
+      (should (string= (plist-get (car conv) :content) "First"))
+      (should (string= (plist-get (cadr conv) :content) "Second")))))
+
 (ert-deftest test-metadata-get-set ()
   "Test metadata get/set operations."
   (let ((sage-project--current-dir "/tmp/test-project")
