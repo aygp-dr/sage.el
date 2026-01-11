@@ -1,0 +1,210 @@
+#+TITLE: sage.el Release Management
+#+AUTHOR: Release Engineering Team
+#+DATE: 2026-01-10
+
+* Overview
+
+This document outlines the release management strategy for sage.el, including versioning, publishing, and quality gates.
+
+* Epic: Release Management Infrastructure
+
+| Bead | Title | Priority | Status |
+|------+-------+----------+--------|
+| gemini-repl-010-22t | EPIC: Release Management & Publishing | P1 | open |
+| gemini-repl-010-ivd | MELPA recipe and submission | P1 | open |
+| gemini-repl-010-brq | Semantic versioning automation | P2 | open |
+| gemini-repl-010-s2l | GitHub Release workflow | P2 | open |
+| gemini-repl-010-aga | CHANGELOG.md (keepachangelog) | P2 | open |
+| gemini-repl-010-70w | Release stability checks | P2 | open |
+| gemini-repl-010-jlk | Release branch strategy | P3 | open |
+
+* Versioning Strategy
+
+** Semantic Versioning (semver.org)
+
+#+BEGIN_EXAMPLE
+MAJOR.MINOR.PATCH
+
+- MAJOR: Breaking API changes
+- MINOR: New features, backward compatible
+- PATCH: Bug fixes, backward compatible
+#+END_EXAMPLE
+
+** Current Version
+
+#+BEGIN_SRC elisp
+;; In sage.el header:
+;; Version: 0.1.0
+#+END_SRC
+
+** Version Progression
+
+| Version | Milestone | Status |
+|---------+-----------+--------|
+| 0.1.0 | Initial experimental release | Current |
+| 0.2.0 | Stable API, full test coverage | Planned |
+| 0.3.0 | MELPA submission ready | Planned |
+| 1.0.0 | Production-ready release | Future |
+
+* Release Workflow
+
+** Makefile Targets (Planned)
+
+#+BEGIN_SRC makefile
+# Version bumping
+version-patch:    # 0.1.0 -> 0.1.1
+version-minor:    # 0.1.0 -> 0.2.0
+version-major:    # 0.1.0 -> 1.0.0
+
+# Release process
+release-prepare:  # Run all checks, update changelog
+release-tag:      # Create git tag
+release-publish:  # Push tag, trigger GH release
+#+END_SRC
+
+** GitHub Actions Workflow (Planned)
+
+#+BEGIN_SRC yaml
+# .github/workflows/release.yml
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Emacs
+        uses: purcell/setup-emacs@master
+        with:
+          version: '29.4'
+
+      - name: Run full test suite
+        run: make ci
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: CHANGELOG.md
+          files: |
+            sage.el
+            sage-*.el
+#+END_SRC
+
+* Quality Gates
+
+** Pre-Release Checklist
+
+- [ ] All tests pass on Emacs 28.1, 28.2, 29.1, 29.4
+- [ ] No byte-compile warnings
+- [ ] package-lint passes
+- [ ] checkdoc passes (documentation)
+- [ ] CHANGELOG updated
+- [ ] Version bumped in sage.el
+- [ ] README reflects current features
+
+** Stability Metrics
+
+| Metric | Threshold | Current |
+|--------+-----------+---------|
+| Test count | ≥90 | 90 ✓ |
+| Test pass rate | 100% | 100% ✓ |
+| Emacs versions | ≥4 | 4 ✓ |
+| P0 bugs | 0 | 0 ✓ |
+| P1 bugs | ≤3 | TBD |
+
+* MELPA Publishing
+
+** Requirements
+
+1. Package must byte-compile without warnings
+2. Package must pass package-lint
+3. All dependencies on MELPA or GNU ELPA
+4. Recipe file in correct format
+
+** Recipe File
+
+#+BEGIN_SRC elisp
+;; recipes/sage
+(sage :fetcher github
+      :repo "aygp-dr/sage.el"
+      :files ("*.el" "README.org"))
+#+END_SRC
+
+** Submission Process
+
+1. Fork melpa/melpa
+2. Add recipe to =recipes/sage=
+3. Test locally with =make recipes/sage=
+4. Submit PR
+5. Address reviewer feedback
+6. Merge and wait for build
+
+* Branch Strategy
+
+** Current (Simple)
+
+#+BEGIN_EXAMPLE
+main ─────●─────●─────●─────●──── (all development)
+          v0.1.0
+#+END_EXAMPLE
+
+** Future (With Releases)
+
+#+BEGIN_EXAMPLE
+main ─────●─────●─────●─────●─────●──── (stable releases)
+           \         /     /
+develop ────●───●───●─────●─────●──── (next version)
+             \       \
+feat/x ───────●───●   \
+                       \
+release/0.2 ────────────●──── (release prep)
+#+END_EXAMPLE
+
+* Release Cadence
+
+| Release Type | Frequency | Trigger |
+|--------------+-----------+---------|
+| Patch | As needed | Bug fixes |
+| Minor | Monthly | New features |
+| Major | Quarterly | Breaking changes |
+
+* Automation Priorities
+
+** Phase 1: Foundation
+
+1. [ ] CHANGELOG.md with keepachangelog format
+2. [ ] Version bump script (=make version-patch=)
+3. [ ] Git tag automation
+
+** Phase 2: CI/CD
+
+1. [ ] GitHub Release workflow
+2. [ ] Release notes generation
+3. [ ] Artifact packaging
+
+** Phase 3: Publishing
+
+1. [ ] MELPA recipe
+2. [ ] MELPA submission
+3. [ ] Documentation site (optional)
+
+* Commands Reference
+
+#+BEGIN_SRC bash
+# Current release commands
+make test-all          # Run all tests
+make ci                # Full CI pipeline
+make gh-status         # Check GH Actions
+make package-lint      # Check MELPA compatibility
+
+# Planned release commands
+make release-prepare   # Prepare release
+make release-tag       # Tag release
+make release-publish   # Publish release
+#+END_SRC
