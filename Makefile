@@ -23,6 +23,10 @@ EL_FILES = sage.el \
            sage-tools.el \
            sage-tool-factory.el
 
+# Integration modules (optional, soft dependencies)
+INTEGRATION_FILES = sage-magit.el \
+                    sage-org.el
+
 ELC_FILES = $(EL_FILES:.el=.elc)
 
 # Test files
