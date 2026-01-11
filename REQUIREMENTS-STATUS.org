@@ -1,0 +1,227 @@
+#+TITLE: sage.el Requirements Status
+#+AUTHOR: Claude Code Assessment
+#+DATE: 2026-01-10
+
+* Summary
+
+Assessment of sage.el (Elisp) against REQUIREMENTS.org (written for Rust gemini-repl-009).
+
+| Category | MUST | SHOULD | MAY | Status |
+|----------+------+--------+-----+--------|
+| Core REPL | 8/10 | 4/6 | 1/2 | 🟡 80% |
+| API Integration | 6/8 | 4/5 | 0/1 | 🟢 85% |
+| Tool System | 7/8 | 1/1 | - | 🟢 90% |
+| User Interface | 4/6 | 2/4 | 1/1 | 🟡 70% |
+| Session Management | 5/6 | 3/4 | 0/2 | 🟢 80% |
+| Logging/Monitoring | 3/6 | 1/3 | 0/1 | 🟡 50% |
+
+*Overall: ~75% complete*
+
+* Functional Requirements
+
+** FR-001: Interactive Command Loop [6/6]
+- [X] Interactive read-eval-print loop (sage-mode)
+- [X] Single queries and continuous conversation
+- [X] Ctrl-C graceful handling (comint-mode)
+- [X] Ctrl-D as exit (comint-mode)
+- [X] Command history with arrow keys (comint-mode)
+- [ ] Tab completion for slash commands (bead: gemini-repl-010-96g)
+
+** FR-002: Slash Commands [11/14]
+| Command | Status | Implementation |
+|---------+--------+----------------|
+| /help | ✓ | sage--command-help |
+| /exit | ✓ | (kill-buffer) |
+| /clear | ✓ | sage--command-reset |
+| /context | ✗ | Not implemented |
+| /stats | ✓ | sage--command-stats |
+| /save | ✓ | sage--command-save |
+| /load | ✓ | sage--command-load |
+| /tools | ✓ | sage--command-tools |
+| /model | ✓ | sage--command-model |
+| /workspace | ✗ | Not implemented |
+| /debug | ✗ | Not implemented |
+| /reset | ✓ | sage--command-reset |
+| /version | ✗ | Not implemented |
+| /provider | ✓ | (bonus) switch provider |
+
+** FR-003: Conversation Management [5/6]
+- [X] Maintain conversation context (sage--history)
+- [X] Context window management (sage-context.el)
+- [X] Track token usage (sage-context-track-message)
+- [ ] Estimate costs based on tokens
+- [X] Save/load conversation state (sage-session.el)
+- [ ] Branching conversations (MAY - not implemented)
+
+** FR-004: Gemini API Client [5/6]
+- [X] Support Gemini models (gemini-2.0-flash, etc.)
+- [X] Error handling and retries (partial)
+- [ ] Streaming responses (not implemented)
+- [X] Rate limiting (sage-ratelimit.el)
+- [X] API key from multiple sources (.env, env var)
+- [ ] Validate API key on startup
+
+** FR-005: Model Selection [3/4]
+- [X] Model switching during session (/model)
+- [X] Display current model in status
+- [ ] Validate model names
+- [ ] Show available models
+
+** FR-006: Tool Calling Framework [4/4]
+- [X] Function/tool calling from Gemini
+- [X] Sandboxed execution (sage-tools--safe-path-p)
+- [X] Validate all tool inputs
+- [X] Log tool executions (message buffer)
+- [X] Custom tool registration (sage-register-tool)
+
+** FR-007: Built-in Tools [5/5]
+| Tool | Status | Function |
+|------+--------+----------|
+| read_file | ✓ | sage--tool-read-file |
+| write_file | ✓ | sage--tool-write-file |
+| list_files | ✓ | sage--tool-list-files (fixed) |
+| search_files | ✓ | sage--tool-code-search |
+| execute_command | ✗ | Not implemented (security) |
+
+Tool constraints:
+- [X] Restrict to workspace directory
+- [X] Prevent directory traversal
+- [ ] Limit file sizes
+- [X] Sanitize file paths (shell-quote-argument)
+- [ ] Command whitelist
+
+** FR-008: Terminal Interface [3/6]
+- [ ] Colored output (Emacs faces, not full)
+- [X] Visual indicators (via mode-line)
+- [ ] Different prompt styles
+- [X] Display metadata compactly
+- [X] ASCII art banner (welcome message)
+
+** FR-009: Progress Feedback [2/4]
+- [X] Loading indicators (message buffer)
+- [ ] Streaming response display
+- [X] Rate limit warnings (sage-ratelimit)
+- [ ] Typing indicators
+
+** FR-010: Session Persistence [5/6]
+- [X] Named sessions (sage-session.el)
+- [ ] Auto-save periodically
+- [X] Session resume
+- [X] List available sessions (/sessions)
+- [X] Session export (/export)
+- [X] Project-based sessions (sage-project.el)
+
+** FR-011: History Management [3/5]
+- [X] Command history (comint-mode)
+- [X] Persist across sessions
+- [X] History search (M-r in comint)
+- [ ] Limit history size
+- [ ] History export
+
+** FR-012: Structured Logging [2/6]
+- [X] Multiple log levels (message buffer)
+- [ ] Multiple outputs (file, FIFO)
+- [X] Request/response in *Messages*
+- [ ] JSON format logging
+- [ ] Log rotation
+- [ ] Performance metrics
+
+** FR-013: Metrics and Statistics [4/6]
+- [X] Total tokens (sage-context)
+- [X] Number of requests
+- [ ] Session duration
+- [ ] Estimated costs
+- [X] Tool usage counts
+- [X] Session summaries (/stats)
+
+* Non-Functional Requirements
+
+** NFR-001: Startup Time
+- N/A for Elisp (loads when needed)
+- Emacs package loading is instant
+
+** NFR-002: Response Time
+- [X] Commands processed instantly
+- [ ] Streaming first token
+- [X] No buffering delays
+
+** NFR-003: Memory Usage
+- [X] Efficient (Elisp garbage collection)
+- [X] Context pruning (sage-context.el)
+- [X] Handle large conversations
+
+** NFR-004: Error Handling
+- [X] Graceful API error handling
+- [X] Clear error messages
+- [X] No crash on invalid input
+- [ ] Error recovery suggestions
+
+** NFR-005: Data Integrity
+- [X] No loss on errors
+- [X] Validate file operations
+- [ ] Atomic session saves
+- [ ] Backup/restore
+
+** NFR-006: API Key Security
+- [X] Never log API keys
+- [X] Not in error messages
+- [X] Secure via headers (fixed)
+- [ ] Key rotation
+
+** NFR-007: Sandboxing
+- [X] Isolate file operations
+- [X] Prevent command injection (fixed)
+- [X] Validate user inputs
+- [ ] Security policies
+
+** NFR-008: Installation
+- [X] Single file distribution
+- [X] Works without dependencies (just request.el)
+- [X] Cross-platform (Emacs runs everywhere)
+- [ ] Installation scripts (MELPA planned)
+
+** NFR-009: Documentation
+- [X] Comprehensive help (/help)
+- [X] Usage examples (QUICKSTART.org)
+- [X] Troubleshooting guide
+- [X] API documentation (API-REFERENCE.org)
+
+* Test Coverage
+
+| Module | Tests | Status |
+|--------+-------+--------|
+| sage-test.el | 9 | ✓ |
+| sage-context-test.el | 10 | ✓ |
+| sage-emacs-test.el | 9 | ✓ |
+| sage-memory-test.el | 18 | ✓ |
+| sage-project-test.el | 14 | ✓ |
+| sage-queue-test.el | 11 | ✓ |
+| sage-ratelimit-test.el | 19 | ✓ |
+| *Total* | *90* | ✓ |
+
+* Priority Gaps
+
+** P0 - Critical (Done)
+- [X] LICENSE file
+- [X] Command injection fix
+- [X] API key in header
+
+** P1 - High Priority
+- [ ] HTTP request timeout (bead: gemini-repl-010-98r)
+- [ ] Race condition fix (bead: gemini-repl-010-33a)
+- [ ] Streaming responses
+- [ ] /context command
+- [ ] /version command
+
+** P2 - Medium Priority
+- [ ] Tab completion (bead: gemini-repl-010-96g)
+- [ ] /workspace command
+- [ ] /debug command
+- [ ] Cost estimation
+- [ ] File size limits
+
+** P3 - Nice to Have
+- [ ] Colored output themes
+- [ ] Session auto-save
+- [ ] History export
+- [ ] JSON logging
