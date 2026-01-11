@@ -1,10 +1,10 @@
-gemini-repl-project Storage Structure
-=====================================
+sage Project Storage Structure
+==============================
 
 Directory Layout:
 -----------------
 
-~/.emacs.d/gemini-repl/projects/
+~/.emacs.d/sage/projects/
 │
 ├── -home-user-project1/                    # Encoded path for /home/user/project1
 │   ├── conversation.jsonl                  # Current conversation (append-only)
@@ -54,12 +54,12 @@ Workflow Diagram:
 -----------------
 
 ┌─────────────────────────────────────────────────────────────────┐
-│  User starts gemini-repl in /home/user/project1                │
+│  User starts sage in /home/user/project1                │
 └───────────────────┬─────────────────────────────────────────────┘
                     │
                     ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  gemini-repl-project-dir() detects project root                │
+│  sage-project-dir() detects project root                │
 │  → Checks: projectile, project.el, git, default-directory      │
 └───────────────────┬─────────────────────────────────────────────┘
                     │
@@ -70,8 +70,8 @@ Workflow Diagram:
                     │
                     ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  gemini-repl-project-load() loads conversation                 │
-│  → Reads: ~/.emacs.d/gemini-repl/projects/                     │
+│  sage-project-load() loads conversation                 │
+│  → Reads: ~/.emacs.d/sage/projects/                     │
 │            -home-user-project1/conversation.jsonl               │
 │  → Reads: -home-user-project1/metadata.json                    │
 └───────────────────┬─────────────────────────────────────────────┘
@@ -83,7 +83,7 @@ Workflow Diagram:
                     │
                     ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  gemini-repl-project-append() appends message                  │
+│  sage-project-append() appends message                  │
 │  → Adds to in-memory conversation                              │
 │  → Appends JSON line to conversation.jsonl                     │
 │  → Updates metadata.json                                        │
@@ -161,7 +161,7 @@ Archive Lifecycle:
     ┌──────────────────────┐          ┌──────────────────────┐
     │ Can be loaded back   │          │ Continues growing... │
     │ with:                │          │                      │
-    │ gemini-repl-project- │          │ Will auto-archive    │
+    │ sage-project- │          │ Will auto-archive    │
     │ load-archive()       │          │ when limit reached   │
     └──────────────────────┘          └──────────────────────┘
 
@@ -169,18 +169,18 @@ Archive Lifecycle:
 Integration Points:
 -------------------
 
-                    gemini-repl (Main REPL)
+                    sage (Main REPL)
                            │
                            ▼
          ┌─────────────────────────────────────┐
-         │   gemini-repl-project-load()        │ ◄── Auto-load on startup
+         │   sage-project-load()        │ ◄── Auto-load on startup
          │   - Loads project conversation       │
          │   - Sets up metadata                 │
          └─────────────────┬───────────────────┘
                            │
                            ▼
          ┌─────────────────────────────────────┐
-         │   gemini-repl-project-append()      │ ◄── After each message
+         │   sage-project-append()      │ ◄── After each message
          │   - Appends to conversation          │
          │   - Auto-saves to disk               │
          │   - Updates metadata                 │
