@@ -800,16 +800,17 @@ Returns result string if command was handled, nil otherwise."
 
 (defvar sage-mode-map
   (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map text-mode-map)
     (define-key map (kbd "RET") #'sage-send-input)
     (define-key map (kbd "C-c C-c") #'sage-interrupt)
     (define-key map (kbd "C-c C-k") #'sage-clear)
     map)
   "Keymap for sage-mode.")
 
-(define-derived-mode sage-mode special-mode "Sage"
-  "Major mode for Sage."
-  (setq-local sage-conversation nil)
-  (read-only-mode -1))
+(define-derived-mode sage-mode text-mode "Sage"
+  "Major mode for Sage REPL.
+Allows text input and sends messages on RET."
+  (setq-local sage-conversation nil))
 
 (defun sage--insert (text &optional face)
   "Insert TEXT with optional FACE in REPL buffer."
