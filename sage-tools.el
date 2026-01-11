@@ -36,7 +36,7 @@
 (declare-function org-map-entries "org" (func &optional match scope &rest skip))
 (declare-function org-get-heading "org" (&optional no-tags no-todo no-priority no-comment))
 (declare-function org-get-todo-state "org" ())
-(declare-function org-get-priority "org" (&optional s))
+(declare-function org-entry-get "org" (pom property &optional inherit literal-nil))
 (declare-function org-get-tags "org" (&optional pos local))
 (declare-function org-todo "org" (&optional arg))
 
@@ -419,13 +419,14 @@ Uses org-mode's native functionality."
                    (lambda ()
                      (let ((heading (org-get-heading t t t t))
                            (state (org-get-todo-state))
-                           (priority (org-get-priority))
+                           (priority (when (org-entry-get nil "PRIORITY")
+                                      (string-to-char (org-entry-get nil "PRIORITY"))))
                            (tags (org-get-tags)))
                        (when state
-                         (push (format "[%s] %s%s %s"
+                         (push (format "[%s] %s%s%s"
                                        state
-                                       (if (> priority 0)
-                                           (format "[#%c] " (+ ?A (/ priority 1000)))
+                                       (if priority
+                                           (format "[#%c] " priority)
                                          "")
                                        heading
                                        (if tags (format " :%s:" (string-join tags ":")) ""))
@@ -645,7 +646,7 @@ DESCRIPTION explains what it does.
 PARAMETERS is a JSON schema for arguments.
 EXECUTE-FN is called with arguments and returns result."
   (if (fboundp 'sage-register-tool)
-      (sage-tools--register name description parameters execute-fn)
+      (sage-register-tool name description parameters execute-fn)
     ;; Fallback: register directly
     (unless (boundp 'sage-tools)
       (setq sage-tools nil))
