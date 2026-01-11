@@ -1,0 +1,269 @@
+#+TITLE: TCA Session Schema Specification
+#+SUBTITLE: Universal Session Logging for Tool Calling Agents
+#+AUTHOR: Jason Walsh
+#+EMAIL: j@wal.sh
+#+OPTIONS: toc:2 num:nil
+#+STARTUP: showall
+
+This document specifies a universal JSONL schema for Tool Calling Agent (TCA) session logging.
+It enables comparison and interoperability between different TCA implementations.
+
+* Overview
+
+Tool Calling Agents (TCAs) share common session management needs:
+- Conversation history persistence
+- Tool call logging with results
+- Session rehydration/continuation
+- Context window management
+
+This schema provides a common format that can be adopted by any TCA.
+
+* TCA Comparison
+
+| TCA | Session Storage | Tool Logging | Continuation |
+|-----|-----------------|--------------|--------------|
+| Claude Code | =~/.claude/projects/= | Structured JSON | =--continue= flag |
+| Gemini CLI | Not persistent | Inline | N/A |
+| Amp | =~/.amp/= | Structured | Auto-continue |
+| Aider | =.aider.chat.history.md= | Markdown | Git-based |
+| Continue.dev | IDE storage | JSON-RPC | IDE session |
+| Cursor | IDE storage | Proprietary | IDE session |
+| Codex | API only | N/A | Stateless |
+| sage.el | =~/.emacs.d/sage/projects/= | JSONL | Auto-continue |
+
+* Directory Encoding
+
+Standard path encoding for project directories:
+
+| Feature | Standard | Example |
+|---------|----------|---------|
+| Base | =~/.{tca}/projects/= | =~/.sage/projects/= |
+| Path Separator | =/= \to =-= | =/home/user= \to =-home-user= |
+| Dot Encoding | =.= \to =-= | =github.com= \to =github-com= |
+
+** Examples
+
+| Original Path | Encoded |
+|---------------|---------|
+| =/home/user/project= | =-home-user-project= |
+| =/home/user/github.com/repo= | =-home-user-github-com-repo= |
+
+* JSONL Message Schema
+
+** Core Fields (Required)
+
+Every message MUST have:
+
+#+begin_src json
+{
+  "role": "user|assistant|system|tool",
+  "content": "message content",
+  "timestamp": "2026-01-11T22:00:00Z"
+}
+#+end_src
+
+** Extended Fields (Optional)
+
+For full session tracking:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| =uuid= | string | Unique message identifier |
+| =parentUuid= | string | Parent message (for threading) |
+| =sessionId= | string | Session identifier |
+| =cwd= | string | Working directory |
+| =gitBranch= | string | Current git branch |
+| =version= | string | TCA version |
+
+** Tool Call Fields
+
+When =role= is =assistant= with tool calls:
+
+#+begin_src json
+{
+  "role": "assistant",
+  "content": "Let me read that file",
+  "timestamp": "2026-01-11T22:00:00Z",
+  "tool_calls": [
+    {
+      "id": "call_001",
+      "name": "read_file",
+      "args": {"path": "example.el"},
+      "result": "file contents...",
+      "duration_ms": 45,
+      "success": true
+    }
+  ]
+}
+#+end_src
+
+** Tool Result Fields
+
+When =role= is =tool=:
+
+#+begin_src json
+{
+  "role": "tool",
+  "content": "file contents here...",
+  "timestamp": "2026-01-11T22:00:01Z",
+  "tool_call_id": "call_001",
+  "name": "read_file"
+}
+#+end_src
+
+* Claude Code Schema (Reference)
+
+Claude Code's full schema for comparison:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| =type= | string | "user", "assistant", "file-history-snapshot" |
+| =uuid= | string | Unique identifier |
+| =parentUuid= | string | Parent message UUID |
+| =sessionId= | string | Session identifier |
+| =cwd= | string | Working directory |
+| =gitBranch= | string | Git branch |
+| =version= | string | Claude Code version |
+| =timestamp= | string | ISO 8601 timestamp |
+| =userType= | string | "external" for user |
+| =isSidechain= | boolean | Sidechain message flag |
+| =message= | object | Contains role and content |
+| =requestId= | string | API request ID |
+| =usage= | object | Token usage stats |
+| =thinkingMetadata= | object | Extended thinking settings |
+| =todos= | array | Todo list state |
+
+* Minimal Schema (sage.el default)
+
+For simpler implementations:
+
+#+begin_src json
+{
+  "role": "user|assistant|system",
+  "content": "message content",
+  "timestamp": "2026-01-11T22:00:00Z"
+}
+#+end_src
+
+* Security Considerations
+
+** Never Log
+
+- API keys (=*_API_KEY=)
+- Bearer tokens
+- SSH private keys
+- =.env= file contents
+- Passwords
+
+** Safe to Log
+
+- Token counts (aggregate, not content)
+- Tool names and timing
+- File paths (within workspace)
+- Session metadata
+
+** Sanitization
+
+#+begin_src elisp
+(defun tca-sanitize-content (content)
+  "Remove sensitive data from CONTENT."
+  (let ((sanitized content))
+    ;; Mask API keys
+    (setq sanitized (replace-regexp-in-string
+                     "\\([A-Z_]*API_KEY\\)=['\"]?[^'\"\\n]+['\"]?"
+                     "\\1=[REDACTED]"
+                     sanitized))
+    ;; Mask bearer tokens
+    (setq sanitized (replace-regexp-in-string
+                     "Bearer [A-Za-z0-9_.-]+"
+                     "Bearer [REDACTED]"
+                     sanitized))
+    sanitized))
+#+end_src
+
+* Usage Statistics
+
+Optional token/cost tracking:
+
+#+begin_src json
+{
+  "role": "assistant",
+  "content": "response...",
+  "timestamp": "...",
+  "usage": {
+    "input_tokens": 1234,
+    "output_tokens": 567,
+    "cache_read_tokens": 15000,
+    "estimated_cost_usd": 0.0045
+  }
+}
+#+end_src
+
+* File Structure
+
+#+begin_example
+~/.{tca}/projects/
+└── -home-user-repo/
+    ├── conversation.jsonl    # Current session
+    ├── metadata.json         # Project metadata
+    └── history/              # Archived sessions
+        ├── 20260110-120000.jsonl
+        └── 20260111-090000.jsonl
+#+end_example
+
+* Metadata Schema
+
+#+begin_src json
+{
+  "project_dir": "/home/user/project",
+  "tca_name": "sage.el",
+  "tca_version": "0.1.0",
+  "created_at": "2026-01-11T22:00:00Z",
+  "updated_at": "2026-01-11T22:30:00Z",
+  "message_count": 42,
+  "total_size": 15234,
+  "model": "gemini-2.0-flash-exp"
+}
+#+end_src
+
+* Validation
+
+A message is valid if:
+- =role= is one of: ="user"=, ="assistant"=, ="system"=, ="tool"=
+- =content= is present (string or structured)
+- =timestamp= is ISO 8601 format (recommended)
+
+* Implementation Checklist
+
+For TCA implementers:
+
+- [ ] Store sessions in =~/.{tca}/projects/=
+- [ ] Use path encoding with =/= \to =-= and =.= \to =-=
+- [ ] Log all messages with timestamp
+- [ ] Log tool calls with name, args, result, timing
+- [ ] Implement session continuation
+- [ ] Add token/usage tracking
+- [ ] Sanitize sensitive data before logging
+
+* Future Extensions
+
+** v1.1 Planned
+
+- Structured thinking/reasoning blocks
+- Multi-turn tool call chains
+- Cost tracking per session
+- Project configuration storage
+
+** v2.0 Proposed
+
+- Cross-TCA session import/export
+- Shared memory/facts storage
+- Collaborative session support
+
+* References
+
+- Claude Code: https://github.com/anthropics/claude-code
+- Gemini CLI: https://github.com/google-gemini/gemini-cli
+- Aider: https://github.com/paul-gauthier/aider
+- Continue.dev: https://github.com/continuedev/continue
+- HN Discussion: https://news.ycombinator.com/item?id=46564116

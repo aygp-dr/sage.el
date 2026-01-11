@@ -4,7 +4,8 @@
         elisp-version elisp-load-test elisp-check-syntax elisp-http-inbox \
         check ci gh-status gh-failures gh-watch gh-logs \
         demo demo-batch demo-quick demo-screencast \
-        metrics metrics-history metrics-compare test-count test-scenarios
+        metrics metrics-history metrics-compare test-count test-scenarios \
+        batch-todos
 
 EMACS ?= emacs
 EMACS_BATCH = $(EMACS) -Q --batch -L .
@@ -299,5 +300,10 @@ feature-check:
 demo-reflect:
 	@echo "=== Reflection Demo ==="
 	$(EMACS_BATCH) -l scripts/demo-reflect.el
+
+# Batch org todo export demo
+batch-todos:
+	@echo "=== Batch Org Todo Demo ==="
+	$(EMACS_BATCH) -l scripts/batch-org-todos.el
 
 .DEFAULT_GOAL := all
