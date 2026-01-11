@@ -144,13 +144,33 @@ Context limit approaching. Run /compact now to avoid truncation." pct)))))
 Returns an alist with usage info and recommendations."
   (let* ((messages (if (boundp 'sage-conversation) sage-conversation nil))
          (model (if (boundp 'sage-model) sage-model 'default))
-         (tokens (if (fboundp 'sage-context-tokens)
-                     (sage-context-tokens messages)
-                   0))
-         (limit (if (fboundp 'sage-context-limit)
-                    (sage-context-limit model)
+         ;; sage-context-tokens returns an alist with 'total, 'by-role, 'count
+         ;; Extract the total token count, handling various return types
+         (token-result (if (fboundp 'sage-context-tokens)
+                           (sage-context-tokens messages)
+                         nil))
+         (tokens (cond
+                  ;; If it's an alist with 'total key, extract the value
+                  ((and (listp token-result)
+                        (alist-get 'total token-result))
+                   (alist-get 'total token-result))
+                  ;; If it's already a number, use it directly
+                  ((numberp token-result)
+                   token-result)
+                  ;; Otherwise default to 0
+                  (t 0)))
+         ;; Use sage-context-get-max-tokens (the actual function name)
+         ;; Convert symbol to string if needed, as sage-context-get-max-tokens expects string
+         (model-str (cond
+                     ((stringp model) model)
+                     ((symbolp model) (symbol-name model))
+                     (t nil)))
+         (limit (if (fboundp 'sage-context-get-max-tokens)
+                    (sage-context-get-max-tokens model-str)
                   8192))
-         (usage (if (> limit 0) (/ (float tokens) limit) 0))
+         (usage (if (and (numberp limit) (> limit 0))
+                    (/ (float tokens) limit)
+                  0.0))
          (warnings-count (length sage-reflect--context-warnings)))
 
     `((tokens . ,tokens)
