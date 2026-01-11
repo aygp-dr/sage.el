@@ -52,6 +52,7 @@
 (require 'sage-ratelimit)
 (require 'sage-memory)
 (require 'sage-session)
+(require 'sage-context)
 
 ;;; Customization
 
@@ -556,7 +557,8 @@ Returns t if allowed, nil if denied."
    "  /tools                - List tools\n"
    "  /model                - Show model info\n"
    "  /stats                - Show statistics\n"
-   "  /tokens               - Token usage\n\n"
+   "  /tokens               - Token usage\n"
+   "  /context              - Context usage info\n\n"
    "EMACS-SPECIFIC:\n"
    "  /region               - Send region to AI\n"
    "  /buffer               - Send buffer to AI\n"
@@ -698,6 +700,39 @@ Returns t if allowed, nil if denied."
               0
             (/ sage-token-count (length sage-conversation)))))
 
+(defun sage--command-context ()
+  "Show context usage information.
+Displays token count, max tokens, usage percentage, message count,
+and compaction status."
+  (let* ((model (sage--get-model))
+         (stats (sage-context-tokens sage-conversation))
+         (total-tokens (alist-get 'total stats))
+         (msg-count (alist-get 'count stats))
+         (max-tokens (sage-context-get-max-tokens model))
+         (usage-pct (* 100 (/ (float total-tokens) max-tokens)))
+         (needs-compaction (sage-context-needs-compaction-p sage-conversation max-tokens))
+         (needs-warning (sage-context-needs-warning-p sage-conversation)))
+    (concat
+     (format "Context Usage:\n")
+     (format "Model: %s\n" model)
+     (format "Tokens: ~%s / %s (%.1f%%)\n"
+             (sage-context-format-number total-tokens)
+             (sage-context-format-number max-tokens)
+             usage-pct)
+     (format "Messages: %d\n" msg-count)
+     (format "Compaction: %s\n"
+             (cond
+              (needs-compaction
+               (format "NEEDED (threshold: %.0f%%)"
+                       (* 100 sage-context-compaction-threshold)))
+              (needs-warning
+               (format "warning (at %.0f%%, threshold: %.0f%%)"
+                       usage-pct
+                       (* 100 sage-context-warning-threshold)))
+              (t "not needed")))
+     (format "Auto-compact: %s\n" (if sage-context-auto-compact "enabled" "disabled"))
+     (format "Strategy: %s" sage-context-default-strategy))))
+
 (defun sage--command-region ()
   "Send current region to AI."
   (if (use-region-p)
@@ -786,6 +821,7 @@ Returns result string if command was handled, nil otherwise."
         ("model" (sage--command-model))
         ("stats" (sage--command-stats))
         ("tokens" (sage--command-tokens))
+        ("context" (sage--command-context))
 
         ;; EMACS-SPECIFIC
         ("region" (sage--command-region))
