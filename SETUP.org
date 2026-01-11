@@ -1,1025 +1,448 @@
-#+TITLE: Sage 009 - Setup and Implementation
+#+TITLE: Sage 010 - Elisp Setup and Implementation
 #+AUTHOR: AYGP-DR
-#+DATE: 2025-07-26
-#+PROPERTY: header-args:rust :tangle yes :mkdirp yes
-#+PROPERTY: header-args:toml :tangle yes :mkdirp yes
-#+PROPERTY: header-args:makefile :tangle Makefile :mkdirp yes
+#+DATE: 2026-01-11
+#+PROPERTY: header-args:elisp :tangle yes :mkdirp yes
 
 * Overview
 
-This document contains the literate programming source for the Sage v0 implementation in Rust. Code blocks can be tangled to generate the source files.
+This document contains the setup and implementation guide for sage.el (version 010), an AI coding assistant for Emacs with multi-provider support and tool calling.
 
-* Project Configuration
+This is the Emacs/Elisp counterpart to gemini-repl-009 (Rust).
 
-** Cargo.toml
+* Quick Start
 
-#+BEGIN_SRC toml :tangle Cargo.toml
-[package]
-name = "sage"
-version = "0.1.0"
-edition = "2021"
-authors = ["AYGP-DR"]
-description = "Interactive REPL for Google's Gemini AI API"
-license = "MIT"
-repository = "https://github.com/aygp-dr/gemini-repl-009"
-keywords = ["gemini", "ai", "repl", "cli", "google"]
-categories = ["command-line-utilities"]
+** Installation
 
-[[bin]]
-name = "sage"
-path = "src/main.rs"
+Clone the repository:
 
-[dependencies]
-# Async runtime
-tokio = { version = "1.40", features = ["full"] }
-
-# HTTP client
-reqwest = { version = "0.12", features = ["json", "stream"] }
-
-# Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-
-# CLI
-clap = { version = "4.5", features = ["derive", "env"] }
-rustyline = "14.0"
-rustyline-derive = "0.10"
-
-# Terminal UI
-colored = "2.1"
-indicatif = "0.17"
-
-# Error handling
-anyhow = "1.0"
-thiserror = "1.0"
-
-# Logging
-env_logger = "0.11"
-log = "0.4"
-
-# Configuration
-dotenv = "0.15"
-dirs = "5.0"
-toml = "0.8"
-
-# Utilities
-chrono = { version = "0.4", features = ["serde"] }
-regex = "1.10"
-base64 = "0.22"
-uuid = { version = "1.10", features = ["v4", "serde"] }
-
-[dev-dependencies]
-tokio-test = "0.4"
-mockito = "1.5"
-pretty_assertions = "1.4"
-criterion = "0.5"
-
-[[bench]]
-name = "api_bench"
-harness = false
-
-[profile.release]
-lto = true
-codegen-units = 1
-strip = true
-opt-level = "z"
+#+BEGIN_SRC bash
+git clone https://github.com/aygp-dr/sage.el.git
+cd sage.el
 #+END_SRC
 
-** Makefile
+** Configuration
 
-#+BEGIN_SRC makefile :tangle Makefile
-# Sage Makefile
+Add to your Emacs init file:
 
-.PHONY: all build test clean install run dev docs lint fmt help
+#+BEGIN_SRC elisp
+;; Add to load path
+(add-to-list 'load-path "/path/to/sage.el")
 
-# Default target
-all: build
+;; Load sage
+(require 'sage)
 
-# Build the project
-build:
-	@echo "Building sage..."
-	@cargo build --release
+;; Configure provider (gemini, ollama, or openai)
+(setq sage-provider 'gemini)
 
-# Run tests
-test:
-	@echo "Running tests..."
-	@cargo test
+;; API keys (or use environment variables)
+(setq sage-api-key (getenv "GEMINI_API_KEY"))
+;; (setq sage-openai-api-key (getenv "OPENAI_API_KEY"))
 
-# Clean build artifacts
-clean:
-	@echo "Cleaning..."
-	@cargo clean
-	@rm -rf target/
-
-# Install the binary
-install: build
-	@echo "Installing sage..."
-	@cargo install --path .
-
-# Run the REPL
-run:
-	@cargo run --release
-
-# Development mode with auto-reload
-dev:
-	@cargo watch -x run
-
-# Generate documentation
-docs:
-	@cargo doc --open
-
-# Run linter
-lint:
-	@cargo clippy -- -D warnings
-
-# Format code
-fmt:
-	@cargo fmt
-
-# Run all checks
-check: fmt lint test
-	@echo "All checks passed!"
-
-# Show help
-help:
-	@echo "Sage Makefile"
-	@echo ""
-	@echo "Available targets:"
-	@echo "  make build    - Build the project"
-	@echo "  make test     - Run tests"
-	@echo "  make clean    - Clean build artifacts"
-	@echo "  make install  - Install the binary"
-	@echo "  make run      - Run the REPL"
-	@echo "  make dev      - Run in development mode"
-	@echo "  make docs     - Generate documentation"
-	@echo "  make lint     - Run linter"
-	@echo "  make fmt      - Format code"
-	@echo "  make check    - Run all checks"
-	@echo "  make help     - Show this help"
-
-# Dependencies target for the user's request
-deps: build
-
-# Install and run for the user's request
-install-and-run: install run
+;; For Ollama (local models)
+;; (setq sage-provider 'ollama)
+;; (setq sage-ollama-host "http://localhost:11434")
+;; (setq sage-model "llama3.2")
 #+END_SRC
 
-* Source Code
+** Using use-package
 
-** Main Entry Point
-
-#+BEGIN_SRC rust :tangle src/main.rs
-use anyhow::Result;
-use clap::Parser;
-use colored::*;
-use env_logger;
-use log::info;
-use std::path::PathBuf;
-
-mod api;
-mod config;
-mod context;
-mod repl;
-mod tools;
-mod utils;
-
-use crate::config::Config;
-use crate::repl::Repl;
-
-/// Sage - Interactive AI conversations
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct Args {
-    /// Query to send (if not provided, starts interactive mode)
-    query: Option<String>,
-
-    /// Model to use
-    #[arg(short, long, env = "GEMINI_MODEL")]
-    model: Option<String>,
-
-    /// Resume a previous session
-    #[arg(short, long)]
-    resume: Option<String>,
-
-    /// List all sessions
-    #[arg(long)]
-    list_sessions: bool,
-
-    /// Configuration file path
-    #[arg(short, long)]
-    config: Option<PathBuf>,
-
-    /// Enable debug mode
-    #[arg(short, long)]
-    debug: bool,
-}
-
-#[tokio::main]
-async fn main() -> Result<()> {
-    // Load environment variables
-    dotenv::dotenv().ok();
-
-    // Parse command line arguments
-    let args = Args::parse();
-
-    // Initialize logging
-    let log_level = if args.debug { "debug" } else { "info" };
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(log_level))
-        .init();
-
-    info!("Starting Sage v{}", env!("CARGO_PKG_VERSION"));
-
-    // Load configuration
-    let config = Config::load(args.config)?;
-
-    // Handle list sessions
-    if args.list_sessions {
-        list_sessions(&config)?;
-        return Ok(());
-    }
-
-    // Create REPL instance
-    let mut repl = Repl::new(config).await?;
-
-    // Handle resume session
-    if let Some(session_name) = args.resume {
-        repl.resume_session(&session_name)?;
-    }
-
-    // Handle one-shot query
-    if let Some(query) = args.query {
-        repl.process_query(&query).await?;
-    } else {
-        // Start interactive mode
-        print_banner();
-        repl.run().await?;
-    }
-
-    Ok(())
-}
-
-fn print_banner() {
-    println!("{}", "╔══════════════════════════════════════╗".bright_blue());
-    println!("{}", "║      🦀 Sage v0.1.0 🦀        ║".bright_blue());
-    println!("{}", "║   Rust-powered AI conversations      ║".bright_blue());
-    println!("{}", "║   Type /help for available commands  ║".bright_blue());
-    println!("{}", "╚══════════════════════════════════════╝".bright_blue());
-    println!();
-}
-
-fn list_sessions(config: &Config) -> Result<()> {
-    // TODO: Implement session listing
-    println!("Available sessions:");
-    println!("  - No sessions found");
-    Ok(())
-}
+#+BEGIN_SRC elisp
+(use-package sage
+  :load-path "/path/to/sage.el"
+  :custom
+  (sage-provider 'gemini)
+  (sage-api-key (getenv "GEMINI_API_KEY")))
 #+END_SRC
 
-** Configuration Module
+* Project Structure
 
-#+BEGIN_SRC rust :tangle src/config.rs
-use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Config {
-    pub api: ApiConfig,
-    pub repl: ReplConfig,
-    pub logging: LoggingConfig,
-    pub tools: ToolsConfig,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ApiConfig {
-    pub api_key: String,
-    pub model: String,
-    pub base_url: String,
-    pub timeout: u64,
-    pub max_retries: u32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ReplConfig {
-    pub prompt: String,
-    pub history_size: usize,
-    pub color_enabled: bool,
-    pub session_dir: PathBuf,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LoggingConfig {
-    pub level: String,
-    pub file: Option<PathBuf>,
-    pub format: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ToolsConfig {
-    pub enabled: bool,
-    pub sandbox_dir: PathBuf,
-    pub max_file_size: usize,
-}
-
-impl Config {
-    pub fn load(path: Option<PathBuf>) -> Result<Self> {
-        // Try to load from file if provided
-        if let Some(path) = path {
-            return Self::from_file(&path);
-        }
-
-        // Otherwise, try default locations
-        if let Some(config_path) = Self::default_config_path() {
-            if config_path.exists() {
-                return Self::from_file(&config_path);
-            }
-        }
-
-        // Fall back to environment variables
-        Self::from_env()
-    }
-
-    fn from_file(path: &Path) -> Result<Self> {
-        let content = std::fs::read_to_string(path)
-            .with_context(|| format!("Failed to read config file: {}", path.display()))?;
-        
-        toml::from_str(&content)
-            .with_context(|| format!("Failed to parse config file: {}", path.display()))
-    }
-
-    fn from_env() -> Result<Self> {
-        let api_key = std::env::var("GEMINI_API_KEY")
-            .context("GEMINI_API_KEY not set")?;
-
-        Ok(Self {
-            api: ApiConfig {
-                api_key,
-                model: std::env::var("GEMINI_MODEL")
-                    .unwrap_or_else(|_| "gemini-2.0-flash-exp".to_string()),
-                base_url: "https://generativelanguage.googleapis.com".to_string(),
-                timeout: 30,
-                max_retries: 3,
-            },
-            repl: ReplConfig {
-                prompt: "> ".to_string(),
-                history_size: 1000,
-                color_enabled: true,
-                session_dir: dirs::home_dir()
-                    .unwrap_or_else(|| PathBuf::from("."))
-                    .join(".gemini_repl")
-                    .join("sessions"),
-            },
-            logging: LoggingConfig {
-                level: "info".to_string(),
-                file: None,
-                format: "json".to_string(),
-            },
-            tools: ToolsConfig {
-                enabled: true,
-                sandbox_dir: PathBuf::from("workspace"),
-                max_file_size: 1024 * 1024, // 1MB
-            },
-        })
-    }
-
-    fn default_config_path() -> Option<PathBuf> {
-        dirs::home_dir().map(|home| home.join(".gemini_repl").join("config.toml"))
-    }
-}
+#+BEGIN_SRC text
+sage.el/
+├── sage.el              # Main package - REPL, providers, core
+├── sage-tools.el        # 26 built-in tools
+├── sage-tool-factory.el # Self-extending tool system
+├── sage-context.el      # Token counting, context management
+├── sage-memory.el       # Persistent facts/memory
+├── sage-session.el      # Session save/load
+├── sage-project.el      # Project-based conversations
+├── sage-queue.el        # File-based async queue
+├── sage-ratelimit.el    # Rate limiting with ring buffers
+├── sage-emacs.el        # Emacs integrations (org, buffer, dired)
+│
+├── test/                # ERT test suite
+│   ├── sage-test.el
+│   ├── sage-tools-test.el
+│   ├── sage-stress-test.el
+│   └── ...
+│
+├── examples/            # Demo and example files
+│   ├── tool-demos.el
+│   └── screencast-demo.el
+│
+├── scripts/             # Development scripts
+│   ├── run-100-scenarios.el
+│   └── test-tools.el
+│
+├── docs/                # Documentation
+│   ├── DEMO.org
+│   ├── TOOL-AUDIT.org
+│   └── TOOL-TEST-PLAN.org
+│
+└── Makefile             # Build, test, lint targets
 #+END_SRC
 
-** REPL Core Module
+* Module Dependencies
 
-#+BEGIN_SRC rust :tangle src/repl/mod.rs
-use anyhow::{Context, Result};
-use colored::*;
-use rustyline::error::ReadlineError;
-use rustyline::{DefaultEditor, Editor};
-use std::path::PathBuf;
+#+BEGIN_SRC text
+sage.el (main)
+├── sage-ratelimit.el    ; Rate limiting
+├── sage-memory.el       ; Persistent facts
+├── sage-session.el      ; Session management
+└── sage-context.el      ; Token counting
 
-use crate::api::GeminiClient;
-use crate::config::Config;
-use crate::context::ConversationContext;
+sage-tools.el
+├── sage.el              ; Tool registration
+├── [magit]              ; Git operations (required)
+└── [org]                ; Org-mode tools (built-in)
 
-pub struct Repl {
-    config: Config,
-    client: GeminiClient,
-    context: ConversationContext,
-    editor: Editor<(), rustyline::history::FileHistory>,
-}
+sage-emacs.el
+├── sage.el              ; Core functionality
+└── sage-tools.el        ; Tool access
 
-impl Repl {
-    pub async fn new(config: Config) -> Result<Self> {
-        // Create API client
-        let client = GeminiClient::new(&config)?;
-
-        // Create conversation context
-        let context = ConversationContext::new();
-
-        // Create readline editor
-        let mut editor = DefaultEditor::new()?;
-        
-        // Load history if available
-        let history_path = dirs::home_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join(".gemini_repl")
-            .join("history");
-        
-        let _ = editor.load_history(&history_path);
-
-        Ok(Self {
-            config,
-            client,
-            context,
-            editor,
-        })
-    }
-
-    pub async fn run(&mut self) -> Result<()> {
-        loop {
-            let prompt = self.get_prompt();
-            
-            match self.editor.readline(&prompt) {
-                Ok(line) => {
-                    if line.trim().is_empty() {
-                        continue;
-                    }
-
-                    // Add to history
-                    let _ = self.editor.add_history_entry(&line);
-
-                    // Process the input
-                    if let Err(e) = self.process_input(&line).await {
-                        eprintln!("{}: {}", "Error".red(), e);
-                    }
-                }
-                Err(ReadlineError::Interrupted) => {
-                    println!("{}Use /exit to quit", "^C ".yellow());
-                }
-                Err(ReadlineError::Eof) => {
-                    println!("{}Goodbye!", "".yellow());
-                    break;
-                }
-                Err(err) => {
-                    eprintln!("{}: {:?}", "Error".red(), err);
-                    break;
-                }
-            }
-        }
-
-        // Save history
-        let history_path = dirs::home_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join(".gemini_repl")
-            .join("history");
-        
-        std::fs::create_dir_all(history_path.parent().unwrap())?;
-        let _ = self.editor.save_history(&history_path);
-
-        Ok(())
-    }
-
-    pub async fn process_query(&mut self, query: &str) -> Result<()> {
-        self.process_input(query).await
-    }
-
-    pub fn resume_session(&mut self, session_name: &str) -> Result<()> {
-        // TODO: Implement session resume
-        println!("Resuming session: {}", session_name);
-        Ok(())
-    }
-
-    async fn process_input(&mut self, input: &str) -> Result<()> {
-        // Check for slash commands
-        if input.starts_with('/') {
-            return self.handle_command(input);
-        }
-
-        // Send to Gemini
-        let response = self.client.send_message(input, &self.context).await?;
-        
-        // Print response
-        println!("\n{}: {}", "Gemini".green().bold(), response.content);
-        
-        // Print metadata
-        if let Some(metadata) = response.metadata {
-            println!(
-                "[{} {} tokens | ${:.4} | {:.1}s]",
-                "🟢",
-                metadata.total_tokens,
-                metadata.estimated_cost,
-                metadata.latency
-            );
-        }
-
-        // Update context
-        self.context.add_user_message(input);
-        self.context.add_assistant_message(&response.content);
-
-        Ok(())
-    }
-
-    fn handle_command(&mut self, command: &str) -> Result<()> {
-        let parts: Vec<&str> = command.split_whitespace().collect();
-        let cmd = parts.get(0).map(|s| *s).unwrap_or("");
-
-        match cmd {
-            "/help" => self.show_help(),
-            "/exit" | "/quit" => {
-                println!("{}", "Goodbye!".yellow());
-                std::process::exit(0);
-            }
-            "/clear" => {
-                print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
-                Ok(())
-            }
-            "/context" => self.show_context(),
-            "/stats" => self.show_stats(),
-            "/reset" => {
-                self.context.clear();
-                println!("{}", "Context cleared.".green());
-                Ok(())
-            }
-            "/version" => {
-                println!("Sage v{}", env!("CARGO_PKG_VERSION"));
-                Ok(())
-            }
-            _ => {
-                println!("{}: Unknown command: {}", "Error".red(), cmd);
-                Ok(())
-            }
-        }
-    }
-
-    fn show_help(&self) -> Result<()> {
-        println!("{}", "Available Commands:".bold());
-        println!("  {}  - Show this help message", "/help".cyan());
-        println!("  {}  - Exit the REPL", "/exit".cyan());
-        println!("  {} - Clear the screen", "/clear".cyan());
-        println!("  {} - Show conversation context", "/context".cyan());
-        println!("  {} - Show session statistics", "/stats".cyan());
-        println!("  {} - Clear conversation context", "/reset".cyan());
-        println!("  {} - Show version information", "/version".cyan());
-        Ok(())
-    }
-
-    fn show_context(&self) -> Result<()> {
-        println!("{}", "Conversation Context:".bold());
-        for (i, msg) in self.context.messages.iter().enumerate() {
-            let role_color = if msg.role == "user" { "blue" } else { "green" };
-            println!(
-                "{}: {}",
-                format!("[{}] {}", i + 1, msg.role).color(role_color),
-                msg.content
-            );
-        }
-        Ok(())
-    }
-
-    fn show_stats(&self) -> Result<()> {
-        println!("{}", "Session Statistics:".bold());
-        println!("  Messages: {}", self.context.messages.len());
-        println!("  Total tokens: {}", self.context.total_tokens());
-        // TODO: Add more stats
-        Ok(())
-    }
-
-    fn get_prompt(&self) -> String {
-        if self.config.repl.color_enabled {
-            format!("{} ", self.config.repl.prompt.bright_green())
-        } else {
-            self.config.repl.prompt.clone()
-        }
-    }
-}
+sage-project.el
+├── [projectile]         ; Optional project detection
+├── [project.el]         ; Built-in project detection
+└── json                 ; JSONL serialization (built-in)
 #+END_SRC
 
-** API Client Module
+* Package Requirements
 
-#+BEGIN_SRC rust :tangle src/api/mod.rs
-use anyhow::{Context, Result};
-use reqwest::{Client, ClientBuilder};
-use serde::{Deserialize, Serialize};
-use std::time::{Duration, Instant};
+** Emacs Version
 
-use crate::config::Config;
-use crate::context::ConversationContext;
+Requires Emacs 28.1 or later for:
+- Native compilation support
+- project.el improvements
+- json.el improvements
 
-pub struct GeminiClient {
-    client: Client,
-    api_key: String,
-    model: String,
-    base_url: String,
-}
+** Dependencies
 
-#[derive(Debug, Serialize)]
-struct GeminiRequest {
-    contents: Vec<Content>,
-    generation_config: GenerationConfig,
-}
+| Package | Required | Purpose |
+|---------+----------+---------|
+| cl-lib | Built-in | Common Lisp utilities |
+| json | Built-in | JSON encoding/decoding |
+| url | Built-in | HTTP requests |
+| ring | Built-in | Rate limiting buffers |
+| org | Built-in | Org-mode tools |
+| magit | External | Git operations (required for git tools) |
+| projectile | Optional | Enhanced project detection |
+| markdown-mode | Optional | Markdown rendering |
 
-#[derive(Debug, Serialize)]
-struct Content {
-    role: String,
-    parts: Vec<Part>,
-}
+Install required packages:
 
-#[derive(Debug, Serialize)]
-struct Part {
-    text: String,
-}
-
-#[derive(Debug, Serialize)]
-struct GenerationConfig {
-    temperature: f32,
-    max_output_tokens: u32,
-}
-
-#[derive(Debug, Deserialize)]
-struct GeminiResponse {
-    candidates: Vec<Candidate>,
-    usage_metadata: Option<UsageMetadata>,
-}
-
-#[derive(Debug, Deserialize)]
-struct Candidate {
-    content: Content,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct UsageMetadata {
-    prompt_token_count: u32,
-    candidates_token_count: u32,
-    total_token_count: u32,
-}
-
-pub struct Response {
-    pub content: String,
-    pub metadata: Option<ResponseMetadata>,
-}
-
-pub struct ResponseMetadata {
-    pub total_tokens: u32,
-    pub estimated_cost: f64,
-    pub latency: f64,
-}
-
-impl GeminiClient {
-    pub fn new(config: &Config) -> Result<Self> {
-        let client = ClientBuilder::new()
-            .timeout(Duration::from_secs(config.api.timeout))
-            .build()
-            .context("Failed to create HTTP client")?;
-
-        Ok(Self {
-            client,
-            api_key: config.api.api_key.clone(),
-            model: config.api.model.clone(),
-            base_url: config.api.base_url.clone(),
-        })
-    }
-
-    pub async fn send_message(
-        &self,
-        message: &str,
-        context: &ConversationContext,
-    ) -> Result<Response> {
-        let start = Instant::now();
-
-        // Build contents from context
-        let mut contents = Vec::new();
-        
-        // Add context messages
-        for msg in &context.messages {
-            contents.push(Content {
-                role: msg.role.clone(),
-                parts: vec![Part {
-                    text: msg.content.clone(),
-                }],
-            });
-        }
-
-        // Add current message
-        contents.push(Content {
-            role: "user".to_string(),
-            parts: vec![Part {
-                text: message.to_string(),
-            }],
-        });
-
-        // Create request
-        let request = GeminiRequest {
-            contents,
-            generation_config: GenerationConfig {
-                temperature: 0.7,
-                max_output_tokens: 8192,
-            },
-        };
-
-        // Build URL
-        let url = format!(
-            "{}/v1beta/models/{}:generateContent?key={}",
-            self.base_url, self.model, self.api_key
-        );
-
-        // Send request
-        let response = self
-            .client
-            .post(&url)
-            .json(&request)
-            .send()
-            .await
-            .context("Failed to send request")?;
-
-        // Check status
-        if !response.status().is_success() {
-            let status = response.status();
-            let text = response.text().await.unwrap_or_default();
-            anyhow::bail!("API request failed: {} - {}", status, text);
-        }
-
-        // Parse response
-        let gemini_response: GeminiResponse = response
-            .json()
-            .await
-            .context("Failed to parse response")?;
-
-        // Extract content
-        let content = gemini_response
-            .candidates
-            .first()
-            .and_then(|c| c.content.parts.first())
-            .map(|p| p.text.clone())
-            .unwrap_or_else(|| "No response generated".to_string());
-
-        // Calculate metadata
-        let metadata = gemini_response.usage_metadata.map(|usage| {
-            let total_tokens = usage.total_token_count;
-            let estimated_cost = calculate_cost(&self.model, total_tokens);
-            let latency = start.elapsed().as_secs_f64();
-
-            ResponseMetadata {
-                total_tokens,
-                estimated_cost,
-                latency,
-            }
-        });
-
-        Ok(Response { content, metadata })
-    }
-}
-
-fn calculate_cost(model: &str, tokens: u32) -> f64 {
-    // Rough cost estimates per 1M tokens
-    let cost_per_million = match model {
-        m if m.contains("flash") => 0.075,
-        m if m.contains("pro") => 0.50,
-        _ => 0.10,
-    };
-
-    (tokens as f64 / 1_000_000.0) * cost_per_million
-}
+#+BEGIN_SRC elisp
+;; Install magit if not present
+(unless (package-installed-p 'magit)
+  (package-install 'magit))
 #+END_SRC
 
-** Context Module
+* Configuration Reference
 
-#+BEGIN_SRC rust :tangle src/context/mod.rs
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+** Core Settings
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ConversationContext {
-    pub id: String,
-    pub messages: Vec<Message>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
+#+BEGIN_SRC elisp
+;; Provider selection
+(setq sage-provider 'gemini)     ; 'gemini, 'ollama, or 'openai
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Message {
-    pub role: String,
-    pub content: String,
-    pub timestamp: DateTime<Utc>,
-}
+;; Model selection (provider-specific defaults if nil)
+(setq sage-model nil)            ; e.g., "gemini-2.0-flash-exp"
 
-impl ConversationContext {
-    pub fn new() -> Self {
-        Self {
-            id: Uuid::new_v4().to_string(),
-            messages: Vec::new(),
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        }
-    }
+;; API keys
+(setq sage-api-key nil)          ; or GEMINI_API_KEY env var
+(setq sage-openai-api-key nil)   ; or OPENAI_API_KEY env var
 
-    pub fn add_user_message(&mut self, content: &str) {
-        self.messages.push(Message {
-            role: "user".to_string(),
-            content: content.to_string(),
-            timestamp: Utc::now(),
-        });
-        self.updated_at = Utc::now();
-    }
-
-    pub fn add_assistant_message(&mut self, content: &str) {
-        self.messages.push(Message {
-            role: "model".to_string(),
-            content: content.to_string(),
-            timestamp: Utc::now(),
-        });
-        self.updated_at = Utc::now();
-    }
-
-    pub fn clear(&mut self) {
-        self.messages.clear();
-        self.updated_at = Utc::now();
-    }
-
-    pub fn total_tokens(&self) -> usize {
-        // Rough estimate: 1 token per 4 characters
-        self.messages
-            .iter()
-            .map(|m| m.content.len() / 4)
-            .sum()
-    }
-}
+;; Ollama settings
+(setq sage-ollama-host "http://localhost:11434")
 #+END_SRC
 
-** Tools Module (Placeholder)
+** Tool Settings
 
-#+BEGIN_SRC rust :tangle src/tools/mod.rs
-// Tool system implementation placeholder
-// TODO: Implement tool calling functionality
+#+BEGIN_SRC elisp
+;; Workspace for file operations
+(setq sage-workspace nil)        ; defaults to default-directory
 
-use anyhow::Result;
-use serde::{Deserialize, Serialize};
+;; Skip all permission checks (dangerous!)
+(setq sage-yolo-mode nil)
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Tool {
-    pub name: String,
-    pub description: String,
-}
+;; Confirm even read-only tools
+(setq sage-confirm-safe-tools nil)
 
-pub trait ToolExecutor {
-    fn execute(&self, args: serde_json::Value) -> Result<serde_json::Value>;
-}
+;; Maximum tool call iterations
+(setq sage-max-tool-iterations 10)
 #+END_SRC
 
-** Utils Module
+** Context Settings
 
-#+BEGIN_SRC rust :tangle src/utils/mod.rs
-// Utility functions
+#+BEGIN_SRC elisp
+;; Warning threshold (0.0-1.0)
+(setq sage-context-warning-threshold 0.80)
 
-use std::path::{Path, PathBuf};
+;; Compaction threshold
+(setq sage-context-compaction-threshold 0.90)
 
-pub fn ensure_dir_exists(path: &Path) -> std::io::Result<()> {
-    if !path.exists() {
-        std::fs::create_dir_all(path)?;
-    }
-    Ok(())
-}
+;; Auto-compact when threshold reached
+(setq sage-context-auto-compact t)
 
-pub fn expand_tilde(path: &str) -> PathBuf {
-    if path.starts_with("~") {
-        if let Some(home) = dirs::home_dir() {
-            return home.join(&path[2..]);
-        }
-    }
-    PathBuf::from(path)
-}
+;; Compaction strategy
+(setq sage-context-default-strategy 'sliding-window)
+;; Options: 'sliding-window, 'summarization, 'hybrid
 #+END_SRC
 
-* Testing
+** Rate Limiting
+
+#+BEGIN_SRC elisp
+;; Safety margin (0.9 = use 90% of limit)
+(setq sage-ratelimit-safety-margin 0.9)
+
+;; Window size in seconds
+(setq sage-ratelimit-window 60)
+
+;; Show countdown when rate limited
+(setq sage-ratelimit-show-countdown t)
+#+END_SRC
+
+** Project Sessions
+
+#+BEGIN_SRC elisp
+;; Storage directory
+(setq sage-project-directory
+      (expand-file-name "sage/projects" user-emacs-directory))
+
+;; Auto-load project conversation
+(setq sage-project-auto-load t)
+
+;; Auto-save each message
+(setq sage-project-auto-save t)
+
+;; Max messages before archiving
+(setq sage-project-max-messages 1000)
+#+END_SRC
+
+* Running Tests
+
+** Quick Test
+
+#+BEGIN_SRC bash
+make test
+#+END_SRC
+
+** All Tests
+
+#+BEGIN_SRC bash
+make test-all
+#+END_SRC
+
+** Specific Test Suites
+
+#+BEGIN_SRC bash
+make test-ratelimit   # Rate limiting tests
+make test-context     # Context management tests
+make test-project     # Project session tests
+make test-tools-unit  # Tool unit tests
+make test-stress      # Stress/edge case tests
+#+END_SRC
 
 ** Integration Tests
 
-#+BEGIN_SRC rust :tangle tests/integration_test.rs
-use gemini_repl::*;
+Requires running Ollama:
 
-#[tokio::test]
-async fn test_basic_functionality() {
-    // TODO: Add integration tests
-    assert!(true);
-}
+#+BEGIN_SRC bash
+# Start Ollama first
+ollama serve &
+
+# Run integration tests
+make test-integration
 #+END_SRC
 
-* Scripts
+** Verify Installation
 
-** Development Setup Script
-
-#+BEGIN_SRC bash :tangle scripts/setup.sh :shebang #!/bin/bash
-#!/bin/bash
-set -e
-
-echo "Setting up Sage development environment..."
-
-# Check for Rust
-if ! command -v cargo &> /dev/null; then
-    echo "Error: Rust is not installed. Please install from https://rustup.rs/"
-    exit 1
-fi
-
-# Create directories
-mkdir -p workspace
-mkdir -p logs
-mkdir -p .sessions
-
-# Check for .env file
-if [ ! -f .env ]; then
-    cp .env.example .env
-    echo "Created .env file. Please add your GEMINI_API_KEY."
-fi
-
-# Install dependencies
-cargo fetch
-
-echo "Setup complete! Run 'make build' to build the project."
+#+BEGIN_SRC bash
+make elisp-load-test
 #+END_SRC
 
-* Documentation
+* Development
 
-** API Documentation
+** Code Style
 
-#+BEGIN_SRC markdown :tangle docs/API.md
-# Sage API Documentation
+- Use =lexical-binding: t= in all files
+- Prefix public functions with =sage-=
+- Prefix private functions with =sage--=
+- Use =cl-lib= for Common Lisp utilities
+- Document all public functions with docstrings
+- 80-character line limit
 
-## Overview
+** Tool Development
 
-The Sage provides a Rust API for interacting with Google's Gemini AI models.
+CRITICAL: Use Emacs primitives, NOT shell commands:
 
-## Core Components
+#+BEGIN_SRC elisp
+;; WRONG - shell commands fail unpredictably
+(shell-command-to-string "rg pattern *.el")
+(shell-command-to-string "grep -r pattern .")
 
-### GeminiClient
-
-The main client for API interactions.
-
-```rust
-use gemini_repl::api::GeminiClient;
-
-let client = GeminiClient::new(&config)?;
-let response = client.send_message("Hello", &context).await?;
-```
-
-### ConversationContext
-
-Manages conversation history and context.
-
-```rust
-use gemini_repl::context::ConversationContext;
-
-let mut context = ConversationContext::new();
-context.add_user_message("Hello");
-context.add_assistant_message("Hi there!");
-```
-
-## Configuration
-
-See the Config struct for available options.
+;; CORRECT - native primitives
+(directory-files-recursively dir "\\.el$")
+(string-match-p pattern content)
 #+END_SRC
 
-* Deployment
+** Adding a New Tool
 
-** GitHub Actions Workflow
+#+BEGIN_SRC elisp
+;; Register in sage-tools.el
+(push
+ `((name . "my_tool")
+   (description . "Description for AI")
+   (parameters . ((type . "object")
+                  (properties . ((arg1 . ((type . "string")
+                                          (description . "First argument")))))
+                  (required . ["arg1"])))
+   (execute . ,#'sage--tool-my-tool))
+ sage-tools)
 
-#+BEGIN_SRC yaml :tangle .github/workflows/ci.yml
-name: CI
+;; Implement the tool
+(defun sage--tool-my-tool (args)
+  "Execute my_tool with ARGS."
+  (let ((arg1 (alist-get 'arg1 args)))
+    ;; Implementation
+    (format "Result for %s" arg1)))
 
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
-env:
-  CARGO_TERM_COLOR: always
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
-    - name: Run clippy
-      run: cargo clippy -- -D warnings
+;; Add to safe tools list if read-only
+(add-to-list 'sage-safe-tools "my_tool")
 #+END_SRC
 
-* Next Steps
+** Linting
 
-To complete the v0 implementation:
+#+BEGIN_SRC bash
+make lint          # Run all linters
+make checkdoc      # Check documentation strings
+make check-headers # Check file headers
+#+END_SRC
 
-1. Tangle this file: =C-c C-v t= in Emacs or use =org-babel-tangle=
-2. Build the project: =make build=
-3. Set up your API key in =.env=
-4. Run the REPL: =make run=
+** CI Pipeline
 
-For further development:
-- Implement the tool system
-- Add session persistence
-- Enhance error handling
-- Add more tests
-- Implement streaming responses
+#+BEGIN_SRC bash
+make ci            # Full CI pipeline
+make gh-status     # Check GitHub Actions status
+make gh-logs       # View failed run logs
+#+END_SRC
+
+* Provider Reference
+
+** Gemini (Google)
+
+Default model: =gemini-2.0-flash-exp=
+
+Endpoints:
+- Generate: =https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent=
+
+Rate limits (per minute):
+| Model | RPM |
+|-------+-----|
+| gemini-1.5-flash-lite | 30 |
+| gemini-1.5-flash | 15 |
+| gemini-1.5-pro | 5 |
+| gemini-2.0-flash-exp | 10 |
+
+** OpenAI
+
+Default model: =gpt-4o=
+
+Endpoint: =https://api.openai.com/v1/chat/completions=
+
+Rate limits vary by account tier.
+
+** Ollama (Local)
+
+Default model: =llama3.2=
+
+Endpoint: =http://localhost:11434/api/chat=
+
+No rate limits (local execution).
+
+* Storage Locations
+
+| Data | Location |
+|------+----------|
+| Project conversations | =~/.emacs.d/sage/projects/{encoded-path}/= |
+| Memory/facts | =~/.emacs.d/sage/memory/facts.json= |
+| Session history | =~/.emacs.d/sage-history= |
+| Logs (feat-logging) | =~/.emacs.d/sage/logs/sage.log= |
+
+* Demos
+
+#+BEGIN_SRC bash
+make demo            # Interactive GUI demo
+make demo-batch      # Batch mode demo
+make demo-screencast # Step-by-step screencast
+#+END_SRC
+
+* Troubleshooting
+
+** Module Load Errors
+
+#+BEGIN_SRC bash
+make elisp-load-test
+#+END_SRC
+
+** Magit Not Found
+
+#+BEGIN_SRC elisp
+(package-install 'magit)
+#+END_SRC
+
+** API Key Issues
+
+#+BEGIN_SRC bash
+# Verify environment variable
+echo $GEMINI_API_KEY
+
+# Or set in Emacs
+M-x setenv RET GEMINI_API_KEY RET <your-key>
+#+END_SRC
+
+** Rate Limiting
+
+#+BEGIN_SRC elisp
+;; Check status
+M-x sage-ratelimit-status
+
+;; Reset if stuck
+M-x sage-ratelimit-reset
+#+END_SRC
+
+* Migration from Rust (009)
+
+This Elisp implementation (010) is a port from the Rust implementation (009).
+
+| Feature | Rust (009) | Elisp (010) |
+|---------+------------+-------------|
+| REPL | rustyline | comint-mode |
+| HTTP | reqwest | url.el |
+| Async | tokio | synchronous |
+| Config | TOML | defcustom |
+| Tools | Trait-based | Alist-based |
+| Storage | File-based | File-based |
+
+Key differences:
+- Elisp uses synchronous HTTP (no streaming yet)
+- Configuration via =defcustom= instead of TOML files
+- Direct Emacs integration (buffers, org-mode, etc.)
+- Tool system uses alists instead of Rust traits
+- Rate limiting uses Emacs ring buffers
+
+* See Also
+
+- README.org - User documentation
+- CONTRIBUTING.org - Contribution guide
+- AGENTS.md - Agent coordination patterns
+- docs/DEMO.org - Interactive demo
+- docs/TOOL-AUDIT.org - Tool implementation status
