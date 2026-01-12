@@ -1,0 +1,187 @@
+#+TITLE: Session Continuation: sage.el vs Claude Code
+#+AUTHOR: Jason Walsh
+#+EMAIL: j@wal.sh
+#+DATE: 2026-01-11
+#+OPTIONS: toc:2 num:t
+
+* Summary
+
+This document explains sage.el's default auto-continue behavior, contrasted with
+Claude Code's explicit =--continue= flag requirement.
+
+* Continuation Comparison
+
+| Behavior | sage.el | Claude Code |
+|----------|---------|-------------|
+| Default on startup | *Auto-continue* last session | New session |
+| Resume previous | Automatic by pwd | =claude --continue= |
+| Force new session | =C-u M-x sage= | Default (no flag) |
+| Session persistence | Per-project directory | Per-project directory |
+| Context window | Auto-managed | Auto-managed |
+
+* Why Auto-Continue is Default in sage.el
+
+** Emacs Sessions are Long-Lived
+
+Unlike CLI tools, Emacs typically runs for hours or days. Users expect:
+- Buffer state to persist
+- Undo history to remain
+- Conversation context to accumulate
+
+** REPL Semantics
+
+A REPL (Read-Eval-Print Loop) implies continuous interaction:
+- Each prompt builds on previous context
+- Users rarely want to "start fresh" mid-task
+- The =*sage*= buffer visually shows conversation history
+
+** Project-Centric Workflow
+
+sage.el binds sessions to project directories:
+- Opening sage in =~/project-a/= loads project-a's history
+- Opening sage in =~/project-b/= loads project-b's history
+- No explicit session management needed
+
+* Implementation
+
+** Startup Sequence
+
+#+begin_src elisp
+(defun sage ()
+  "Start Sage REPL with auto-continue."
+  (interactive)
+  ;; 1. Detect project from pwd
+  (let ((project (sage-project-dir)))
+    ;; 2. Load existing session (if any)
+    (sage-project-load)  ; Auto-loads most recent
+    ;; 3. Initialize REPL buffer
+    ...))
+#+end_src
+
+** Force New Session
+
+#+begin_src elisp
+(defun sage-new-session ()
+  "Start fresh session, archiving current."
+  (interactive)
+  (sage-project-archive)  ; Save current to history/
+  (setq sage-project--current-conversation nil)
+  (sage))
+#+end_src
+
+Or with prefix argument:
+#+begin_example
+C-u M-x sage   ; Force new session
+M-x sage       ; Auto-continue (default)
+#+end_example
+
+* Storage Structure
+
+#+begin_example
+~/.emacs.d/sage/projects/
+└── -home-user-project/
+    ├── <session-uuid>.jsonl       # Active session
+    ├── sessions.json              # Session index
+    └── history/                   # Archived sessions
+        └── 20260110-120000.jsonl
+#+end_example
+
+* Session Commands
+
+| Command | Description |
+|---------+-------------|
+| =/session= | Show current session info |
+| =/session new= | Force new session (archive current) |
+| =/session list= | List all sessions for project |
+| =/session switch <id>= | Switch to specific session |
+| =/reset= | Clear current session (no archive) |
+
+* Contrast: Claude Code's --continue
+
+Claude Code requires explicit continuation:
+
+#+begin_src bash
+# Default: New session every time
+claude "How do I fix this bug?"
+
+# Must explicitly continue
+claude --continue "What about the edge case?"
+
+# Or resume specific session
+claude --resume <session-id>
+#+end_src
+
+** Why Claude Code Uses Explicit Continuation
+
+1. *CLI semantics*: Each command invocation is independent
+2. *Cost awareness*: Users should consciously choose to add context
+3. *Privacy*: Don't accidentally leak previous context
+4. *Stateless by default*: Unix philosophy
+
+** Why sage.el Differs
+
+1. *REPL semantics*: Interactive sessions imply continuity
+2. *Emacs conventions*: Buffers maintain state
+3. *Visual context*: Users see previous exchanges in buffer
+4. *Project binding*: Context is scoped, not global
+
+* Configuration
+
+#+begin_src elisp
+;; Auto-continue (default)
+(setq sage-session-auto-continue t)
+
+;; Claude Code style: always new session
+(setq sage-session-auto-continue nil)
+
+;; Maximum session age before forcing new (optional)
+(setq sage-session-max-age-hours 24)
+#+end_src
+
+* Security Considerations
+
+Auto-continue means previous context is always loaded:
+
+** Safe
+- Project-scoped: won't leak context across projects
+- Local storage: no cloud sync by default
+- Sanitized: API keys filtered before logging
+
+** Caution
+- Shared machines: others could see your session
+- Large contexts: may include sensitive code discussed earlier
+
+** Mitigation
+#+begin_src elisp
+;; Clear session before sharing screen
+M-x sage-session-clear
+
+;; Or use prefix to start fresh
+C-u M-x sage
+#+end_src
+
+* Test Coverage
+
+From =test/sage-session-test.el=:
+
+#+begin_src elisp
+(ert-deftest test-auto-continue-default-behavior ()
+  "Test sage auto-continues by default (unlike Claude Code's --continue).
+sage: Auto-continues most recent session
+Claude Code: Requires --continue flag to resume"
+  ...)
+
+(ert-deftest test-explicit-new-session ()
+  "Test explicit new session creation (like Claude Code without --continue)."
+  ...)
+
+(ert-deftest test-continuation-preserves-context ()
+  "Test continuation preserves full conversation context."
+  ...)
+#+end_src
+
+* References
+
+- RFC: [[file:RFC-SESSION-STORAGE.org][docs/RFC-SESSION-STORAGE.org]]
+- TCA Schema: [[file:TCA-SESSION-SCHEMA.org][docs/TCA-SESSION-SCHEMA.org]]
+- Claude Code docs: https://docs.anthropic.com/claude-code

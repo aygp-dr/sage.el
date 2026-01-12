@@ -1,0 +1,428 @@
+#+TITLE: RFC: Session Storage for sage-project.el
+#+AUTHOR: Jason Walsh
+#+EMAIL: j@wal.sh
+#+DATE: 2026-01-11
+#+OPTIONS: toc:2 num:t
+#+STARTUP: showall
+
+* Summary
+
+This RFC proposes UUID-based session storage for =sage-project.el=, modeled after
+Claude Code's session management. The goal is automatic session continuation with
+the ability to create new sessions explicitly.
+
+* Motivation
+
+Current state:
+- =sage-project.el= exists but is NOT integrated with =sage.el=
+- No session persistence in the REPL
+- No auto-continue behavior
+- Tool calls are not logged to project storage
+
+Desired state:
+- Automatic session continuation by project directory (pwd)
+- UUID-based session identification
+- Full conversation and tool call logging
+- Compatible with Claude Code's storage format
+
+* Claude Code Reference
+
+** Directory Structure
+
+#+begin_example
+~/.claude/projects/<encoded-path>/
+├── <session-uuid>.jsonl          # Session conversation (24MB+ possible)
+└── <session-uuid>/               # Optional session artifacts
+    ├── subagents/
+    │   └── agent-<hash>.jsonl
+    └── tool-results/
+        └── toolu_<id>.txt
+#+end_example
+
+** Message Format
+
+#+begin_src json
+{
+  "type": "user",
+  "uuid": "bf8f295c-98bb-43bf-a972-9959174591e4",
+  "parentUuid": null,
+  "sessionId": "96d90d15-4805-4899-889c-7a16bfc522ff",
+  "cwd": "/home/user/project",
+  "gitBranch": "main",
+  "version": "2.1.3",
+  "timestamp": "2026-01-10T20:49:34.269Z",
+  "message": {
+    "role": "user",
+    "content": "user message here"
+  }
+}
+#+end_src
+
+* Proposed Design
+
+** Directory Structure
+
+#+begin_example
+~/.emacs.d/sage/projects/<encoded-path>/
+├── <session-uuid>.jsonl          # Session conversation
+├── current                       # Text file with current session UUID
+├── sessions.json                 # Session index/metadata
+└── <session-uuid>/               # Optional session artifacts (future)
+    └── tool-results/
+#+end_example
+
+** Session Index (sessions.json)
+
+#+begin_src json
+{
+  "current": "96d90d15-4805-4899-889c-7a16bfc522ff",
+  "sessions": [
+    {
+      "id": "96d90d15-4805-4899-889c-7a16bfc522ff",
+      "created": "2026-01-11T22:00:00Z",
+      "updated": "2026-01-11T23:30:00Z",
+      "message_count": 42,
+      "summary": "Working on session storage RFC"
+    }
+  ]
+}
+#+end_src
+
+** Message Format (Minimal)
+
+#+begin_src json
+{
+  "uuid": "msg-uuid-here",
+  "sessionId": "session-uuid-here",
+  "role": "user|assistant|system|tool",
+  "content": "message content",
+  "timestamp": "2026-01-11T22:00:00Z"
+}
+#+end_src
+
+** Message Format (Extended)
+
+#+begin_src json
+{
+  "uuid": "msg-uuid-here",
+  "parentUuid": "parent-msg-uuid|null",
+  "sessionId": "session-uuid-here",
+  "cwd": "/home/user/project",
+  "gitBranch": "main",
+  "version": "0.1.0",
+  "role": "assistant",
+  "content": "Let me read that file",
+  "timestamp": "2026-01-11T22:00:00Z",
+  "tool_calls": [
+    {
+      "id": "call_001",
+      "name": "read_file",
+      "args": {"path": "example.el"},
+      "result": "...",
+      "duration_ms": 45,
+      "success": true
+    }
+  ]
+}
+#+end_src
+
+* API Changes
+
+** New Functions
+
+#+begin_src elisp
+;; Session management
+(defun sage-session-current ()
+  "Return current session UUID, creating one if needed.")
+
+(defun sage-session-new ()
+  "Create a new session and make it current.")
+
+(defun sage-session-list ()
+  "Return list of all sessions for current project.")
+
+(defun sage-session-switch (session-id)
+  "Switch to SESSION-ID, loading its conversation.")
+
+(defun sage-session-load (&optional session-id)
+  "Load SESSION-ID or most recent session.")
+
+;; Message management
+(defun sage-session-append (message)
+  "Append MESSAGE to current session with UUID.")
+
+(defun sage-session-get-messages (&optional session-id)
+  "Get all messages from SESSION-ID or current session.")
+#+end_src
+
+** Modified Functions
+
+#+begin_src elisp
+;; sage-project-load -> delegates to sage-session-load
+;; sage-project-append -> delegates to sage-session-append
+;; sage-project-get-conversation -> delegates to sage-session-get-messages
+#+end_src
+
+** New Customization
+
+#+begin_src elisp
+(defcustom sage-session-auto-continue t
+  "When non-nil, automatically continue most recent session.
+When nil, always create a new session on startup.")
+
+(defcustom sage-session-uuid-function #'sage-session--generate-uuid
+  "Function to generate session UUIDs.
+Default uses timestamp + random hash.")
+#+end_src
+
+* Integration with sage.el
+
+** REPL Startup
+
+#+begin_src elisp
+(defun sage ()
+  "Start Sage REPL with session auto-continue."
+  (interactive)
+  ;; Load or create session based on pwd
+  (sage-session-load)
+  ;; ... rest of REPL setup
+  )
+#+end_src
+
+** Message Handling
+
+#+begin_src elisp
+(defun sage--process-input (input)
+  "Process user INPUT and persist to session."
+  (let ((msg (sage-session-append
+              `(:role "user" :content ,input))))
+    ;; ... send to LLM
+    ))
+
+(defun sage--handle-response (response)
+  "Handle and persist LLM RESPONSE."
+  (let ((msg (sage-session-append
+              `(:role "assistant"
+                :content ,(alist-get 'content response)
+                :tool_calls ,(alist-get 'tool_calls response)))))
+    ;; ... display response
+    ))
+#+end_src
+
+* Slash Commands
+
+| Command | Description |
+|---------+-------------|
+| =/session= | Show current session info |
+| =/session new= | Create new session |
+| =/session list= | List all sessions |
+| =/session switch <id>= | Switch to session |
+| =/session export [file]= | Export current session |
+
+* Migration Path
+
+1. *Phase 1*: Add session ID to existing messages (backward compatible)
+2. *Phase 2*: Implement session index and multi-session support
+3. *Phase 3*: Add tool call logging with structured format
+4. *Phase 4*: Integrate with sage.el REPL
+
+* Testing Strategy
+
+#+begin_src elisp
+;; test/sage-session-test.el
+
+(ert-deftest test-session-create ()
+  "Test session creation generates valid UUID."
+  (let ((session-id (sage-session-new)))
+    (should (string-match-p "^[0-9a-f-]+$" session-id))))
+
+(ert-deftest test-session-persist ()
+  "Test messages are persisted to JSONL."
+  (sage-session-new)
+  (sage-session-append '(:role "user" :content "test"))
+  (let ((file (sage-session--file (sage-session-current))))
+    (should (file-exists-p file))
+    (should (string-match-p "test" (with-temp-buffer
+                                     (insert-file-contents file)
+                                     (buffer-string))))))
+
+(ert-deftest test-session-continue ()
+  "Test session continuation loads previous messages."
+  (sage-session-new)
+  (sage-session-append '(:role "user" :content "first"))
+  (let ((session-id (sage-session-current)))
+    ;; Simulate restart
+    (setq sage-session--current nil)
+    (sage-session-load)
+    (should (equal session-id (sage-session-current)))
+    (should (= 1 (length (sage-session-get-messages))))))
+#+end_src
+
+* Open Questions
+
+1. Should we support Claude Code's =--continue= flag style, or always auto-continue?
+2. How to handle session summary generation (AI-assisted or simple heuristic)?
+3. Should tool results be stored in separate files like Claude Code?
+4. Maximum session size before auto-archiving?
+
+* Required Reviews
+
+** L7 (API/Protocol Review)
+
+- [ ] JSONL schema compatibility with Claude Code
+- [ ] UUID generation: collision resistance
+- [ ] Session handoff protocol for multi-process
+- [ ] Rate limiting considerations for rapid appends
+- [ ] Concurrent access safety (file locking)
+
+** CTO (Architecture Review)
+
+- [ ] Storage scalability (sessions can grow to 24MB+)
+- [ ] Migration path from current implementation
+- [ ] Cross-TCA interoperability value
+- [ ] Resource usage (memory for large sessions)
+- [ ] Future: cloud sync considerations
+
+** Elisp/Emacs Developer Review
+
+- [ ] Follows Emacs Lisp conventions (hyphen naming, etc.)
+- [ ] Proper use of =defcustom= for configuration
+- [ ] No blocking I/O on main thread
+- [ ] Graceful degradation if storage fails
+- [ ] Integration with existing Emacs infrastructure (project.el)
+
+** MELPA/Release Manager Review
+
+- [ ] Package dependencies are minimal
+- [ ] No hard dependency on external tools
+- [ ] Byte-compilation clean (no warnings)
+- [ ] Checkdoc compliance
+- [ ] Backwards compatibility with existing sage-project.el users
+
+* Aggressive Test Plan
+
+** Unit Tests
+
+#+begin_src elisp
+;; UUID generation
+(ert-deftest test-uuid-uniqueness ()
+  "Test 1000 UUIDs are all unique."
+  (let ((uuids (cl-loop repeat 1000 collect (sage-session--generate-uuid))))
+    (should (= 1000 (length (delete-dups uuids))))))
+
+(ert-deftest test-uuid-format ()
+  "Test UUID matches expected format."
+  (let ((uuid (sage-session--generate-uuid)))
+    (should (string-match-p "^[0-9]\\{8\\}-[0-9]\\{6\\}-[a-f0-9]\\{8\\}$" uuid))))
+#+end_src
+
+** Stress Tests
+
+#+begin_src elisp
+(ert-deftest test-rapid-append-1000 ()
+  "Test appending 1000 messages rapidly."
+  (sage-session-new)
+  (let ((start (float-time)))
+    (dotimes (i 1000)
+      (sage-session-append `(:role "user" :content ,(format "Message %d" i))))
+    (let ((elapsed (- (float-time) start)))
+      (should (< elapsed 5.0))  ; Must complete in <5 seconds
+      (message "1000 appends in %.2f seconds" elapsed))))
+
+(ert-deftest test-large-message ()
+  "Test appending a 1MB message."
+  (sage-session-new)
+  (let ((large-content (make-string (* 1024 1024) ?x)))
+    (sage-session-append `(:role "assistant" :content ,large-content))
+    (let ((msgs (sage-session-get-messages)))
+      (should (= 1 (length msgs)))
+      (should (= (* 1024 1024) (length (plist-get (car msgs) :content)))))))
+
+(ert-deftest test-concurrent-sessions ()
+  "Test multiple sessions don't interfere."
+  (let ((session1 (sage-session-new))
+        (session2 (sage-session-new)))
+    (sage-session-switch session1)
+    (sage-session-append '(:role "user" :content "session1"))
+    (sage-session-switch session2)
+    (sage-session-append '(:role "user" :content "session2"))
+    (sage-session-switch session1)
+    (should (string= "session1"
+                     (plist-get (car (sage-session-get-messages)) :content)))))
+#+end_src
+
+** Edge Cases
+
+#+begin_src elisp
+(ert-deftest test-empty-session ()
+  "Test loading empty/new session."
+  (sage-session-new)
+  (should (null (sage-session-get-messages))))
+
+(ert-deftest test-corrupt-jsonl ()
+  "Test handling corrupt JSONL gracefully."
+  (sage-session-new)
+  (let ((file (sage-session--file (sage-session-current))))
+    (with-temp-file file
+      (insert "not valid json\n"))
+    (should-not (sage-session-load))
+    (should (null (sage-session-get-messages)))))
+
+(ert-deftest test-missing-session-file ()
+  "Test handling deleted session file."
+  (sage-session-new)
+  (let ((file (sage-session--file (sage-session-current))))
+    (delete-file file)
+    (sage-session-load)
+    (should (null (sage-session-get-messages)))))
+
+(ert-deftest test-special-characters ()
+  "Test messages with special characters."
+  (sage-session-new)
+  (sage-session-append '(:role "user" :content "日本語 emoji 🎉 \"quotes\" \\backslash"))
+  (sage-session-load)
+  (let ((content (plist-get (car (sage-session-get-messages)) :content)))
+    (should (string-match-p "日本語" content))
+    (should (string-match-p "🎉" content))))
+#+end_src
+
+** Security Tests
+
+#+begin_src elisp
+(ert-deftest test-no-path-traversal ()
+  "Test session IDs can't escape storage directory."
+  (should-error (sage-session-switch "../../../etc/passwd")))
+
+(ert-deftest test-sanitize-content ()
+  "Test API keys are not logged."
+  (sage-session-new)
+  (sage-session-append '(:role "user" :content "GEMINI_API_KEY=secret123"))
+  (let ((file (sage-session--file (sage-session-current))))
+    (with-temp-buffer
+      (insert-file-contents file)
+      (should-not (string-match-p "secret123" (buffer-string)))
+      (should (string-match-p "REDACTED" (buffer-string))))))
+#+end_src
+
+** Integration Tests
+
+#+begin_src elisp
+(ert-deftest test-sage-repl-integration ()
+  "Test REPL correctly uses session storage."
+  (with-temp-buffer
+    (sage-mode)
+    ;; Simulate user input
+    (insert "Hello")
+    (sage-send-input)
+    ;; Verify message was persisted
+    (let ((msgs (sage-session-get-messages)))
+      (should (>= (length msgs) 1))
+      (should (string= "Hello" (plist-get (car msgs) :content))))))
+#+end_src
+
+* References
+
+- Claude Code session storage: =~/.claude/projects/=
+- TCA Session Schema: [[file:TCA-SESSION-SCHEMA.org][docs/TCA-SESSION-SCHEMA.org]]
+- Current implementation: [[file:../sage-project.el][sage-project.el]]
+- Bead: =gemini-repl-010-5uh=
