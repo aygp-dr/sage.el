@@ -1,0 +1,204 @@
+#+TITLE: sage.el Roadmap and TCA Comparison
+#+AUTHOR: Jason Walsh
+#+DATE: 2026-01-11
+
+* Version Roadmap
+
+** v0.1.0 - Current (Experimental)
+- [X] Multi-provider support (Gemini, Ollama, OpenAI)
+- [X] Basic tool calling (28 tools)
+- [X] Permission system (yolo-mode, safe-tools)
+- [X] Rate limiting per model
+- [X] Project-based session storage (JSONL)
+- [X] UUID-based message tracking
+- [X] Context awareness and warnings
+- [X] Emacs-native integrations (Org, Magit, Buffer ops)
+
+** v0.2.0 - MELPA Ready
+*** Blocking Issues
+- [ ] Fix package-lint errors (72 errors)
+- [ ] Add URL headers to all files
+- [ ] Fix prefix naming violations (68+ functions)
+- [X] Security hardening (dangerous tools opt-in)
+
+*** Target Features
+- [ ] Session continuation across restarts
+- [ ] JSONL persistence with file locking
+- [ ] Conversation archival and history browsing
+- [ ] Context compaction (/compact command)
+
+** v0.3.0 - Enhanced Interoperability
+- [ ] Project.el deep integration
+- [ ] Dired tool support
+- [ ] LSP integration for code intelligence
+- [ ] Treemacs/Neotree sidebar integration
+
+** v0.4.0 - Advanced Features
+- [ ] Multi-turn tool orchestration
+- [ ] Streaming responses
+- [ ] Conversation branching/forking
+- [ ] Export formats (Markdown, HTML, PDF)
+
+* TCA Feature Comparison
+
+Tool Calling Agents (TCA) comparison across major AI coding assistants.
+
+** Session/History Management
+
+| Feature | sage.el | Claude Code | Gemini CLI | Aider | Cursor | Copilot |
+|---------+---------+-------------+------------+-------+--------+---------|
+| Auto-continue | Yes | --continue | Yes | Yes | Yes | N/A |
+| Session persistence | JSONL | JSONL | ? | Git | SQLite | Cloud |
+| Per-project sessions | Yes | Yes | ? | Yes | Yes | N/A |
+| Session export | Planned | Yes | ? | No | No | N/A |
+| Conversation history | Yes | Yes | Yes | Yes | Yes | Limited |
+| Session resumption | Planned | Yes | ? | Yes | Yes | N/A |
+
+** Context Management
+
+| Feature | sage.el | Claude Code | Gemini CLI | Aider | Cursor | Copilot |
+|---------+---------+-------------+------------+-------+--------+---------|
+| Context window tracking | Yes | Yes | Yes | Yes | Yes | Yes |
+| Context compaction | Planned | Auto | ? | Yes | Auto | Auto |
+| File context injection | Yes | Yes | Yes | Yes | Yes | Yes |
+| Git context | Yes | Yes | ? | Yes | Yes | Limited |
+| Repo map | Yes | Yes | ? | Yes | Yes | No |
+
+** Tool Calling
+
+| Feature | sage.el | Claude Code | Gemini CLI | Aider | Cursor | Copilot |
+|---------+---------+-------------+------------+-------+--------+---------|
+| File read/write | Yes | Yes | Yes | Yes | Yes | Yes |
+| Code search | Yes | Yes | Yes | Yes | Yes | Limited |
+| Git operations | Yes | Yes | ? | Yes | Yes | No |
+| Shell execution | No | Yes | Yes | Yes | Yes | No |
+| Web fetch | Yes | Yes | Yes | No | No | No |
+| Custom tools | Yes* | MCP | ? | No | No | No |
+
+*Requires sage-enable-tool-factory=t
+
+** Permission Model
+
+| Feature | sage.el | Claude Code | Gemini CLI | Aider | Cursor | Copilot |
+|---------+---------+-------------+------------+-------+--------+---------|
+| Confirmation prompts | Yes | Yes | ? | Yes | ? | N/A |
+| Safe tools list | Yes | Yes | ? | No | ? | N/A |
+| YOLO mode | Yes | Yes | ? | Yes | ? | N/A |
+| Path restrictions | Yes | Yes | ? | Yes | ? | N/A |
+| Dangerous tools opt-in | Yes | No | ? | No | ? | N/A |
+
+* CLI Flags / Slash Commands Comparison
+
+** Claude Code
+
+| Flag/Command | Description | sage.el Equivalent |
+|--------------+-------------+--------------------|
+| --continue, -c | Resume last conversation | (default behavior) |
+| --resume ID | Resume specific session | sage-project-load-session |
+| --print, -p | Print mode (no interaction) | N/A |
+| --dangerously-skip-permissions | YOLO mode | sage-yolo-mode |
+| /clear | Clear conversation | sage-clear |
+| /compact | Compact context | sage-context-compact (planned) |
+| /context | Show context status | sage-reflect-context-status |
+| /cost | Show token costs | sage-context-usage |
+| /help | Show help | describe-function sage |
+| /init | Initialize project | sage-project-init |
+| /memory | Manage memory | sage-memory-* |
+
+** Gemini CLI
+
+| Flag/Command | Description | sage.el Equivalent |
+|--------------+-------------+--------------------|
+| -s, --sandbox | Run in sandbox | N/A |
+| -y, --yolo | Auto-approve tools | sage-yolo-mode |
+| --model | Select model | sage-model |
+| /clear | Clear history | sage-clear |
+| /help | Show help | describe-function sage |
+| /model | Switch model | sage-set-model |
+
+** Aider
+
+| Flag/Command | Description | sage.el Equivalent |
+|--------------+-------------+--------------------|
+| --yes | Auto-approve | sage-yolo-mode |
+| --auto-commits | Auto-commit changes | N/A |
+| --no-auto-commits | Disable auto-commits | (default) |
+| --message | Single message mode | sage-send-string |
+| /add | Add file to context | sage-add-file-context |
+| /drop | Remove file from context | sage-drop-file-context |
+| /clear | Clear context | sage-clear |
+| /commit | Commit changes | magit-commit |
+| /diff | Show diff | magit-diff |
+| /git | Run git command | magit-* |
+| /help | Show help | describe-function sage |
+| /ls | List files | list-files tool |
+| /map | Show repo map | project_map tool |
+| /run | Run shell command | N/A (security) |
+| /tokens | Show token usage | sage-context-usage |
+| /undo | Undo last change | undo |
+
+* Proposed sage.el Commands
+
+** Immediate (0.2.0)
+
+| Command | Function | Description |
+|---------+----------+-------------|
+| /help | sage-help | Show available commands |
+| /clear | sage-clear | Clear conversation |
+| /context | sage-context-status | Show context usage |
+| /compact | sage-context-compact | Compact conversation |
+| /model | sage-set-model | Switch AI model |
+| /provider | sage-set-provider | Switch provider |
+| /yolo | sage-toggle-yolo | Toggle YOLO mode |
+| /stats | sage-project-stats | Show session statistics |
+| /save | sage-project-save | Force save session |
+
+** Future (0.3.0+)
+
+| Command | Function | Description |
+|---------+----------+-------------|
+| /add | sage-add-context | Add file to context |
+| /drop | sage-drop-context | Remove file from context |
+| /history | sage-history | Browse conversation history |
+| /fork | sage-fork-conversation | Branch conversation |
+| /export | sage-export | Export conversation |
+| /diff | sage-show-diff | Show pending changes |
+| /commit | sage-commit | Commit via magit |
+| /undo | sage-undo-last | Undo last AI change |
+| /map | sage-project-map | Show project structure |
+| /memory | sage-memory-menu | Memory management |
+| /tools | sage-list-tools | List available tools |
+| /cost | sage-show-cost | Show API costs |
+
+* Environment Variables
+
+| Variable | Description | Default |
+|----------+-------------+---------|
+| SAGE_YOLO | Enable all dangerous features | nil |
+| SAGE_ENABLE_DANGEROUS_TOOLS | Enable eval_elisp | nil |
+| SAGE_ENABLE_TOOL_FACTORY | Enable custom tool creation | nil |
+| GEMINI_API_KEY | Gemini API key | - |
+| OPENAI_API_KEY | OpenAI API key | - |
+| SAGE_MODEL | Default model | gemini-2.0-flash-exp |
+| SAGE_PROVIDER | Default provider | gemini |
+
+* Per-Project Configuration
+
+Use =.dir-locals.el= for per-project settings:
+
+#+begin_src elisp
+;; .dir-locals.el
+((nil . ((sage-provider . ollama)
+         (sage-model . "llama3.2")
+         (sage-yolo-mode . t)
+         (sage-enable-dangerous-tools . t))))
+#+end_src
+
+Or use environment variables in a =.envrc= (with direnv):
+
+#+begin_src bash
+# .envrc
+export SAGE_YOLO=1
+export SAGE_MODEL=gpt-4o
+export SAGE_PROVIDER=openai
+#+end_src
