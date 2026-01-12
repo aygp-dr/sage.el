@@ -1,0 +1,294 @@
+#+TITLE: Byte-Compile Warnings: Complete Breakdown
+#+AUTHOR: Jason Walsh
+#+EMAIL: j@wal.sh
+#+DATE: 2026-01-11
+#+OPTIONS: toc:2 num:t
+#+STARTUP: showall
+
+* Summary
+
+Total warnings: *28*
+Bead: =gemini-repl-010-wy6=
+Branch: =fix/byte-compile-warnings=
+
+| Category | Count | Files Affected |
+|----------+-------+----------------|
+| Free variables | 5 | sage.el, sage-project.el, sage-queue.el, sage-reflect.el |
+| Unknown functions | 8 | sage.el, sage-context.el, sage-emacs.el, sage-session.el, sage-tools.el, sage-queue.el |
+| Docstring quoting | 6 | sage-context.el, sage-project.el, sage-queue.el |
+| Docstring width | 2 | sage-project.el |
+| Unused variables | 2 | sage-emacs.el, sage-queue.el |
+| Obsolete macros | 1 | sage-reflect.el |
+
+* Category 1: Free Variable Warnings (5)
+
+These require =defvar= declarations at the top of the file.
+
+** sage.el:347:26
+
+#+begin_example
+Warning: reference to free variable 'url-http-end-of-headers'
+#+end_example
+
+*Fix:*
+#+begin_src elisp
+(defvar url-http-end-of-headers)  ; Defined in url-http.el
+#+end_src
+
+** sage-project.el:79:14
+
+#+begin_example
+Warning: reference to free variable 'sage-project-directory'
+#+end_example
+
+*Analysis:* This appears to be a forward reference to a defcustom. Need to
+ensure proper ordering or add a defvar.
+
+*Fix:*
+#+begin_src elisp
+;; Move defcustom before first use, or add:
+(defvar sage-project-directory)
+#+end_src
+
+** sage-queue.el:296:19 and 377:40
+
+#+begin_example
+Warning: reference to free variable 'sage-queue-watch-mode'
+#+end_example
+
+*Analysis:* This is a minor mode variable. The define-minor-mode macro
+should define it, but the byte-compiler doesn't see it.
+
+*Fix:*
+#+begin_src elisp
+(defvar sage-queue-watch-mode)  ; Defined by define-minor-mode
+#+end_src
+
+** sage-reflect.el:104:6
+
+#+begin_example
+Warning: reference to free variable '--cl-block-sage-reflect-check-context--'
+#+end_example
+
+*Analysis:* This is a cl-lib internal variable from cl-block. Usually
+indicates a macro expansion issue.
+
+*Fix:* Investigate the cl-block usage in sage-reflect-check-context.
+
+* Category 2: Unknown Function Warnings (8)
+
+These require =declare-function= statements for optional dependencies.
+
+** sage.el:780-782 (org-mode functions)
+
+#+begin_example
+Warning: the function 'org-end-of-subtree' is not known to be defined.
+Warning: the function 'org-back-to-heading' is not known to be defined.
+#+end_example
+
+*Fix:*
+#+begin_src elisp
+(declare-function org-back-to-heading "org" (&optional invisible-ok))
+(declare-function org-end-of-subtree "org" (&optional invisible-ok to-heading))
+#+end_src
+
+** sage-context.el:232:8
+
+#+begin_example
+Warning: the function 'sage--request' is not known to be defined.
+#+end_example
+
+*Analysis:* Cross-module dependency. sage-context.el uses sage--request
+from sage.el.
+
+*Fix:*
+#+begin_src elisp
+(declare-function sage--request "sage" (provider model messages &optional callback))
+#+end_src
+
+** sage-emacs.el:78-95 (org-element functions)
+
+#+begin_example
+Warning: the function 'org-element-type' is not known to be defined.
+Warning: the function 'org-element-property' is not known to be defined.
+#+end_example
+
+*Fix:*
+#+begin_src elisp
+(declare-function org-element-type "org-element" (element))
+(declare-function org-element-property "org-element" (property element))
+#+end_src
+
+** sage-session.el:377:45
+
+#+begin_example
+Warning: the function 'parse-iso8601-time-string' is not known to be defined.
+#+end_example
+
+*Analysis:* This function is from iso8601.el (Emacs 27+).
+
+*Fix:*
+#+begin_src elisp
+(declare-function parse-iso8601-time-string "iso8601" (string))
+#+end_src
+
+** sage-tools.el:674:31
+
+#+begin_example
+Warning: the function 'projectile-project-files' is not known to be defined.
+#+end_example
+
+*Analysis:* Optional projectile integration.
+
+*Fix:*
+#+begin_src elisp
+(declare-function projectile-project-files "projectile" (project-root))
+#+end_src
+
+** sage-queue.el:437:26
+
+#+begin_example
+Warning: the function 'sage-exec' is not known to be defined.
+#+end_example
+
+*Analysis:* Cross-module dependency.
+
+*Fix:*
+#+begin_src elisp
+(declare-function sage-exec "sage" (prompt &optional callback))
+#+end_src
+
+* Category 3: Docstring Quoting Issues (6)
+
+Emacs docstrings should use =\='= for quotes, not ='=.
+
+** sage-context.el
+
+| Line | Location |
+|------+----------|
+| 57 | defcustom sage-context-default-strategy |
+| 128 | defun sage-context-tokens |
+| 138 | defun sage-context-tokens-detailed |
+| 301 | defun sage-context-compact |
+
+*Fix:* Replace ='= with =\='= in docstrings. Example:
+
+#+begin_example
+;; Before:
+"Uses 'truncate' strategy..."
+
+;; After:
+"Uses \='truncate\=' strategy..."
+#+end_example
+
+** sage-project.el:588
+
+#+begin_example
+Warning: docstring has wrong usage of unescaped single quotes
+#+end_example
+
+*Fix:* Same as above.
+
+** sage-queue.el:196
+
+#+begin_example
+Warning: docstring has wrong usage of unescaped single quotes
+#+end_example
+
+*Fix:* Same as above.
+
+* Category 4: Docstring Width Issues (2)
+
+Docstrings should not exceed 80 characters per line.
+
+** sage-project.el:124
+
+#+begin_example
+Warning: custom-declare-variable 'sage-project-encode-dots' docstring wider than 80 characters
+#+end_example
+
+*Fix:* Wrap docstring to 80 characters.
+
+** sage-project.el:373
+
+#+begin_example
+Warning: docstring wider than 80 characters
+#+end_example
+
+*Fix:* Wrap docstring to 80 characters.
+
+* Category 5: Unused Variables (2)
+
+** sage-emacs.el:136:17
+
+#+begin_example
+Warning: Unused lexical variable 'begin'
+#+end_example
+
+*Analysis:* Variable bound in let but never used.
+
+*Fix:* Either use the variable or prefix with underscore =_begin=.
+
+** sage-queue.el:321:11
+
+#+begin_example
+Warning: Unused lexical variable 'content'
+#+end_example
+
+*Fix:* Same as above.
+
+* Category 6: Obsolete Macros (1)
+
+** sage-reflect.el:431:8
+
+#+begin_example
+Warning: 'when-let' is an obsolete macro (as of 31.1); use 'when-let*' or 'and-let*' instead.
+#+end_example
+
+*Fix:*
+#+begin_src elisp
+;; Before:
+(when-let (value (some-function))
+  ...)
+
+;; After:
+(when-let* ((value (some-function)))
+  ...)
+#+end_src
+
+* Fix Implementation Order
+
+** Phase 1: Quick Wins (15 minutes)
+1. [ ] Add all =defvar= declarations
+2. [ ] Add all =declare-function= statements
+3. [ ] Fix obsolete =when-let= -> =when-let*=
+
+** Phase 2: Docstrings (30 minutes)
+1. [ ] Fix quote escaping (=\='=)
+2. [ ] Wrap long docstrings to 80 chars
+
+** Phase 3: Code Cleanup (15 minutes)
+1. [ ] Fix or suppress unused variable warnings
+2. [ ] Investigate =--cl-block-= issue in sage-reflect.el
+
+* Verification
+
+After fixes, run:
+
+#+begin_src bash
+# Strict byte-compile (fails on warnings)
+make elisp-check-syntax
+
+# Regular compile
+make compile
+
+# Full test suite
+make test-all
+#+end_src
+
+* References
+
+- [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Byte-Compilation.html][Emacs Lisp Manual: Byte Compilation]]
+- [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Declare-Form.html][declare-function Documentation]]
+- [[https://github.com/purcell/package-lint][package-lint]]
+- Bead: =gemini-repl-010-wy6=

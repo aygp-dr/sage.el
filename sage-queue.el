@@ -49,6 +49,12 @@
 (require 'json)
 (require 'filenotify)
 
+;; Forward declaration for minor mode variable
+(defvar sage-queue-watch-mode)
+
+;; Declare functions from sage.el
+(declare-function sage-exec "sage" (prompt))
+
 ;;; Customization
 
 (defgroup sage-queue nil
@@ -195,7 +201,7 @@ CONTEXT is optional metadata (alist)."
 ;;;###autoload
 (defun sage-queue-respond (request-id status content &optional metadata)
   "Write a response for REQUEST-ID.
-STATUS is 'success or 'error.
+STATUS is \\='success or \\='error.
 CONTENT is the response content.
 METADATA is optional additional data."
   (interactive
@@ -318,7 +324,7 @@ HANDLER-FN should accept a request alist and return (status . content)."
   "Process REQUEST and generate response."
   (let* ((id (alist-get 'id request))
          (type (alist-get 'type request))
-         (content (alist-get 'content request))
+         (_content (alist-get 'content request))
          (handler (gethash type sage-queue--request-handlers)))
 
     (if handler

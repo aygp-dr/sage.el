@@ -20,6 +20,9 @@
 (require 'project nil t)
 (require 'projectile nil t)
 
+;; Declare functions from projectile
+(declare-function projectile-project-files "projectile" (project-root))
+
 ;; Declare functions from sage.el
 (declare-function sage--get-workspace "sage" ())
 (declare-function sage--safe-path-p "sage" (path))

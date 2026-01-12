@@ -32,6 +32,9 @@
 
 (require 'cl-lib)
 
+;; Declare functions from sage.el
+(declare-function sage--request "sage" (messages tools callback))
+
 ;;; Customization
 
 (defgroup sage-context nil
@@ -57,9 +60,9 @@
 (defcustom sage-context-default-strategy 'sliding-window
   "Default compaction strategy.
 Options:
-  'sliding-window - Drop oldest messages
-  'summarization  - Use LLM to summarize old messages
-  'hybrid         - Combine both strategies"
+  \\='sliding-window - Drop oldest messages
+  \\='summarization  - Use LLM to summarize old messages
+  \\='hybrid         - Combine both strategies"
   :type '(choice (const :tag "Sliding Window" sliding-window)
                  (const :tag "Summarization" summarization)
                  (const :tag "Hybrid" hybrid))
@@ -127,7 +130,7 @@ This is a rough approximation - actual tokenization varies by model."
 
 (defun sage-context-tokens (messages)
   "Count total tokens in MESSAGES.
-MESSAGES is a list of message alists with 'role and 'content keys.
+MESSAGES is a list of message alists with \\='role and \\='content keys.
 Returns an integer representing the total token count."
   (let ((total 0))
     (dolist (msg messages)
@@ -137,7 +140,7 @@ Returns an integer representing the total token count."
 
 (defun sage-context-tokens-detailed (messages)
   "Count tokens in MESSAGES with detailed breakdown.
-MESSAGES is a list of message alists with 'role and 'content keys.
+MESSAGES is a list of message alists with \\='role and \\='content keys.
 Returns alist with:
   - total: total token count
   - by-role: hash table of tokens per role
@@ -302,9 +305,9 @@ Summary:" (sage-context--format-messages-for-summary messages)))
   "Compact MESSAGES using STRATEGY.
 STRATEGY defaults to `sage-context-default-strategy'.
 Available strategies:
-  - 'sliding-window: Keep most recent N messages
-  - 'summarization: Summarize old messages with LLM
-  - 'hybrid: Combine both approaches
+  - \\='sliding-window: Keep most recent N messages
+  - \\='summarization: Summarize old messages with LLM
+  - \\='hybrid: Combine both approaches
 
 Returns compacted message list."
   (let ((strat (or strategy sage-context-default-strategy)))
