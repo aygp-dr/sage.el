@@ -30,14 +30,20 @@ INTEGRATION_FILES = sage-magit.el \
 
 ELC_FILES = $(EL_FILES:.el=.elc)
 
-# Test files
+# Test files (core - run in CI)
 TEST_FILES = test/sage-test.el \
              test/sage-context-test.el \
              test/sage-emacs-test.el \
              test/sage-memory-test.el \
              test/sage-project-test.el \
              test/sage-queue-test.el \
-             test/sage-ratelimit-test.el
+             test/sage-ratelimit-test.el \
+             test/sage-reflect-test.el \
+             test/sage-session-test.el \
+             test/sage-tools-test.el
+
+# Extended tests (slower, optional)
+EXTENDED_TEST_FILES = test/sage-stress-test.el
 
 all: compile
 

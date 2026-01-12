@@ -312,7 +312,7 @@
    (sage-project-append '(:role "assistant" :content "Two"))
    (sage-project-append '(:role "user" :content "Three"))
    (let ((stats (sage-project-stats)))
-     (should (string-match-p "3 messages" stats)))))
+     (should (string-match-p "Messages: 3" stats)))))
 
 ;;; Performance Benchmarks
 

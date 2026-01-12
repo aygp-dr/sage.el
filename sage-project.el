@@ -209,9 +209,18 @@ Falls back to `default-directory' if no project found."
   "Return current timestamp in ISO 8601 format."
   (format-time-string "%Y-%m-%dT%H:%M:%S%z"))
 
+(defun sage-project--generate-uuid ()
+  "Generate a unique session/message ID.
+Format: YYYYMMDD-HHMMSS-XXXXXXXX where X is random hex.
+This provides 32 bits of randomness per timestamp."
+  (format "%s-%08x"
+          (format-time-string "%Y%m%d-%H%M%S")
+          (random (expt 16 8))))
+
 (defun sage-project--create-message (role content)
   "Create a message plist with ROLE and CONTENT."
-  `(:role ,role
+  `(:uuid ,(sage-project--generate-uuid)
+    :role ,role
     :content ,content
     :timestamp ,(sage-project--timestamp)))
 
