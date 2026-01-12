@@ -100,30 +100,28 @@ Each entry: (timestamp threshold-level message)")
 (defun sage-reflect-check-context (usage-ratio)
   "Check context USAGE-RATIO and issue warnings at thresholds.
 Returns a warning message if threshold crossed, nil otherwise."
-  (unless sage-reflect-enabled
-    (cl-return-from sage-reflect-check-context nil))
+  (when sage-reflect-enabled
+    (let ((warning nil)
+          (thresholds sage-reflect-warning-thresholds))
+      ;; Find highest threshold crossed
+      (dolist (threshold thresholds)
+        (when (and (>= usage-ratio threshold)
+                   (< sage-reflect--last-threshold-warned threshold))
+          (setq warning (sage-reflect--make-context-warning usage-ratio threshold))
+          (setq sage-reflect--last-threshold-warned threshold)))
 
-  (let ((warning nil)
-        (thresholds sage-reflect-warning-thresholds))
-    ;; Find highest threshold crossed
-    (dolist (threshold thresholds)
-      (when (and (>= usage-ratio threshold)
-                 (< sage-reflect--last-threshold-warned threshold))
-        (setq warning (sage-reflect--make-context-warning usage-ratio threshold))
-        (setq sage-reflect--last-threshold-warned threshold)))
-
-    ;; Record warning
-    (when warning
-      (push (list (current-time) sage-reflect--last-threshold-warned warning)
-            sage-reflect--context-warnings)
-      ;; Log if enabled
-      (when (and sage-reflect-log-insights
-                 (fboundp 'sage-log-message))
-        (sage-log-message 'warn "context_warning"
-                          `((usage . ,usage-ratio)
-                            (threshold . ,sage-reflect--last-threshold-warned)
-                            (message . ,warning)))))
-    warning))
+      ;; Record warning
+      (when warning
+        (push (list (current-time) sage-reflect--last-threshold-warned warning)
+              sage-reflect--context-warnings)
+        ;; Log if enabled
+        (when (and sage-reflect-log-insights
+                   (fboundp 'sage-log-message))
+          (sage-log-message 'warn "context_warning"
+                            `((usage . ,usage-ratio)
+                              (threshold . ,sage-reflect--last-threshold-warned)
+                              (message . ,warning)))))
+      warning)))
 
 (defun sage-reflect--make-context-warning (usage threshold)
   "Create context warning message for USAGE at THRESHOLD."
