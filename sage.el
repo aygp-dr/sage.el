@@ -54,6 +54,13 @@
 (require 'sage-session)
 (require 'sage-context)
 
+;; Silence byte-compiler warnings for dynamically-bound variables
+(defvar url-http-end-of-headers)
+
+;; Declare functions from org-mode
+(declare-function org-back-to-heading "org" (&optional invisible-ok))
+(declare-function org-end-of-subtree "org" (&optional invisible-ok to-heading))
+
 ;;; Version
 
 (defconst sage-version "0.1.0"

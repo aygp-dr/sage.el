@@ -46,6 +46,9 @@
 (require 'cl-lib)
 (require 'project nil t)  ; Optional dependency
 
+;; Forward declaration for defcustom :set function
+(defvar sage-project-directory)
+
 ;;; Customization
 
 (defgroup sage-project nil
@@ -123,8 +126,8 @@ When exceeded, oldest messages are automatically archived."
 
 (defcustom sage-project-encode-dots t
   "When non-nil, encode dots as dashes in path encoding.
-Set to t to match Claude Code conventions (recommended for `claude-shared' preset).
-Set to nil to preserve dots (legacy behavior)."
+Set to t to match Claude Code conventions (recommended for
+\\='claude-shared preset).  Set to nil to preserve dots (legacy behavior)."
   :type 'boolean
   :group 'sage-project)
 
@@ -372,8 +375,8 @@ Automatically saves if `sage-project-auto-save' is t."
 ;;;###autoload
 (defun sage-project-archive (&optional name messages)
   "Archive current conversation to history.
-NAME is optional archive name (defaults to timestamp).
-MESSAGES is optional list of messages to archive (defaults to current conversation)."
+NAME is optional archive name (defaults to timestamp).  MESSAGES is
+optional list of messages to archive (defaults to current conversation)."
   (interactive)
   (let* ((proj-dir (sage-project-dir))
          (history-dir (sage-project--history-dir proj-dir))
@@ -587,7 +590,7 @@ MESSAGES should be in chronological order."
 ;;;###autoload
 (defun sage-project-export (filename &optional format)
   "Export current project conversation to FILENAME.
-FORMAT can be 'json or 'markdown (default: 'json)."
+FORMAT can be \\='json or \\='markdown (default: \\='json)."
   (interactive "FExport to file: ")
   (let ((fmt (or format 'json))
         (msgs (reverse sage-project--current-conversation))

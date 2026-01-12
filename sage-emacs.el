@@ -37,6 +37,10 @@
 (require 'org nil t)
 (require 'dired nil t)
 
+;; Declare functions from org-element
+(declare-function org-element-type "org-element" (element))
+(declare-function org-element-property "org-element" (property element))
+
 ;;; Customization
 
 (defgroup sage-emacs nil
@@ -75,9 +79,9 @@ Common values: \"ai\", \"gemini\", \"llm\"."
   (save-excursion
     (org-back-to-heading t)
     (let* ((element (org-element-at-point))
-           (begin (org-element-property :begin element))
+           (_begin (org-element-property :begin element))
            (end (org-element-property :end element))
-           (content (buffer-substring-no-properties begin end))
+           (content (buffer-substring-no-properties (point) end))
            (heading (org-element-property :raw-value element)))
       (sage)
       (with-current-buffer sage-buffer-name
@@ -133,7 +137,7 @@ Sends content to AI and inserts response after the block."
           (case-fold-search t))
       (while (re-search-forward block-re nil t)
         (let* ((element (org-element-at-point))
-               (begin (org-element-property :begin element))
+               (_begin (org-element-property :begin element))
                (end (org-element-property :end element))
                (content (org-element-property :value element)))
           (when content

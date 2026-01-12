@@ -21,6 +21,9 @@
 (require 'cl-lib)
 (require 'json)
 
+;; Declare functions from iso8601
+(declare-function parse-iso8601-time-string "iso8601" (string))
+
 ;;; Customization
 
 (defgroup sage-session nil

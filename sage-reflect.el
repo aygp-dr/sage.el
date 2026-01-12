@@ -428,7 +428,7 @@ This implements the Reflection pattern for learning from sessions."
       (insert "** Tool Usage **\n")
       (insert (format "Total calls: %d\n" (alist-get 'total-calls tool-analysis)))
       (insert (format "Error rate: %d%%\n" (alist-get 'error-rate tool-analysis)))
-      (when-let ((top (alist-get 'top-tools tool-analysis)))
+      (when-let* ((top (alist-get 'top-tools tool-analysis)))
         (insert "Top tools: ")
         (insert (mapconcat (lambda (tl) (format "%s(%d)" (car tl) (cdr tl)))
                            top ", "))
