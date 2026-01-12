@@ -52,6 +52,19 @@ Each tool is an alist with keys: name, description, parameters, execute.")
 (defvar sage-workspace)
 (defvar sage-yolo-mode)
 (defvar sage-confirm-safe-tools)
+(defvar sage-enable-dangerous-tools
+  (or (getenv "SAGE_ENABLE_DANGEROUS_TOOLS")
+      (getenv "SAGE_YOLO"))
+  "When non-nil, enable dangerous tools like eval_elisp.
+These tools can execute arbitrary code and should only be enabled
+in trusted environments.
+
+Can be set via environment variables:
+  SAGE_ENABLE_DANGEROUS_TOOLS=1
+  SAGE_YOLO=1
+
+Or via .dir-locals.el for per-project settings:
+  ((nil . ((sage-enable-dangerous-tools . t))))")
 
 ;; Update safe tools list when this module loads
 (defvar sage-safe-tools
@@ -321,11 +334,15 @@ Uses `directory-files-recursively' and `string-match' for portable search."
 ;;; EMACS-SPECIFIC TOOLS
 
 (defun sage--tool-eval-elisp (args)
-  "Evaluate Elisp code safely."
-  (let ((code (alist-get 'code args)))
-    (condition-case err
-        (format "%S" (eval (read code) t))
-      (error (format "Eval error: %s" (error-message-string err))))))
+  "Evaluate Elisp code.
+WARNING: This tool executes arbitrary code. Only available when
+`sage-enable-dangerous-tools' is non-nil."
+  (if (bound-and-true-p sage-enable-dangerous-tools)
+      (let ((code (alist-get 'code args)))
+        (condition-case err
+            (format "%S" (eval (read code) t))
+          (error (format "Eval error: %s" (error-message-string err)))))
+    "ERROR: eval_elisp is disabled. Set sage-enable-dangerous-tools to t to enable."))
 
 (defun sage--tool-describe-function (args)
   "Get function documentation."

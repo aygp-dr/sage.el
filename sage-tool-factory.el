@@ -33,6 +33,22 @@
 
 ;;; Configuration
 
+(defcustom sage-enable-tool-factory
+  (or (getenv "SAGE_ENABLE_TOOL_FACTORY")
+      (getenv "SAGE_YOLO"))
+  "When non-nil, enable the tool factory for creating custom tools.
+WARNING: The tool factory allows arbitrary code execution and persistence.
+Only enable in trusted environments.
+
+Can be set via environment variables:
+  SAGE_ENABLE_TOOL_FACTORY=1
+  SAGE_YOLO=1
+
+Or via .dir-locals.el for per-project settings:
+  ((nil . ((sage-enable-tool-factory . t))))"
+  :type 'boolean
+  :group 'sage)
+
 (defcustom sage-custom-tools-file
   (expand-file-name "sage-custom-tools.el" user-emacs-directory)
   "File where custom tools are persisted."
@@ -109,7 +125,11 @@ ARGS should contain:
 - name: Tool name (string)
 - description: What the tool does (string)
 - parameters: JSON schema for parameters (optional)
-- code: Elisp code as a string that uses `args` variable"
+- code: Elisp code as a string that uses `args` variable
+
+Requires `sage-enable-tool-factory' to be non-nil."
+  (unless sage-enable-tool-factory
+    (error "Tool factory is disabled. Set sage-enable-tool-factory to t to enable"))
   (let* ((name (alist-get 'name args))
          (description (alist-get 'description args))
          (parameters (or (alist-get 'parameters args)
@@ -277,10 +297,13 @@ ARGS should contain:
 
 ;;;###autoload
 (defun sage-tool-factory-init ()
-  "Initialize the tool factory system."
+  "Initialize the tool factory system.
+Only registers factory tools if `sage-enable-tool-factory' is non-nil."
   (interactive)
-  ;; Register factory tools
-  (when (fboundp 'sage-tools--register)
+  (if (not sage-enable-tool-factory)
+      (message "Tool factory disabled. Set sage-enable-tool-factory to t to enable.")
+    ;; Register factory tools
+    (when (fboundp 'sage-tools--register)
     (sage-tools--register
      "create_tool"
      "Create a new custom tool that persists across sessions"
@@ -321,17 +344,17 @@ ARGS should contain:
        (required . []))
      #'sage--tool-reload-tools))
 
-  ;; Create built-in custom tools
-  (sage-tool-factory--create-hackernews-tool)
-  (sage-tool-factory--create-weather-tool)
-  (sage-tool-factory--create-uuid-tool)
-  (sage-tool-factory--create-timestamp-tool)
+    ;; Create built-in custom tools
+    (sage-tool-factory--create-hackernews-tool)
+    (sage-tool-factory--create-weather-tool)
+    (sage-tool-factory--create-uuid-tool)
+    (sage-tool-factory--create-timestamp-tool)
 
-  ;; Load user's custom tools
-  (sage-tool-factory--load-tools)
+    ;; Load user's custom tools
+    (sage-tool-factory--load-tools)
 
-  (message "Tool factory initialized with %d custom tools"
-           (length sage-custom-tools)))
+    (message "Tool factory initialized with %d custom tools"
+             (length sage-custom-tools))))
 
 (provide 'sage-tool-factory)
 ;;; sage-tool-factory.el ends here
