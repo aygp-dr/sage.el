@@ -5,7 +5,7 @@
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "28.1") (request "0.3.2") (markdown-mode "2.5"))
 ;; Keywords: ai, tools, llm, gemini, ollama
-;; URL: https://github.com/aygp-dr/sage-010
+;; URL: https://github.com/aygp-dr/sage.el
 
 ;; This file is not part of GNU Emacs.
 

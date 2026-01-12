@@ -4,6 +4,8 @@
 ;; Author: Jason Walsh <j@wal.sh>
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "28.1"))
+;; Keywords: ai, tools, llm, sessions
+;; URL: https://github.com/aygp-dr/sage.el
 
 ;; This file is not part of GNU Emacs.
 

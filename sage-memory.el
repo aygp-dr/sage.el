@@ -5,7 +5,7 @@
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "28.1"))
 ;; Keywords: ai, tools, memory
-;; URL: https://github.com/aygp-dr/sage-010
+;; URL: https://github.com/aygp-dr/sage.el
 
 ;; This file is not part of GNU Emacs.
 
