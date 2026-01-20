@@ -1,0 +1,252 @@
+#+TITLE: sage.el Developer Experience (DX) Design
+#+AUTHOR: AYGP-DR
+#+DATE: 2026-01-20
+#+STARTUP: overview
+
+* Overview
+
+This document outlines the Developer Experience (DX) improvements for sage.el,
+focusing on reducing friction for new users and improving productivity for
+experienced developers.
+
+** Goals
+
+1. *Zero-friction setup* - Working sage in under 2 minutes
+2. *Fail fast, fail clear* - Actionable error messages
+3. *Discoverability* - Users find features naturally
+4. *Debuggability* - Easy troubleshooting when things break
+5. *Consistency* - Predictable behavior across providers
+
+* Current Pain Points
+
+| Issue | Impact | Priority |
+|-------+--------+----------|
+| API key configuration confusing | Blocks new users | P0 |
+| No setup validation command | Users don't know if config works | P0 |
+| Error messages lack actionable steps | Users stuck on failures | P1 |
+| Too many org files to navigate | Information overload | P1 |
+| No interactive tutorial | Steep learning curve | P2 |
+| Provider differences undocumented | Unexpected behavior | P2 |
+
+* Proposed Improvements
+
+** P0: First-Run Experience
+
+*** M-x sage-doctor
+
+A diagnostic command that validates the entire setup:
+
+#+BEGIN_SRC elisp
+(defun sage-doctor ()
+  "Run diagnostic checks on sage configuration."
+  (interactive)
+  ;; Check items:
+  ;; 1. Emacs version >= 28.1
+  ;; 2. Required packages (magit, cl-lib, json, url)
+  ;; 3. Provider configuration
+  ;; 4. API key presence (not validity)
+  ;; 5. Network connectivity to provider
+  ;; 6. Ollama running (if provider=ollama)
+  ;; 7. Workspace permissions
+  )
+#+END_SRC
+
+Output format:
+#+BEGIN_EXAMPLE
+sage-doctor results:
+  [OK] Emacs 30.1 (>= 28.1 required)
+  [OK] cl-lib loaded
+  [OK] json loaded
+  [OK] magit 3.4.0 installed
+  [OK] Provider: gemini
+  [OK] GEMINI_API_KEY set (AIza...)
+  [!!] Network: cannot reach googleapis.com
+       -> Check firewall/proxy settings
+
+Run M-x sage-doctor-fix to attempt automatic fixes.
+#+END_EXAMPLE
+
+*** M-x sage-setup-wizard
+
+Interactive guided setup for first-time users:
+
+1. Select provider (gemini/ollama/openai)
+2. Configure API key (with link to get one)
+3. Test connection
+4. Run first query
+5. Show next steps
+
+** P0: Actionable Error Messages
+
+Replace generic errors with specific guidance:
+
+| Current | Proposed |
+|---------+----------|
+| "API error" | "Gemini API returned 401: Invalid API key. Get a new key at https://aistudio.google.com/apikey" |
+| "Connection refused" | "Cannot connect to Ollama at localhost:11434. Start with: ollama serve" |
+| "Rate limited" | "Rate limit reached (15 RPM). Waiting 42s... or switch to gemini-1.5-flash-lite (30 RPM)" |
+
+Implementation:
+#+BEGIN_SRC elisp
+(defun sage--handle-error (error-data provider)
+  "Convert ERROR-DATA from PROVIDER into actionable message."
+  (let ((code (alist-get 'code error-data))
+        (message (alist-get 'message error-data)))
+    (pcase (cons provider code)
+      (`(gemini . 401)
+       (user-error "Invalid API key. Get one at: https://aistudio.google.com/apikey"))
+      (`(gemini . 429)
+       (sage--handle-rate-limit error-data))
+      (`(openai . 401)
+       (user-error "Invalid OpenAI API key. Check at: https://platform.openai.com/api-keys"))
+      (_
+       (user-error "API error: %s" message)))))
+#+END_SRC
+
+** P1: Discoverability
+
+*** Improved Help System
+
+=M-x sage-help= showing:
+- Slash commands with examples
+- Key bindings in sage-mode
+- Links to relevant documentation
+- Quick tips based on current state
+
+*** Which-key Integration
+
+For users with which-key installed:
+#+BEGIN_SRC elisp
+(with-eval-after-load 'which-key
+  (which-key-add-key-based-replacements
+    "C-c s" "sage"
+    "C-c s s" "start REPL"
+    "C-c s r" "send region"
+    "C-c s b" "send buffer"
+    "C-c s d" "doctor"
+    "C-c s h" "help"))
+#+END_SRC
+
+*** Command Completion in REPL
+
+Tab completion for slash commands:
+#+BEGIN_EXAMPLE
+sage> /mo<TAB>
+  /model       - Switch model
+  /models      - List available models
+#+END_EXAMPLE
+
+** P1: Documentation Consolidation
+
+Current state: 20+ org files causing decision paralysis.
+
+Proposed structure:
+#+BEGIN_SRC text
+README.org         # Single entry point (kept short)
+├── QUICKSTART.org # 5-minute setup (exists, keep)
+├── docs/
+│   ├── USER-GUIDE.org    # Consolidated user docs
+│   ├── DEVELOPER.org     # Contributing, architecture
+│   ├── TOOLS.org         # Tool reference (consolidate 3 files)
+│   └── PROVIDERS.org     # Provider-specific details
+└── CHANGELOG.org         # Release notes
+#+END_SRC
+
+Action items:
+- [ ] Merge SETUP.org content into QUICKSTART.org
+- [ ] Consolidate TOOLS-*.org into docs/TOOLS.org
+- [ ] Create docs/USER-GUIDE.org from scattered docs
+- [ ] Add "See also" links between documents
+
+** P2: Interactive Tutorial
+
+=M-x sage-tutorial= providing hands-on introduction:
+
+#+BEGIN_SRC elisp
+(defvar sage-tutorial-steps
+  '(("Welcome" . "sage.el is an AI coding assistant...")
+    ("Basic Chat" . "Try typing: What is Emacs?")
+    ("Slash Commands" . "Type /help to see available commands")
+    ("Tool Calling" . "Try: List files in current directory")
+    ("Code Help" . "Select some code and try M-x sage-explain-code")
+    ("Next Steps" . "Read QUICKSTART.org for more features")))
+#+END_SRC
+
+** P2: Debug Mode
+
+=M-x sage-debug-mode= for troubleshooting:
+
+#+BEGIN_SRC elisp
+(define-minor-mode sage-debug-mode
+  "Toggle verbose logging for sage operations."
+  :lighter " sage-dbg"
+  (if sage-debug-mode
+      (progn
+        (setq sage--debug-log-buffer (get-buffer-create "*sage-debug*"))
+        (message "sage debug mode enabled. See *sage-debug* buffer."))
+    (setq sage--debug-log-buffer nil)))
+#+END_SRC
+
+Logs:
+- HTTP requests/responses (sanitized)
+- Tool call arguments and results
+- Token counts per message
+- Rate limit state changes
+
+* Implementation Roadmap
+
+** Phase 1: Foundation (This Branch)
+
+| Task | Status | Owner |
+|------+--------+-------|
+| Create sage-doctor command | TODO | |
+| Implement actionable errors | TODO | |
+| Add sage-help command | TODO | |
+| Add which-key integration | TODO | |
+
+** Phase 2: Onboarding
+
+| Task | Status | Owner |
+|------+--------+-------|
+| Create sage-setup-wizard | TODO | |
+| Add slash command completion | TODO | |
+| Consolidate documentation | TODO | |
+
+** Phase 3: Advanced
+
+| Task | Status | Owner |
+|------+--------+-------|
+| Interactive tutorial | TODO | |
+| Debug mode | TODO | |
+| Provider comparison docs | TODO | |
+
+* Success Metrics
+
+| Metric | Current | Target |
+|--------+---------+--------|
+| Time to first successful query | ~10 min | <2 min |
+| Support questions about setup | High | Low |
+| Users discovering tool calling | Unknown | 80% |
+| Error messages with action items | ~10% | 100% |
+
+* Related Files
+
+- [[file:sage.el][sage.el]] - Core implementation
+- [[file:QUICKSTART.org][QUICKSTART.org]] - Current quickstart
+- [[file:SETUP.org][SETUP.org]] - Current setup guide
+- [[file:docs/][docs/]] - Documentation directory
+
+* Notes
+
+** Prior Art
+
+- lsp-mode: =lsp-doctor= for diagnostics
+- magit: Built-in which-key descriptions
+- org-mode: Interactive tutorial (=org-tutorial=)
+- Doom Emacs: =doom doctor= for system checks
+
+** Open Questions
+
+1. Should sage-doctor attempt auto-fixes or just report?
+2. How verbose should debug mode be by default?
+3. Should we add telemetry for DX metrics? (opt-in only)
