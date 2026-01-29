@@ -1,0 +1,278 @@
+#+TITLE: Features to Port from guile-sage
+#+DATE: 2026-01-28
+#+STARTUP: overview
+
+* Overview
+
+Feature comparison between =guile-sage= (Guile Scheme) and =sage.el= (Emacs Lisp).
+Identifies features worth porting to sage.el.
+
+| Feature | guile-sage | sage.el | Priority |
+|---------+------------+---------+----------|
+| Compaction strategies | 5 strategies + eval | 3 strategies | P1 |
+| Agent task loop | beads integration | None | P1 |
+| Structured logging | JSONL + rotation | sage-log.el (basic) | P2 |
+| Self-inspection tools | read_logs, search_logs | None | P2 |
+| XDG directories | Full XDG spec | ~/.emacs.d/sage/ | P3 |
+| IRC notifications | Built-in | None | P3 |
+
+* P1: Compaction Strategies
+
+** Current sage.el (3 strategies)
+- =sliding-window= - Keep N recent messages
+- =summarization= - LLM-based summary
+- =hybrid= - Combination
+
+** guile-sage (5 strategies + evaluation)
+1. =truncate= - Simple N-message truncation
+2. =token-limit= - Token budget-based
+3. =importance= - Score-based with recency weighting
+4. =summarize= - LLM summary with topic extraction
+5. =intent= - Intent-preserving compaction
+
+*** Evaluation Framework
+#+BEGIN_SRC scheme
+(evaluate-compaction original compacted)
+;; Returns:
+;; - compression_ratio
+;; - key_info_retention (0-1)
+;; - intent_preservation (0-1)
+;; - overall_score (0-100)
+#+END_SRC
+
+** Recommendation
+
+Port to sage.el:
+- [ ] =compact-importance= with keyword scoring
+- [ ] =compact-intent= with intent detection
+- [ ] =evaluate-compaction= for strategy comparison
+- [ ] =compact-auto= for automatic strategy selection
+
+Implementation in =sage-context.el=:
+#+BEGIN_SRC elisp
+(defcustom sage-context-compaction-strategies
+  '(sliding-window token-limit importance summarize intent)
+  "Available compaction strategies.")
+
+(defun sage-context-compact-importance (messages &optional keep recency-weight)
+  "Compact MESSAGES keeping KEEP most important.
+RECENCY-WEIGHT (0-1) biases toward recent messages."
+  ...)
+#+END_SRC
+
+* P1: Agent Task Loop
+
+** guile-sage Implementation
+
+Modes:
+- =interactive= - User confirms each action
+- =autonomous= - Runs until task complete
+- =yolo= - No safety checks
+
+Beads integration:
+#+BEGIN_SRC scheme
+(task-create "Fix bug in X" "Description...")  ; Returns task ID
+(task-complete "Fixed by changing Y")          ; Closes current task
+(task-list)                                    ; Lists open tasks
+(task-next)                                    ; Gets next task
+(has-pending-tasks?)                           ; Boolean check
+#+END_SRC
+
+Agent loop:
+#+BEGIN_SRC scheme
+(agent-start)                  ; Begin autonomous loop
+(agent-pause)                  ; Pause for user input
+(agent-continue)               ; Resume
+(agent-status)                 ; Get iteration count, mode, tasks
+#+END_SRC
+
+** Recommendation
+
+Port to sage.el as =sage-agent.el=:
+#+BEGIN_SRC elisp
+(defcustom sage-agent-mode 'interactive
+  "Agent execution mode: interactive, autonomous, yolo.")
+
+(defcustom sage-agent-max-iterations 10
+  "Maximum iterations before requiring confirmation.")
+
+(defun sage-agent-start ()
+  "Start agent task loop."
+  (interactive)
+  ...)
+
+(defun sage-agent-task-create (title description)
+  "Create task via beads if available."
+  ...)
+#+END_SRC
+
+Benefits:
+- Multi-step task automation
+- Persistence across sessions via beads
+- Safety limits (max iterations)
+
+* P2: Structured Logging
+
+** guile-sage Implementation
+
+Location: =.logs/sage.log= (project-local)
+
+Features:
+- Log levels: debug, info, warn, error
+- Structured format with context
+- Log rotation (10MB default, 5 files)
+- Self-inspection tools
+
+Format:
+#+BEGIN_EXAMPLE
+[2026-01-28T10:30:45] [INFO] [tools] Tool executed: read_file duration_ms=23
+[2026-01-28T10:30:46] [ERROR] [ollama] API error: rate limit status=429
+#+END_EXAMPLE
+
+Tools exposed:
+#+BEGIN_SRC scheme
+(read_logs #:lines 50 #:level 'error)
+(search_logs "pattern" #:level 'warn #:limit 100)
+#+END_SRC
+
+** Current sage.el (sage-log.el)
+
+Basic logging exists but:
+- No structured format
+- No rotation
+- No self-inspection tools
+
+** Recommendation
+
+Enhance =sage-log.el=:
+#+BEGIN_SRC elisp
+(defcustom sage-log-file
+  (expand-file-name "sage/logs/sage.log" user-emacs-directory)
+  "Path to sage log file.")
+
+(defcustom sage-log-max-size 10485760
+  "Maximum log file size before rotation.")
+
+(defun sage-log-read-recent (&optional lines level)
+  "Read LINES recent log entries, optionally filtered by LEVEL.")
+
+(defun sage-log-search (pattern &optional level limit)
+  "Search logs for PATTERN.")
+#+END_SRC
+
+Add tools:
+#+BEGIN_SRC elisp
+;; In sage-tools.el
+(sage-register-tool
+ "read_logs"
+ "Read recent log entries for self-inspection"
+ ...)
+
+(sage-register-tool
+ "search_logs"
+ "Search logs for patterns"
+ ...)
+#+END_SRC
+
+* P2: Self-Inspection Tools
+
+** Why This Matters
+
+Allows the AI to:
+- Debug its own behavior
+- Review past tool calls
+- Understand error patterns
+- Learn from session history
+
+** Implementation
+
+#+BEGIN_SRC elisp
+(defun sage--tool-read-logs (args)
+  "Tool: Read recent log entries."
+  (let ((lines (or (alist-get 'lines args) 50))
+        (level (alist-get 'level args)))
+    (sage-log-read-recent lines level)))
+
+(defun sage--tool-search-logs (args)
+  "Tool: Search logs for pattern."
+  (let ((pattern (alist-get 'pattern args))
+        (level (alist-get 'level args))
+        (limit (or (alist-get 'limit args) 100)))
+    (sage-log-search pattern level limit)))
+#+END_SRC
+
+* P3: XDG Directories
+
+** guile-sage Structure
+#+BEGIN_EXAMPLE
+$XDG_CONFIG_HOME/sage/     # ~/.config/sage
+$XDG_DATA_HOME/sage/       # ~/.local/share/sage
+├── sessions/
+├── agents/
+├── projects/
+└── commands/
+$XDG_CACHE_HOME/sage/      # ~/.cache/sage
+$XDG_STATE_HOME/sage/      # ~/.local/state/sage
+#+END_EXAMPLE
+
+** Current sage.el
+#+BEGIN_EXAMPLE
+~/.emacs.d/sage/
+├── projects/
+├── memory/
+└── logs/
+#+END_EXAMPLE
+
+** Recommendation
+
+Low priority - Emacs convention is =user-emacs-directory=.
+Could add optional XDG support via:
+
+#+BEGIN_SRC elisp
+(defcustom sage-use-xdg-directories nil
+  "Use XDG base directory specification for storage.")
+#+END_SRC
+
+* P3: IRC Notifications
+
+** guile-sage Implementation
+
+Sends task events to IRC channel:
+#+BEGIN_SRC scheme
+(notify-task-event "created" task-id title)
+(notify-task-event "completed" task-id result)
+#+END_SRC
+
+** Recommendation
+
+Low priority for sage.el. Could integrate with:
+- =erc= (Emacs IRC client)
+- Desktop notifications via =notifications.el=
+- Slack/Discord webhooks
+
+* Implementation Roadmap
+
+** Phase 1: Compaction (sage-context.el)
+- [ ] Port =compact-importance= with keyword scoring
+- [ ] Add =compact-intent= strategy
+- [ ] Implement =evaluate-compaction=
+- [ ] Add =sage-context-compact-auto=
+
+** Phase 2: Agent Loop (new sage-agent.el)
+- [ ] Create =sage-agent.el= module
+- [ ] Implement agent modes (interactive/autonomous)
+- [ ] Add beads integration (if bd available)
+- [ ] Add iteration limits and safety checks
+
+** Phase 3: Logging Enhancement (sage-log.el)
+- [ ] Add structured log format
+- [ ] Implement log rotation
+- [ ] Add =read_logs= and =search_logs= tools
+- [ ] Expose via tool system
+
+* Related Files
+
+- [[file:DX-DESIGN.org][DX-DESIGN.org]] - Developer experience design
+- [[file:sage-context.el][sage-context.el]] - Current compaction implementation
+- [[file:sage-log.el][sage-log.el]] - Current logging implementation
+- [[/home/jwalsh/ghq/github.com/dsp-dr/guile-sage/][guile-sage/]] - Source project
