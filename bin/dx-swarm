@@ -1,0 +1,255 @@
+#!/usr/bin/env bash
+# dx-swarm - Multi-agent tmux orchestration for sage.el DX work
+# Mirrors the CONTINUE protocol for persistent agent sessions
+#
+# Usage: ./bin/dx-swarm [start|status|stop|prompt]
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+BD="${BD:-/home/jwalsh/bin/bd}"
+WORKTREE_BASE="${REPO_ROOT}/worktrees"
+SESSION_PREFIX="sage-dx"
+
+# Agent assignments: session-name -> (worktree-branch, bead-pattern, description)
+declare -A AGENTS=(
+    ["sage-dx-1"]="feat/sage-doctor:sage-doctor:Implement M-x sage-doctor diagnostic command"
+    ["sage-dx-2"]="feat/compact-importance:compact-importance:Port compact-importance from guile-sage"
+    ["sage-dx-3"]="feat/sage-agent:sage-agent:Create sage-agent.el module"
+)
+
+# CONTINUE-style prompt template
+CONTINUE_PROMPT='You are working on sage.el DX improvements.
+
+Current assignment: %s
+Worktree: %s
+Bead filter: gemini-repl-010*%s*
+
+## Instructions
+
+1. Check bead status: bd list --status open | grep -i "%s"
+2. If your assigned bead is DONE:
+   - Mark it complete: bd close <bead-id>
+   - Find next work: bd ready | head -5
+   - Claim it: bd update <id> --status in_progress
+3. If NOT done:
+   - Continue implementation
+   - Create child beads for subtasks: bd create "Sub: <title>" -p 2
+   - Commit frequently with conventional commits
+   - Push when milestone reached
+
+## Safety Rules
+- NEVER commit secrets (check with: grep -rE "sk-|AIza" .)
+- NEVER use git add -A (add specific files)
+- Test before commit: gmake test
+- Sync beads: bd sync && git push
+
+## When Blocked
+- Create blocker bead: bd create "Blocked: <reason>" -p 0
+- Switch to different task: bd ready
+- Or ask for help in commit message
+
+Start by running: bd list --status open | grep -i "%s"
+'
+
+log() {
+    echo "[$(date '+%H:%M:%S')] $*"
+}
+
+get_open_beads() {
+    local pattern="${1:-}"
+    if [[ -n "$pattern" ]]; then
+        "$BD" list --status open 2>/dev/null | grep -i "$pattern" || true
+    else
+        "$BD" list --status open --limit 10 2>/dev/null || true
+    fi
+}
+
+create_worktree() {
+    local branch="$1"
+    local worktree_path="${WORKTREE_BASE}/${branch#feat/}"
+
+    if [[ -d "$worktree_path" ]]; then
+        log "Worktree exists: $worktree_path"
+        return 0
+    fi
+
+    log "Creating worktree: $branch -> $worktree_path"
+    git worktree add "$worktree_path" -b "$branch" 2>/dev/null || \
+        git worktree add "$worktree_path" "$branch" 2>/dev/null || true
+}
+
+start_session() {
+    local session="$1"
+    local config="${AGENTS[$session]}"
+
+    IFS=':' read -r branch pattern desc <<< "$config"
+    local worktree_path="${WORKTREE_BASE}/${branch#feat/}"
+
+    # Ensure worktree exists
+    create_worktree "$branch"
+
+    if ! [[ -d "$worktree_path" ]]; then
+        log "ERROR: Worktree not found: $worktree_path"
+        return 1
+    fi
+
+    # Check if session already exists
+    if tmux has-session -t "$session" 2>/dev/null; then
+        log "Session exists: $session"
+        return 0
+    fi
+
+    # Format the prompt
+    local prompt
+    prompt=$(printf "$CONTINUE_PROMPT" "$desc" "$worktree_path" "$pattern" "$pattern" "$pattern")
+
+    # Create tmux session
+    log "Starting session: $session"
+    tmux new-session -d -s "$session" -c "$worktree_path"
+
+    # Write prompt to a file for the agent
+    local prompt_file="${worktree_path}/AGENT-PROMPT.md"
+    echo "$prompt" > "$prompt_file"
+
+    # Start claude in the session
+    tmux send-keys -t "$session" "cd '$worktree_path' && claude --resume" Enter
+
+    log "Session $session started in $worktree_path"
+}
+
+cmd_start() {
+    log "Starting DX swarm (3 agents)..."
+
+    # Ensure we're in repo root
+    cd "$REPO_ROOT"
+
+    # Create worktrees directory
+    mkdir -p "$WORKTREE_BASE"
+
+    # Start each agent session
+    for session in "${!AGENTS[@]}"; do
+        start_session "$session"
+        sleep 1  # Brief pause between sessions
+    done
+
+    log "Swarm started. Use: $0 status"
+}
+
+cmd_status() {
+    echo "=== DX Swarm Status ==="
+    echo ""
+
+    echo "Tmux Sessions:"
+    for session in "${!AGENTS[@]}"; do
+        if tmux has-session -t "$session" 2>/dev/null; then
+            echo "  [$session] RUNNING"
+        else
+            echo "  [$session] stopped"
+        fi
+    done
+
+    echo ""
+    echo "Worktrees:"
+    git worktree list | grep -E "feat/(sage-doctor|compact-importance|sage-agent)" || echo "  (none)"
+
+    echo ""
+    echo "Open DX Beads:"
+    get_open_beads "DX:" | head -5 || echo "  (none)"
+
+    echo ""
+    echo "Commands:"
+    echo "  $0 attach <session>  - Attach to session"
+    echo "  $0 prompt <session>  - Re-send CONTINUE prompt"
+    echo "  $0 stop              - Stop all sessions"
+}
+
+cmd_stop() {
+    log "Stopping DX swarm..."
+
+    for session in "${!AGENTS[@]}"; do
+        if tmux has-session -t "$session" 2>/dev/null; then
+            log "Killing session: $session"
+            tmux kill-session -t "$session"
+        fi
+    done
+
+    log "Swarm stopped."
+}
+
+cmd_attach() {
+    local session="${1:-sage-dx-1}"
+    if tmux has-session -t "$session" 2>/dev/null; then
+        tmux attach -t "$session"
+    else
+        echo "Session not found: $session"
+        echo "Available: ${!AGENTS[*]}"
+        exit 1
+    fi
+}
+
+cmd_prompt() {
+    local session="${1:-}"
+
+    if [[ -z "$session" ]]; then
+        # Send to all sessions
+        for s in "${!AGENTS[@]}"; do
+            cmd_prompt "$s"
+        done
+        return
+    fi
+
+    if ! tmux has-session -t "$session" 2>/dev/null; then
+        echo "Session not found: $session"
+        return 1
+    fi
+
+    local config="${AGENTS[$session]}"
+    IFS=':' read -r branch pattern desc <<< "$config"
+
+    local check_msg="Check your work: if done, run 'bd ready' for next task. If not done, continue and track with 'bd create \"Sub: <task>\" -p 2'"
+
+    log "Sending prompt to $session"
+    tmux send-keys -t "$session" "$check_msg" Enter
+}
+
+cmd_help() {
+    cat <<EOF
+dx-swarm - Multi-agent orchestration for sage.el DX work
+
+Usage: $0 <command> [args]
+
+Commands:
+  start           Start 3 tmux sessions with claude agents
+  status          Show swarm status
+  stop            Stop all sessions
+  attach <name>   Attach to a session (sage-dx-1, sage-dx-2, sage-dx-3)
+  prompt [name]   Re-send CONTINUE prompt to session(s)
+  help            Show this help
+
+Environment:
+  BD              Path to bd binary (default: /home/jwalsh/bin/bd)
+
+Examples:
+  $0 start                    # Launch the swarm
+  $0 status                   # Check progress
+  $0 attach sage-dx-1         # Watch agent 1
+  $0 prompt                   # Nudge all agents
+  $0 stop                     # Shutdown
+EOF
+}
+
+# Main dispatch
+case "${1:-help}" in
+    start)  cmd_start ;;
+    status) cmd_status ;;
+    stop)   cmd_stop ;;
+    attach) cmd_attach "${2:-}" ;;
+    prompt) cmd_prompt "${2:-}" ;;
+    help|--help|-h) cmd_help ;;
+    *)
+        echo "Unknown command: $1"
+        cmd_help
+        exit 1
+        ;;
+esac

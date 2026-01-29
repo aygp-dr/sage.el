@@ -23,3 +23,4 @@ gemini-repl-autoloads.el
 # Emacs
 .projectile
 .dir-locals-2.el
+worktrees/

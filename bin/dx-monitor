@@ -1,0 +1,301 @@
+#!/usr/bin/env bash
+# dx-monitor - Monitor progress of DX swarm agents
+# Complements dx-swarm with progress tracking and health checks
+#
+# Usage: ./bin/dx-monitor [once|watch|report]
+
+set -uo pipefail
+# Note: -e removed to handle non-zero exits gracefully
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+BD="${BD:-/home/jwalsh/bin/bd}"
+WORKTREE_BASE="${REPO_ROOT}/worktrees"
+
+# ANSI colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+declare -A WORKTREES=(
+    ["sage-doctor"]="feat/sage-doctor"
+    ["compact-importance"]="feat/compact-importance"
+    ["sage-agent"]="feat/sage-agent"
+    ["feat-dx"]="feat/dx"
+)
+
+declare -A SESSIONS=(
+    ["sage-dx-1"]="sage-doctor"
+    ["sage-dx-2"]="compact-importance"
+    ["sage-dx-3"]="sage-agent"
+)
+
+# Check if tmux session is alive and responsive
+check_session_health() {
+    local session="$1"
+
+    if ! tmux has-session -t "$session" 2>/dev/null; then
+        echo "dead"
+        return
+    fi
+
+    # Check if there's recent activity (pane has output in last 60s)
+    local last_activity
+    last_activity=$(tmux display-message -t "$session" -p '#{window_activity}' 2>/dev/null || echo "0")
+    local now
+    now=$(date +%s)
+    local diff=$((now - last_activity))
+
+    if [[ $diff -lt 60 ]]; then
+        echo "active"
+    elif [[ $diff -lt 300 ]]; then
+        echo "idle"
+    else
+        echo "stale"
+    fi
+}
+
+# Get recent commits in worktree
+get_worktree_commits() {
+    local worktree="$1"
+    local path="${WORKTREE_BASE}/${worktree}"
+
+    if [[ ! -d "$path" ]]; then
+        echo "0"
+        return
+    fi
+
+    # Count commits in last hour on this branch
+    git -C "$path" log --oneline --since="1 hour ago" 2>/dev/null | wc -l | tr -d ' '
+}
+
+# Get modified files in worktree
+get_worktree_changes() {
+    local worktree="$1"
+    local path="${WORKTREE_BASE}/${worktree}"
+
+    if [[ ! -d "$path" ]]; then
+        echo "0"
+        return
+    fi
+
+    git -C "$path" status --porcelain 2>/dev/null | wc -l | tr -d ' '
+}
+
+# Get beads related to worktree
+get_related_beads() {
+    local pattern="$1"
+    "$BD" list --status open 2>/dev/null | grep -ci "$pattern" || echo "0"
+}
+
+# Print status line with color
+status_line() {
+    local label="$1"
+    local value="$2"
+    local status="$3"  # good, warn, bad
+
+    local color
+    case "$status" in
+        good) color="$GREEN" ;;
+        warn) color="$YELLOW" ;;
+        bad)  color="$RED" ;;
+        *)    color="$NC" ;;
+    esac
+
+    printf "  %-25s ${color}%s${NC}\n" "$label:" "$value"
+}
+
+# Single check of all agents
+cmd_once() {
+    echo "=== DX Swarm Monitor ==="
+    echo "Time: $(date '+%Y-%m-%d %H:%M:%S')"
+    echo ""
+
+    # Overall stats
+    local total_commits=0
+    local total_changes=0
+    local active_sessions=0
+
+    echo "Sessions:"
+    for session in "${!SESSIONS[@]}"; do
+        local worktree="${SESSIONS[$session]}"
+        local health
+        health=$(check_session_health "$session")
+
+        local health_status="bad"
+        [[ "$health" == "active" ]] && health_status="good"
+        [[ "$health" == "idle" ]] && health_status="warn"
+
+        [[ "$health" == "active" || "$health" == "idle" ]] && ((active_sessions++))
+
+        status_line "$session ($worktree)" "$health" "$health_status"
+    done
+
+    echo ""
+    echo "Worktrees:"
+    for worktree in "${!WORKTREES[@]}"; do
+        local commits
+        commits=$(get_worktree_commits "$worktree")
+        local changes
+        changes=$(get_worktree_changes "$worktree")
+
+        total_commits=$((total_commits + commits))
+        total_changes=$((total_changes + changes))
+
+        local progress_status="info"
+        [[ $commits -gt 0 ]] && progress_status="good"
+        [[ $changes -gt 5 ]] && progress_status="warn"
+
+        status_line "$worktree" "${commits} commits, ${changes} uncommitted" "$progress_status"
+    done
+
+    echo ""
+    echo "Beads (gemini-repl-010):"
+    local dx_beads
+    dx_beads=$(get_related_beads "DX:")
+    local review_beads
+    review_beads=$(get_related_beads "Review:")
+    local total_open
+    total_open=$("$BD" list --status open 2>/dev/null | wc -l | tr -d ' ')
+
+    status_line "DX tasks" "$dx_beads open" "info"
+    status_line "Review tasks" "$review_beads open" "info"
+    status_line "Total open" "$total_open" "info"
+
+    echo ""
+    echo "Summary:"
+    status_line "Active sessions" "$active_sessions/3" \
+        "$([[ $active_sessions -ge 2 ]] && echo "good" || echo "warn")"
+    status_line "Commits (1h)" "$total_commits" \
+        "$([[ $total_commits -gt 0 ]] && echo "good" || echo "warn")"
+    status_line "Uncommitted" "$total_changes" \
+        "$([[ $total_changes -lt 10 ]] && echo "good" || echo "warn")"
+}
+
+# Watch mode - continuous monitoring
+cmd_watch() {
+    local interval="${1:-30}"
+
+    echo "Watching DX swarm (refresh: ${interval}s, Ctrl+C to stop)"
+    echo ""
+
+    while true; do
+        clear
+        cmd_once
+        echo ""
+        echo -e "${BLUE}[Refreshing in ${interval}s... Press Ctrl+C to stop]${NC}"
+        sleep "$interval"
+    done
+}
+
+# Generate markdown report
+cmd_report() {
+    local report_file="${REPO_ROOT}/experiments/notes/dx-swarm-$(date '+%Y%m%d-%H%M').md"
+    mkdir -p "$(dirname "$report_file")"
+
+    {
+        echo "# DX Swarm Progress Report"
+        echo ""
+        echo "Generated: $(date '+%Y-%m-%d %H:%M:%S')"
+        echo ""
+
+        echo "## Sessions"
+        echo ""
+        echo "| Session | Worktree | Status |"
+        echo "|---------|----------|--------|"
+        for session in "${!SESSIONS[@]}"; do
+            local worktree="${SESSIONS[$session]}"
+            local health
+            health=$(check_session_health "$session")
+            echo "| $session | $worktree | $health |"
+        done
+
+        echo ""
+        echo "## Commits (Last Hour)"
+        echo ""
+        for worktree in "${!WORKTREES[@]}"; do
+            local path="${WORKTREE_BASE}/${worktree}"
+            if [[ -d "$path" ]]; then
+                local commits
+                commits=$(git -C "$path" log --oneline --since="1 hour ago" 2>/dev/null || true)
+                if [[ -n "$commits" ]]; then
+                    echo "### $worktree"
+                    echo '```'
+                    echo "$commits"
+                    echo '```'
+                    echo ""
+                fi
+            fi
+        done
+
+        echo "## Open Beads"
+        echo ""
+        echo '```'
+        "$BD" list --status open --limit 20 2>/dev/null || echo "(no beads)"
+        echo '```'
+
+    } > "$report_file"
+
+    echo "Report saved: $report_file"
+}
+
+# Nudge stale sessions
+cmd_nudge() {
+    echo "Checking for stale sessions..."
+
+    for session in "${!SESSIONS[@]}"; do
+        local health
+        health=$(check_session_health "$session")
+
+        if [[ "$health" == "stale" || "$health" == "dead" ]]; then
+            echo "Session $session is $health"
+
+            if [[ "$health" == "dead" ]]; then
+                echo "  -> Restarting session..."
+                "${REPO_ROOT}/bin/dx-swarm" start
+            else
+                echo "  -> Sending nudge..."
+                tmux send-keys -t "$session" \
+                    "# Nudge: Are you blocked? Run 'bd ready' for tasks or create blocker bead" Enter
+            fi
+        fi
+    done
+
+    echo "Done."
+}
+
+cmd_help() {
+    cat <<EOF
+dx-monitor - Monitor DX swarm progress
+
+Usage: $0 <command> [args]
+
+Commands:
+  once            Single status check (default)
+  watch [secs]    Continuous monitoring (default: 30s refresh)
+  report          Generate markdown progress report
+  nudge           Check and nudge stale sessions
+  help            Show this help
+
+Examples:
+  $0              # Quick status check
+  $0 watch 60     # Watch with 60s refresh
+  $0 report       # Save progress report
+  $0 nudge        # Restart dead sessions
+EOF
+}
+
+# Main dispatch
+case "${1:-once}" in
+    once)   cmd_once ;;
+    watch)  cmd_watch "${2:-30}" ;;
+    report) cmd_report ;;
+    nudge)  cmd_nudge ;;
+    help|--help|-h) cmd_help ;;
+    *)
+        echo "Unknown command: $1"
+        cmd_help
+        exit 1
+        ;;
+esac
