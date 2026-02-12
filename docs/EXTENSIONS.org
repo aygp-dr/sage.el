@@ -1,0 +1,291 @@
+#+TITLE: Sage Extension Development Guide
+#+AUTHOR: Jason Walsh
+#+DATE: 2026-02-12
+#+OPTIONS: toc:2 num:t
+
+* Overview
+
+Sage extensions integrate deeply with sage.el, similar to how MELPA
+packages extend Emacs core. Unlike npm/pip library imports, sage
+extensions modify global state, register tools, add keybindings,
+and participate in the conversation lifecycle.
+
+This document explains how to create sage extensions.
+
+* Extension Architecture
+
+#+begin_src
+┌─────────────────────────────────────────────────────────────┐
+│                       sage.el (core)                        │
+│  - Conversation management                                  │
+│  - Provider abstraction                                     │
+│  - Tool execution                                           │
+│  - REPL interface                                           │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                    ┌─────────┴─────────┐
+                    │    sage-ext.el    │
+                    │  - Hook variables │
+                    │  - Registries     │
+                    │  - Filter chains  │
+                    └─────────┬─────────┘
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        │                     │                     │
+   sage-ttd.el           sage-foo.el           sage-bar.el
+   (time travel)         (your ext)            (another ext)
+#+end_src
+
+* Extension Points
+
+** Hooks
+
+Standard Emacs hook variables for lifecycle events:
+
+| Hook                        | When it runs                        | Arguments         |
+|-----------------------------+-------------------------------------+-------------------|
+| ~sage-mode-hook~            | When REPL buffer created            | none              |
+| ~sage-before-request-hook~  | Before API call to LLM              | none              |
+| ~sage-after-response-hook~  | After response received             | response content  |
+| ~sage-tool-call-hook~       | Around tool execution               | tool, args, phase |
+| ~sage-message-added-hook~   | When message added to conversation  | message alist     |
+| ~sage-session-start-hook~   | When new session starts             | none              |
+| ~sage-session-end-hook~     | When session ends                   | none              |
+
+Example:
+#+begin_src elisp
+(add-hook 'sage-before-request-hook #'my-ext--before-request)
+
+(defun my-ext--before-request ()
+  "Called before each LLM request."
+  (message "Sending request..."))
+#+end_src
+
+** Registries
+
+Alist-based registries (similar to ~auto-mode-alist~):
+
+*** Slash Commands
+
+#+begin_src elisp
+(sage-register-slash-command "mycommand" #'my-ext--cmd-handler)
+
+(defun my-ext--cmd-handler (args)
+  "Handle /mycommand ARGS."
+  (message "Got args: %s" args))
+#+end_src
+
+*** Tools
+
+#+begin_src elisp
+(sage-register-tool
+ "my_tool"
+ "Description of what this tool does"
+ '((type . "object")
+   (properties . ((param1 . ((type . "string")
+                             (description . "First parameter")))))
+   (required . ["param1"]))
+ #'my-ext--tool-handler)
+
+(defun my-ext--tool-handler (args)
+  "Execute my_tool with ARGS."
+  (let ((param1 (alist-get 'param1 args)))
+    (format "Result for %s" param1)))
+#+end_src
+
+*** Providers (for new LLM backends)
+
+#+begin_src elisp
+(sage-register-provider
+ 'my-llm
+ :format-fn #'my-ext--format-request
+ :parse-fn #'my-ext--parse-response
+ :endpoint-fn (lambda () "https://api.example.com/v1/chat"))
+#+end_src
+
+** Filter Functions
+
+Transform data at boundaries (like ~kill-buffer-query-functions~):
+
+#+begin_src elisp
+;; Transform outgoing messages
+(add-to-list 'sage-message-filter-functions #'my-ext--filter-message)
+
+(defun my-ext--filter-message (message)
+  "Transform MESSAGE before sending to LLM."
+  ;; Add metadata, redact secrets, etc.
+  message)
+
+;; Transform incoming responses
+(add-to-list 'sage-response-filter-functions #'my-ext--filter-response)
+
+(defun my-ext--filter-response (response)
+  "Transform RESPONSE before displaying."
+  response)
+#+end_src
+
+* Creating an Extension
+
+** Minimal Template
+
+#+begin_src elisp
+;;; sage-my-ext.el --- My sage extension -*- lexical-binding: t; -*-
+
+;; Package-Requires: ((emacs "28.1") (sage "0.1.0"))
+
+(require 'sage-ext)
+
+;;; Code:
+
+(defun sage-my-ext-init ()
+  "Initialize extension.")
+
+(defun sage-my-ext-enable ()
+  "Enable extension."
+  (sage-register-slash-command "mycommand" #'my-handler))
+
+(defun sage-my-ext-disable ()
+  "Disable extension."
+  (sage-unregister-slash-command "mycommand"))
+
+(sage-register-extension
+ 'my-ext
+ :version "0.1.0"
+ :description "My sage extension"
+ :requires '(sage-ext)
+ :init #'sage-my-ext-init
+ :enable #'sage-my-ext-enable
+ :disable #'sage-my-ext-disable)
+
+(provide 'sage-my-ext)
+;;; sage-my-ext.el ends here
+#+end_src
+
+** Lifecycle
+
+1. *Registration*: ~(require 'sage-my-ext)~ loads and registers
+2. *Init*: ~:init~ function called immediately (setup state)
+3. *Enable*: ~:enable~ function called (register tools/commands/hooks)
+4. *Disable*: ~:disable~ function called (cleanup)
+
+** Keybindings
+
+Use ~with-eval-after-load~ to safely add keybindings:
+
+#+begin_src elisp
+(with-eval-after-load 'sage
+  (define-key sage-mode-map (kbd "C-c x") #'my-ext-command))
+#+end_src
+
+* Example: sage-ttd
+
+The ~sage-ttd.el~ (time-travel debugging) extension demonstrates all patterns:
+
+** Tools Registered
+- ~ttd_checkpoint~ - Create conversation checkpoint
+- ~ttd_restore~ - Restore to checkpoint
+- ~ttd_list_checkpoints~ - List available checkpoints
+- ~ttd_branch~ - Create/switch branches
+- ~ttd_timeline~ - Show conversation history
+
+** Slash Commands
+- ~/checkpoint [name]~ - Create checkpoint
+- ~/restore <name>~ - Restore to checkpoint
+- ~/timeline~ - View timeline
+- ~/branch <name>~ - Create/switch branch
+
+** Hooks Used
+- ~sage-before-request-hook~ - Auto-checkpoint
+- ~sage-tool-call-hook~ - Record tool calls for replay
+- ~sage-message-added-hook~ - Track message count
+
+** Keybindings
+- ~C-c t c~ - ~sage-ttd-checkpoint~
+- ~C-c t r~ - ~sage-ttd-restore~
+- ~C-c t t~ - ~sage-ttd-timeline~
+- ~C-c t b~ - ~sage-ttd-branch~
+
+* Extension Ideas
+
+| Extension          | Purpose                                           |
+|--------------------+---------------------------------------------------|
+| sage-sdlc          | SDLC workflows: requirements, design, test, review |
+| sage-elenctic      | Socratic code review integration                  |
+| sage-biz-rules     | Business rule encoding and validation             |
+| sage-meta-prompt   | Meta-prompting for prompt improvement             |
+| sage-agentic-debug | Multi-step debugging workflows                    |
+| sage-org-capture   | Deep org-mode capture integration                 |
+| sage-project-mgmt  | Project management tool integration               |
+
+* API Reference
+
+** sage-register-extension
+
+#+begin_src elisp
+(sage-register-extension NAME &key VERSION DESCRIPTION REQUIRES INIT ENABLE DISABLE)
+#+end_src
+
+Register extension NAME with metadata and lifecycle functions.
+
+** sage-register-slash-command
+
+#+begin_src elisp
+(sage-register-slash-command COMMAND FUNCTION &optional REPLACE)
+#+end_src
+
+Register COMMAND to call FUNCTION. COMMAND is without leading slash.
+
+** sage-register-tool
+
+#+begin_src elisp
+(sage-register-tool NAME DESCRIPTION PARAMETERS EXECUTE-FN)
+#+end_src
+
+Register a tool callable by the LLM. PARAMETERS is a JSON schema.
+
+** sage-register-provider
+
+#+begin_src elisp
+(sage-register-provider NAME &key FORMAT-FN PARSE-FN ENDPOINT-FN AUTH-FN)
+#+end_src
+
+Register a new LLM provider.
+
+** sage-ext-enable / sage-ext-disable
+
+#+begin_src elisp
+(sage-ext-enable NAME)
+(sage-ext-disable NAME)
+#+end_src
+
+Enable or disable an extension programmatically.
+
+** sage-ext-list-extensions
+
+#+begin_src elisp
+M-x sage-ext-list-extensions
+#+end_src
+
+Display buffer listing all registered extensions.
+
+* Best Practices
+
+1. *Prefix all symbols* with ~sage-myext-~ (public) or ~sage-myext--~ (private)
+2. *Use defcustom* for user configuration, not defvar
+3. *Clean up in disable* - remove hooks, unregister commands
+4. *Document keybindings* in commentary
+5. *Declare dependencies* in Package-Requires and ~:requires~
+6. *Avoid loading sage.el* at top level - use ~with-eval-after-load~
+7. *Write tests* using ERT
+
+* Comparison to Other Systems
+
+| Concept                  | Emacs                | sage-ext.el            |
+|--------------------------+----------------------+------------------------|
+| Lifecycle hooks          | ~after-init-hook~    | ~sage-mode-hook~       |
+| Mode-specific hooks      | ~prog-mode-hook~     | ~sage-before-request-hook~ |
+| Registry pattern         | ~auto-mode-alist~    | ~sage-slash-commands~  |
+| Minor mode registration  | ~define-minor-mode~  | ~sage-register-extension~ |
+| Advice system            | ~advice-add~         | Filter functions       |
+| Keymap extension         | ~define-key~         | ~define-key~ (same)    |
+| Package metadata         | ~package.el~         | ~:version~, ~:requires~ |
