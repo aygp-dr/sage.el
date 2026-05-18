@@ -112,8 +112,8 @@ start_session() {
     local prompt_file="${worktree_path}/AGENT-PROMPT.md"
     echo "$prompt" > "$prompt_file"
 
-    # Start claude in the session
-    tmux send-keys -t "$session" "cd '$worktree_path' && claude --resume" Enter
+    # Start claude in the session with the prompt
+    tmux send-keys -t "$session" "cd '$worktree_path' && claude -p 'Read AGENT-PROMPT.md and follow the instructions. Your task: $desc'" Enter
 
     log "Session $session started in $worktree_path"
 }
